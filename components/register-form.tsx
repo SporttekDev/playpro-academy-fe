@@ -16,6 +16,7 @@ export function RegisterForm({
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [passwordConfirmation, setPasswordConfirmation] = useState("");
     const [phone, setPhone] = useState("");
     const [address, setAddress] = useState("");
 
@@ -36,6 +37,7 @@ export function RegisterForm({
                     name: name.trim(),
                     email: email.trim(),
                     password: password,
+                    password_confirmation: passwordConfirmation,
                     role: "parent", // Default role
                     phone: phone.trim(),
                     address: address.trim()
@@ -117,6 +119,19 @@ export function RegisterForm({
                                 disabled={isLoading}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-3">
+                            <Label htmlFor="password_confirmation">Confirm Password</Label>
+                            <Input
+                                id="password_confirmation"
+                                name="password_confirmation"
+                                type="password"
+                                placeholder="********"
+                                required
+                                disabled={isLoading}
+                                value={passwordConfirmation}
+                                onChange={(e) => setPasswordConfirmation(e.target.value)}
                             />
                         </div>
                         <div className="grid gap-3">
