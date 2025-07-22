@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
-import { Dongle } from "next/font/google";
+// import { Dongle } from "next/font/google";
 import "./globals.css";
-
-const dongle = Dongle({
-  weight: "400",
-  subsets: ["latin"],
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: "Playpro Academy",
