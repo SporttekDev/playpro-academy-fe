@@ -7,31 +7,61 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
-import { FormEvent } from "react"
+import { FormEvent, useState } from "react"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsLoading(true);
+
     const formData = new FormData(event.currentTarget);
-    console.log("Form Data : ", formData);
-    // const response = await fetch(`${process.env.BACKEND_API}/login`);
-    // const res = await signIn("credentials", {
-    //     username: formData.get("email"),
-    //     password: formData.get("password"),
-    //     redirect: false,
-    // });
-    // if (res?.error) {
-    //     setError(res.error as string);
-    // }
-    // if (res?.ok) {
-    //     return router.push("/dashboard");
-    // }
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    console.log("Attempting login with:", { email });
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          password: password 
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Response:", data);
+
+      if (!response.ok) {
+        alert(data.message || "Login failed");
+        return;
+      }
+
+      console.log("Login Success", data);
+
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      alert("Login berhasil!");
+
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Terjadi kesalahan saat login. Pastikan server backend berjalan.");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={handleLogin}>
@@ -59,22 +89,26 @@ export function LoginForm({
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email" 
                 type="email"
                 placeholder="m@example.com"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="email">Password</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 placeholder="********"
                 required
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </div>
           <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
