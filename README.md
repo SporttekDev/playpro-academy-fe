@@ -29,7 +29,7 @@ bun dev
 Finally, setup environment variables with these example:
 
 ```bash
-API_URL=http://127.0.0.1:8000/api
+API_URL=http://127.0.0.1:8000
 BACKEND=http://127.0.0.1:8000
 ```
 

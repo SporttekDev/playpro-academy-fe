@@ -22,40 +22,36 @@ export function LoginForm({
     event.preventDefault();
     setIsLoading(true);
 
-    console.log("Attempting login with:", { email });
-
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: "POST",
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sanctum/csrf-cookie`, {
+        credentials: 'include'
+      });
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           email: email.trim(),
-          password: password
+          password: password,
         }),
       });
 
       const data = await response.json();
-      console.log("Response:", data);
 
       if (!response.ok) {
         alert(data.message || "Login failed");
         return;
       }
 
-      console.log("Login Success", data);
-
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
       alert("Login berhasil!");
       router.push("/");
-
     } catch (error) {
       console.error("Login error:", error);
-      alert("Terjadi kesalahan saat login. Pastikan server backend berjalan.");
+      alert("Terjadi kesalahan saat login.");
     } finally {
       setIsLoading(false);
     }
