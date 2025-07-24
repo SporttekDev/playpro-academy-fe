@@ -24,45 +24,41 @@ export function RegisterForm({
         event.preventDefault();
         setIsLoading(true);
 
-        console.log("Attempting registration with:", { name, email, password, role: "parent", phone, address });
-
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Accept": "application/json",
+                    Accept: "application/json",
                 },
                 body: JSON.stringify({
-                    name: name.trim(),
-                    email: email.trim(),
-                    password: password,
+                    name,
+                    email,
+                    password,
                     password_confirmation: passwordConfirmation,
-                    role: "parent", // Default role
-                    phone: phone.trim(),
-                    address: address.trim()
+                    phone: phone || null,
+                    address: address || null,
                 }),
             });
 
-            const data = await response.json();
-            console.log("Response:", data);
+            const json = await res.json();
 
-            if (!response.ok) {
-                alert(data.message || "Registration failed");
+            if (!res.ok) {
+                if (json.errors) {
+                    const errorMessages = Object.values(json.errors).flat().join('\n');
+                    alert(errorMessages);
+                } else {
+                    alert(json.message || "Registrasi gagal.");
+                }
                 return;
             }
 
-            console.log("Registration Success", data);
-
-            localStorage.setItem("token", data.access_token);
-            localStorage.setItem("user", JSON.stringify(data.user));
-
-            alert("Registration berhasil!");
+            alert("Registrasi berhasil!");
             router.push("/login");
 
-        } catch (error) {
-            console.error("Registration error:", error);
-            alert("Terjadi kesalahan saat registrasi. Pastikan server backend berjalan.");
+        } catch (err: any) {
+            console.error("Registration error:", err);
+            alert("Terjadi kesalahan saat registrasi.");
         } finally {
             setIsLoading(false);
         }

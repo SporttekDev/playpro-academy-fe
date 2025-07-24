@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 import Link from 'next/link'
-
+import Cookies from 'js-cookie'
 
 export function LoginForm({
   className,
@@ -22,40 +22,37 @@ export function LoginForm({
     event.preventDefault();
     setIsLoading(true);
 
-    console.log("Attempting login with:", { email });
-
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
         },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-      console.log("Response:", data);
+      const json = await res.json();
 
-      if (!response.ok) {
-        alert(data.message || "Login failed");
-        return;
+      if (!res.ok) {
+        throw new Error(json.message || "Login gagal");
       }
 
-      console.log("Login Success", data);
+      const token = json.access_token as string;
+      console.log("Token received from backend:", token);
 
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      Cookies.set("token", token, {
+        expires: 1, // 1 hari
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "Strict",
+      });
 
       alert("Login berhasil!");
-      router.push("/");
+      router.push("/dashboard"); 
 
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Terjadi kesalahan saat login. Pastikan server backend berjalan.");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Terjadi kesalahan saat login.");
     } finally {
       setIsLoading(false);
     }
