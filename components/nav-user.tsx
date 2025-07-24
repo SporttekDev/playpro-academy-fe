@@ -7,6 +7,7 @@ import {
   IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react"
+import Cookies from 'js-cookie'
 
 import {
   Avatar,
@@ -44,21 +45,32 @@ export function NavUser({
 
   const handleLogout = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/logout`, {
-        method: "POST"
+      const token = Cookies.get('token');
+      console.log("Token:", token);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`, 
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Logout failed");
+      Cookies.remove("token");
+
+      if (!res.ok) {
+        console.warn("Logout failed!");
       }
 
       router.push("/login");
 
     } catch (err) {
-  console.error("Error : ", err);      
+      console.error("Logout error:", err);
+      Cookies.remove("token");
+      router.push("/login");
     }
-  }
+  };
 
   return (
     <SidebarMenu>

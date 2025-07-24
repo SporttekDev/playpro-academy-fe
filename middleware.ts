@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
     console.log("Middleware dijalankan!");
 
-    const token = request.cookies.get("playpro_academy_session");
+    const token = request.cookies.get("token");
     const url = new URL(request.url);
 
     console.log("token : ", token);

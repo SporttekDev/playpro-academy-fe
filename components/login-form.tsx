@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 import Link from 'next/link'
-
+import Cookies from 'js-cookie'
 
 export function LoginForm({
   className,
@@ -23,35 +23,36 @@ export function LoginForm({
     setIsLoading(true);
 
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sanctum/csrf-cookie`, {
-        credentials: 'include'
-      });
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-        method: 'POST',
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const json = await res.json();
 
-      if (!response.ok) {
-        alert(data.message || "Login failed");
-        return;
+      if (!res.ok) {
+        throw new Error(json.message || "Login gagal");
       }
 
+      const token = json.access_token as string;
+      console.log("Token received from backend:", token);
+
+      Cookies.set("token", token, {
+        expires: 1, // 1 hari
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "Strict",
+      });
+
       alert("Login berhasil!");
-      router.push("/");
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Terjadi kesalahan saat login.");
+      router.push("/dashboard"); 
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Terjadi kesalahan saat login.");
     } finally {
       setIsLoading(false);
     }
