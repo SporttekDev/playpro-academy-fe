@@ -22,10 +22,10 @@ import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 
 interface Product {
-    id: number
-    name: string
-    session_count: number
-    is_membership: boolean
+    id: number;
+    name: string;
+    session_count: number;
+    is_membership: boolean;
 }
 
 interface ProductForm {
@@ -68,16 +68,16 @@ export default function ProductsPage() {
             if (!response.ok) {
                 const error = await response.text();
                 console.error("Server returned error response:", error);
-                throw new Error("Gagal ambil produk dari server");
+                throw new Error("Failed to fetch products from server");
             }
 
-            const data = await response.json();
-            console.log("Data produk:", data);
+            const { data } = await response.json();
+            console.log("Product data:", data);
 
-            setProducts(data.data);
+            setProducts(data);
         } catch (error) {
             console.error("Fetch products failed:", error);
-            toast.error("Gagal mengambil data produk");
+            toast.error("Failed to fetch product data");
         }
     }, []);
 
@@ -96,11 +96,11 @@ export default function ProductsPage() {
     const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!formData.name.trim()) {
-            toast.error("Nama produk wajib diisi");
+            toast.error("Product name is required");
             return;
         }
         if (formData.session_count < 0) {
-            toast.error("Jumlah sesi tidak boleh negatif");
+            toast.error("Session count cannot be negative");
             return;
         }
 
@@ -125,7 +125,7 @@ export default function ProductsPage() {
 
             if (!res.ok) {
                 const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || "Gagal menyimpan produk";
+                const errorMessage = errorResponse?.message || "Failed to save product";
                 throw new Error(errorMessage);
             }
 
@@ -133,9 +133,9 @@ export default function ProductsPage() {
             setIsDialogOpen(false);
             setIsEditing(false);
             setFormData(defaultForm);
-            toast.success(isEditing ? "Produk berhasil diubah!" : "Produk berhasil dibuat!");
+            toast.success(isEditing ? "Product updated successfully!" : "Product created successfully!");
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+            const message = error instanceof Error ? error.message : "An error occurred";
             console.error("Save product error:", error);
             toast.error(message);
         } finally {
@@ -148,7 +148,7 @@ export default function ProductsPage() {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/product/${deleteId}`, 
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/product/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -159,14 +159,14 @@ export default function ProductsPage() {
             );
 
             if (!res.ok) {
-                throw new Error("Gagal menghapus produk");
+                throw new Error("Failed to delete product");
             }
 
-            toast.success("Produk berhasil dihapus!");
+            toast.success("Product deleted successfully!");
             fetchProducts();
         } catch (error) {
             console.error("Delete error:", error);
-            toast.error("Gagal menghapus produk");
+            toast.error("Failed to delete product");
         } finally {
             setIsDeleteDialogOpen(false);
         }
@@ -250,7 +250,7 @@ export default function ProductsPage() {
                 setIsDialogOpen(true);
             }} tooltip="Add Product" />
 
-            {/* Dialog untuk Create/Edit */}
+            {/* Dialog for Create/Edit */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
@@ -259,12 +259,12 @@ export default function ProductsPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {isEditing
-                                ? 'Ubah data produk sesuai kebutuhan.'
-                                : 'Isi form berikut untuk menambahkan produk baru.'}
+                                ? 'Edit product details as needed.'
+                                : 'Fill in the form below to add a new product.'}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveProduct}>
-                        
+
                         <div className="grid gap-4">
                             {/* Name */}
                             <div className="space-y-1">
