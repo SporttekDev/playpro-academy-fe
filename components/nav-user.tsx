@@ -58,6 +58,7 @@ export function NavUser({
       });
 
       Cookies.remove("token");
+      Cookies.remove("session_key");
 
       if (!res.ok) {
         console.warn("Logout failed!");
@@ -115,7 +116,7 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
+            {/* <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconUserCircle />
                 Account
@@ -129,7 +130,7 @@ export function NavUser({
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator /> */}
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <IconLogout />
               Log out

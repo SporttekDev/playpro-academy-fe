@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-    console.log("Middleware dijalankan!");
+    // console.log("Middleware dijalankan!");
 
     const token = request.cookies.get("token");
     const url = new URL(request.url);
 
-    console.log("token : ", token);
+    // console.log("token : ", token);
 
     if (url.pathname === "/") {
         if (token) {

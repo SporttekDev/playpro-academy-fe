@@ -39,6 +39,8 @@ export function LoginForm({
       }
 
       const token = json.access_token as string;
+      const userData = JSON.stringify(json.user);
+
       console.log("Token received from backend:", token);
 
       Cookies.set("token", token, {
@@ -47,12 +49,18 @@ export function LoginForm({
         sameSite: "Strict",
       });
 
-      alert("Login berhasil!");
-      router.push("/dashboard"); 
+      Cookies.set("session_key", userData, {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "Strict",
+      });
 
-    } catch (err: any) {
+      alert("Login berhasil!");
+      router.push("/dashboard");
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unknown error occurred";
       console.error(err);
-      alert(err.message || "Terjadi kesalahan saat login.");
+      alert(message || "Terjadi kesalahan saat login.");
     } finally {
       setIsLoading(false);
     }
