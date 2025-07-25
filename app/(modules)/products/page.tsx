@@ -54,36 +54,33 @@ export default function ProductsPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     const fetchProducts = useCallback(async () => {
-        const token = Cookies.get("token");
-        console.log("Token di cookie:", token);
-
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/product`, {
-                method: "GET",
+            const token = Cookies.get("token");
+            console.log("token:", token);
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/product`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
-                    "Content-Type": "application/json",
                 },
             });
 
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-            const { success, data, message } = (await res.json()) as {
-                success: boolean;
-                message: string;
-                data: Product[];
-            };
-
-            if (success) {
-                setProducts(data);
-            } else {
-                throw new Error(message);
+            if (!response.ok) {
+                const error = await response.text();
+                console.error("Server returned error response:", error);
+                throw new Error("Gagal ambil produk dari server");
             }
+
+            const data = await response.json();
+            console.log("Data produk:", data);
+
+            setProducts(data.data);
         } catch (error) {
             console.error("Fetch products failed:", error);
+            toast.error("Gagal mengambil data produk");
         }
     }, []);
+
 
     useEffect(() => {
         fetchProducts();
@@ -98,17 +95,22 @@ export default function ProductsPage() {
 
     const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!formData.name.trim() || formData.session_count < 0) {
-            toast.error("Mohon lengkapi form dengan benar");
+        if (!formData.name.trim()) {
+            toast.error("Nama produk wajib diisi");
             return;
         }
+        if (formData.session_count < 0) {
+            toast.error("Jumlah sesi tidak boleh negatif");
+            return;
+        }
+
         try {
             setIsLoading(true);
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/products/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/products`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/product/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/product`;
             const token = Cookies.get("token");
 
             const res = await fetch(url, {
@@ -123,7 +125,7 @@ export default function ProductsPage() {
 
             if (!res.ok) {
                 const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || "Failed to save product";
+                const errorMessage = errorResponse?.message || "Gagal menyimpan produk";
                 throw new Error(errorMessage);
             }
 
@@ -131,13 +133,11 @@ export default function ProductsPage() {
             setIsDialogOpen(false);
             setIsEditing(false);
             setFormData(defaultForm);
-            toast.success(isEditing ? "Product updated!" : "Product created!");
+            toast.success(isEditing ? "Produk berhasil diubah!" : "Produk berhasil dibuat!");
         } catch (error) {
-            const message =
-                error instanceof Error ? error.message : "An unknown error occurred";
+            const message = error instanceof Error ? error.message : "Terjadi kesalahan";
             console.error("Save product error:", error);
-            toast.error(message || "Something went wrong while saving");
-            throw error;
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }
@@ -146,10 +146,9 @@ export default function ProductsPage() {
     async function handleDeleteProduct() {
         try {
             const token = Cookies.get("token");
-            console.log("DELETE ID :", deleteId);
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/products/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/product/${deleteId}`, 
                 {
                     method: "DELETE",
                     headers: {
@@ -160,14 +159,14 @@ export default function ProductsPage() {
             );
 
             if (!res.ok) {
-                throw new Error("Failed to delete");
+                throw new Error("Gagal menghapus produk");
             }
 
-            toast.success("Product deleted!");
+            toast.success("Produk berhasil dihapus!");
             fetchProducts();
         } catch (error) {
             console.error("Delete error:", error);
-            toast.error("Failed to delete");
+            toast.error("Gagal menghapus produk");
         } finally {
             setIsDeleteDialogOpen(false);
         }
@@ -188,14 +187,14 @@ export default function ProductsPage() {
         }));
     };
 
-
     const columns: ColumnDef<Product>[] = [
         { accessorKey: 'name', header: 'Name' },
+        { accessorKey: 'session_count', header: 'Session Count' },
         {
-            accessorKey: 'session_count',
-            header: 'Session Count',
+            accessorKey: 'is_membership',
+            header: 'Membership',
+            cell: ({ row }) => row.original.is_membership ? "Yes" : "No"
         },
-        { accessorKey: 'is_membership', header: 'Membership' },
         {
             id: 'actions',
             header: 'Actions',
@@ -265,7 +264,7 @@ export default function ProductsPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveProduct}>
-
+                        
                         <div className="grid gap-4">
                             {/* Name */}
                             <div className="space-y-1">
