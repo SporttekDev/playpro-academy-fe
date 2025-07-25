@@ -19,7 +19,8 @@ export default function DashboardLayout({
         if (pathname.startsWith("/categories")) return "Categories";
         if (pathname.startsWith("/sports")) return "Sports";
         if (pathname.startsWith("/products")) return "Products";
-        if (pathname.startsWith("/branches")) return "Products";
+        if (pathname.startsWith("/branches")) return "Branches";
+        if (pathname.startsWith("/users")) return "Users";
         return "Page";
     }, [pathname]);
 

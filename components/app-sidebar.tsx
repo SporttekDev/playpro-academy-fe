@@ -136,6 +136,11 @@ const data = {
       url: "/branches",
       icon: IconMapPin,
     },
+    {
+      name: "Users",
+      url: "/users",
+      icon: IconUsers,
+    },
   ],
 }
 
