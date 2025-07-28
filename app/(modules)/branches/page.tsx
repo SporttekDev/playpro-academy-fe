@@ -57,7 +57,7 @@ export default function BranchesPage() {
             const token = Cookies.get("token");
             console.log("token:", token);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/branch`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
@@ -103,8 +103,8 @@ export default function BranchesPage() {
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/api/branch/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/api/branch`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/branch/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/branch`;
             const token = Cookies.get("token");
 
             const res = await fetch(url, {
@@ -142,7 +142,7 @@ export default function BranchesPage() {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/branch/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/branch/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {
