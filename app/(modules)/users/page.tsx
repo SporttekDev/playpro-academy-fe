@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface User {
     id: number;
@@ -275,12 +276,19 @@ export default function UsersPage() {
 
                             <div className="space-y-1">
                                 <Label>Role</Label>
-                                <Input
-                                    name="role"
-                                    value={formData.role || ''}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                <Select
+                                    value={formData.role}
+                                    onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="parent">Parent</SelectItem>
+                                        <SelectItem value="coaches">Coach</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-1">
