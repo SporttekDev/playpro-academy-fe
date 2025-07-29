@@ -54,7 +54,7 @@ export default function CategoriesPage() {
             const token = Cookies.get("token");
             console.log("token:", token);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/category`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/category`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
@@ -100,8 +100,8 @@ export default function CategoriesPage() {
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/api/category/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/api/category`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/category/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/category`;
             const token = Cookies.get("token");
 
             const res = await fetch(url, {
@@ -139,7 +139,7 @@ export default function CategoriesPage() {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/category/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/category/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {

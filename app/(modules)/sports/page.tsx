@@ -54,7 +54,7 @@ export default function SportsPage() {
             const token = Cookies.get("token");
             console.log("token:", token);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sport`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/sport`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
@@ -100,8 +100,8 @@ export default function SportsPage() {
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/api/sport/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/api/sport`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/sport/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/sport`;
             const token = Cookies.get("token");
 
             const res = await fetch(url, {
@@ -139,7 +139,7 @@ export default function SportsPage() {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/sport/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/sport/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {
