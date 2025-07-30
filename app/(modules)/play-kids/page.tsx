@@ -20,10 +20,11 @@ import { DatePicker } from '@/components/date-picker'; // Pastikan Anda memiliki
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PlayKid {
     id: number;
-    parent_id: number;
+    parent_id: string;
     name: string;
     nick_name: string;
     birth_date: string;
@@ -34,7 +35,7 @@ interface PlayKid {
 }
 
 interface PlayKidForm {
-    parent_id: number;
+    parent_id: string;
     name: string;
     nick_name: string;
     birth_date: string;
@@ -44,8 +45,14 @@ interface PlayKidForm {
     school_origin: string;
 }
 
+interface Parent {
+    id: string;
+    name: string;
+    role: string;
+}
+
 const defaultForm: PlayKidForm = {
-    parent_id: 0,
+    parent_id: '',
     name: "",
     nick_name: "",
     birth_date: "",
@@ -63,6 +70,8 @@ export default function PlayKidsPage() {
     const [playKids, setPlayKids] = useState<PlayKid[]>([]);
     const [formData, setFormData] = useState<PlayKidForm>(defaultForm);
 
+    const [parents, setParents] = useState<Parent[]>([]);
+
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -73,7 +82,7 @@ export default function PlayKidsPage() {
             const token = Cookies.get("token");
             console.log("token:", token);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/play_kids`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
@@ -87,7 +96,7 @@ export default function PlayKidsPage() {
             }
 
             const { data } = await response.json();
-            console.log("Play Kid data:", data);
+            console.log("PlayKid data:", data);
 
             setPlayKids(data);
         } catch (error) {
@@ -96,9 +105,38 @@ export default function PlayKidsPage() {
         }
     }, []);
 
+    const fetchParents = useCallback(async () => {
+        try {
+            const token = Cookies.get("token");
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                console.error("Server returned error response:", error);
+                throw new Error("Failed to fetch parents from server");
+            }
+
+            const { data } = await response.json();
+            console.log("Parent data:", data);
+
+            const parentsData = data.filter((item: Parent) => item.role === "parent");
+
+            setParents(parentsData);
+        } catch (error) {
+            console.error("Fetch parents failed:", error);
+            toast.error("Failed to fetch play kid data");
+        }
+    }, []);
+
     useEffect(() => {
         fetchPlayKids();
-    }, [fetchPlayKids]);
+        fetchParents();
+    }, [fetchPlayKids, fetchParents]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -119,9 +157,17 @@ export default function PlayKidsPage() {
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/api/play_kids/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/api/play_kids`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`;
             const token = Cookies.get("token");
+
+            const parentIdAsNumber = parseInt(formData.parent_id);
+
+            const payload = {
+                ...formData,
+                parent_id: parentIdAsNumber,
+            };
+            console.log("payload : ", payload);
 
             const res = await fetch(url, {
                 method,
@@ -130,7 +176,7 @@ export default function PlayKidsPage() {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (!res.ok) {
@@ -158,7 +204,7 @@ export default function PlayKidsPage() {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/play_kids/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -270,12 +316,12 @@ export default function PlayKidsPage() {
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>
-                            {isEditing ? 'Edit Play Kid' : 'New Play Kid'}
+                            {isEditing ? 'Edit PlayKid' : 'New PlayKid'}
                         </DialogTitle>
                         <DialogDescription>
                             {isEditing
                                 ? 'Edit play kid details as needed.'
-                                : 'Fill in the form below to add a new play kid.'}
+                                : 'Fill in the form below to add a new playkid.'}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSavePlayKid}>
@@ -284,13 +330,22 @@ export default function PlayKidsPage() {
                             {/* Parent ID */}
                             <div className="space-y-1">
                                 <Label>Parent ID</Label>
-                                <Input
-                                    name="parent_id"
-                                    type="number"
+                                <Select
                                     value={formData.parent_id}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                    onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose parent" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {/* Render option dari state parents */}
+                                        {parents.map((parent) => (
+                                            <SelectItem key={parent.id} value={parent.id.toString()}>
+                                                {parent.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {/* Name */}
@@ -327,23 +382,18 @@ export default function PlayKidsPage() {
                             {/* Gender */}
                             <div className="space-y-1">
                                 <Label>Gender</Label>
-                                <Input
-                                    name="gender"
+                                <Select
                                     value={formData.gender}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
-
-                            {/* Photo */}
-                            <div className="space-y-1">
-                                <Label>Photo</Label>
-                                <Input
-                                    name="photo"
-                                    value={formData.photo}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                    onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose gender" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="M">Male</SelectItem>
+                                        <SelectItem value="F">Female</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {/* Medical History */}
@@ -363,6 +413,17 @@ export default function PlayKidsPage() {
                                 <Input
                                     name="school_origin"
                                     value={formData.school_origin}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+
+                            {/* Photo */}
+                            <div className="space-y-1">
+                                <Label>Photo</Label>
+                                <Input
+                                    name="photo"
+                                    value={formData.photo}
                                     onChange={handleChange}
                                     required
                                 />

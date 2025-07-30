@@ -22,7 +22,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
                     <Button
                         variant="outline"
                         id="date"
-                        className="w-48 justify-between font-normal"
+                        className="w-full justify-between font-normal"
                     >
                         {value ? value.toLocaleDateString() : 'Select date'}
                         <ChevronDownIcon />

@@ -20,7 +20,9 @@ import {
   IconReport,
   IconSearch,
   IconSettings,
+  IconUserCheck,
   IconUsers,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -135,6 +137,16 @@ const data = {
       name: "Branches",
       url: "/branches",
       icon: IconMapPin,
+    },
+    {
+      name: "PlayKids",
+      url: "/play-kids",
+      icon: IconUsersGroup,
+    },
+    {
+      name: "Coaches",
+      url: "/coaches",
+      icon: IconUserCheck,
     },
     {
       name: "Users",

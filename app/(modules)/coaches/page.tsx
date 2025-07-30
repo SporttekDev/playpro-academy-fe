@@ -58,7 +58,7 @@ export default function CoachesPage() {
             const token = Cookies.get("token");
             console.log("token:", token);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/coach`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
@@ -104,8 +104,8 @@ export default function CoachesPage() {
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/api/coach/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/api/coach`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/coach`;
             const token = Cookies.get("token");
 
             const res = await fetch(url, {
@@ -143,7 +143,7 @@ export default function CoachesPage() {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/coach/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -270,18 +270,13 @@ export default function CoachesPage() {
                                     required
                                 />
                             </div>
-
-                            {/* Birth Date */}
+                            
                             <div className="space-y-1">
                                 <Label>Birth Date</Label>
-                                {/* Birth Date */}
-                                <div className="space-y-1">
-                                    <Label>Birth Date</Label>
-                                    <DatePicker
-                                        value={formData.birth_date ? new Date(formData.birth_date) : undefined}
-                                        onChange={handleDateChange}
-                                    />
-                                </div>
+                                <DatePicker
+                                    value={formData.birth_date ? new Date(formData.birth_date) : undefined}
+                                    onChange={handleDateChange}
+                                />
                             </div>
 
                             {/* Description */}
