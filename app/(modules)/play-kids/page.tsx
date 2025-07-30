@@ -69,6 +69,7 @@ export default function PlayKidsPage() {
 
     const [playKids, setPlayKids] = useState<PlayKid[]>([]);
     const [formData, setFormData] = useState<PlayKidForm>(defaultForm);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     const [parents, setParents] = useState<Parent[]>([]);
 
@@ -141,47 +142,62 @@ export default function PlayKidsPage() {
     useEffect(() => {
         if (!isDialogOpen) {
             setFormData(defaultForm);
+            setPhotoPreview(null); 
             setIsEditing(false);
         }
     }, [isDialogOpen]);
 
     const handleSavePlayKid = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!formData.parent_id || !formData.name.trim() || !formData.nick_name.trim() || !formData.birth_date.trim() || !formData.gender.trim() || !formData.photo.trim() || !formData.school_origin.trim()) {
-            toast.error("All fields are required");
+        
+        if (!formData.parent_id || !formData.name.trim() || !formData.birth_date.trim() || !formData.gender.trim()) {
+            toast.error("Please fill in all required fields");
             return;
         }
 
         try {
             setIsLoading(true);
+            const token = Cookies.get("token");
+            if (!token) {
+                throw new Error("No authentication token found");
+            }
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${editId}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`;
-            const token = Cookies.get("token");
 
-            const parentIdAsNumber = parseInt(formData.parent_id);
+            const formDataToSend = new FormData();
+            
+            formDataToSend.append('_method', method === 'PUT' ? 'PUT' : 'POST');
+            formDataToSend.append('parent_id', formData.parent_id);
+            formDataToSend.append('name', formData.name);
+            formDataToSend.append('nick_name', formData.nick_name || '');
+            formDataToSend.append('birth_date', formData.birth_date);
+            formDataToSend.append('gender', formData.gender);
+            formDataToSend.append('medical_history', formData.medical_history || '');
+            formDataToSend.append('school_origin', formData.school_origin || '');
 
-            const payload = {
-                ...formData,
-                parent_id: parentIdAsNumber,
-            };
-            console.log("payload : ", payload);
+            const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
+            if (photoInput?.files?.[0]) {
+                formDataToSend.append('photo', photoInput.files[0]);
+            } else if (formData.photo && !photoInput?.files?.length) {
+                formDataToSend.append('photo', formData.photo);
+            }
 
             const res = await fetch(url, {
-                method,
+                method: method === 'PUT' ? 'POST' : 'POST', 
                 headers: {
-                    "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
                 },
-                body: JSON.stringify(payload),
+                body: formDataToSend,
             });
 
             if (!res.ok) {
                 const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || "Failed to save play kid";
+                const errorMessage = errorResponse?.message || 
+                                errorResponse?.error || 
+                                `Failed to ${isEditing ? 'update' : 'create'} play kid`;
                 throw new Error(errorMessage);
             }
 
@@ -189,9 +205,10 @@ export default function PlayKidsPage() {
             setIsDialogOpen(false);
             setIsEditing(false);
             setFormData(defaultForm);
+            setPhotoPreview(null);
             toast.success(isEditing ? "Play Kid updated successfully!" : "Play Kid created successfully!");
         } catch (error) {
-            const message = error instanceof Error ? error.message : "An error occurred";
+            const message = error instanceof Error ? error.message : "An unknown error occurred";
             console.error("Save play kid error:", error);
             toast.error(message);
         } finally {
@@ -236,6 +253,17 @@ export default function PlayKidsPage() {
         }));
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPhotoPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
             setFormData((prev) => ({
@@ -246,6 +274,26 @@ export default function PlayKidsPage() {
     };
 
     const columns: ColumnDef<PlayKid>[] = [
+        {
+            accessorKey: 'photo',
+            header: 'Photo',
+            cell: ({ row }) => {
+                const playKid = row.original;
+                return playKid.photo ? (
+                    <div className="w-12 h-12 flex items-center justify-center">
+                        <img 
+                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}`} 
+                            alt={playKid.name}
+                            className="w-10 h-10 object-cover rounded-full border"
+                        />
+                    </div>
+                ) : (
+                    <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded-full">
+                        <span className="text-xs text-gray-400">No photo</span>
+                    </div>
+                );
+            }
+        },
         { accessorKey: 'name', header: 'Name' },
         { accessorKey: 'nick_name', header: 'Nick Name' },
         { accessorKey: 'birth_date', header: 'Birth Date' },
@@ -265,19 +313,20 @@ export default function PlayKidsPage() {
                                 setIsEditing(true);
                                 setEditId(playKid.id);
                                 setFormData({
-                                    parent_id: playKid.parent_id,
-                                    name: playKid.name,
-                                    nick_name: playKid.nick_name,
-                                    birth_date: playKid.birth_date,
-                                    gender: playKid.gender,
-                                    photo: playKid.photo,
-                                    medical_history: playKid.medical_history,
-                                    school_origin: playKid.school_origin,
+                                parent_id: playKid.parent_id.toString(),
+                                name: playKid.name,
+                                nick_name: playKid.nick_name,
+                                birth_date: playKid.birth_date,
+                                gender: playKid.gender,
+                                photo: playKid.photo,
+                                medical_history: playKid.medical_history,
+                                school_origin: playKid.school_origin,
                                 });
+                                setPhotoPreview(playKid.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}` : null);
                                 setIsDialogOpen(true);
                             }}
                             aria-label={`Edit play kid ${playKid.name}`}
-                        >
+                            >
                             <IconPencil className="w-4 h-4" />
                         </Button>
                         <Button
@@ -420,14 +469,39 @@ export default function PlayKidsPage() {
 
                             {/* Photo */}
                             <div className="space-y-1">
-                                <Label>Photo</Label>
-                                <Input
-                                    name="photo"
-                                    value={formData.photo}
-                                    onChange={handleChange}
-                                    required
-                                />
+                            <Label>Photo</Label>
+                            <Input
+                                type="file"
+                                name="photo"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                            />
+                            {/* Tampilkan preview */}
+                            <div className="mt-2">
+                                {photoPreview ? (
+                                    <div className="flex flex-col items-start gap-2">
+                                        <img 
+                                            src={photoPreview} 
+                                            alt="Preview" 
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                    </div>
+                                ) : formData.photo ? (
+                                    <div className="flex flex-col items-start gap-2">
+                                        <img 
+                                            src={`${process.env.NEXT_PUBLIC_API_URL}/${formData.photo.replace('storage/', '')}`} 
+                                            alt="Current" 
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                        <span className="text-xs text-gray-500">Current photo</span>
+                                    </div>
+                                ) : (
+                                    <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">
+                                        No photo
+                                    </div>
+                                )}
                             </div>
+                        </div>
                         </div>
 
                         <DialogFooter>

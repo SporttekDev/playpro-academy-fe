@@ -286,7 +286,7 @@ export default function UsersPage() {
                                     <SelectContent>
                                         <SelectItem value="admin">Admin</SelectItem>
                                         <SelectItem value="parent">Parent</SelectItem>
-                                        <SelectItem value="coaches">Coach</SelectItem>
+                                        <SelectItem value="coach">Coach</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -294,9 +294,14 @@ export default function UsersPage() {
                             <div className="space-y-1">
                                 <Label>Phone Number</Label>
                                 <Input
+                                    type="tel"
                                     name="phone"
-                                    value={formData.phone || ''}
-                                    onChange={handleChange}
+                                    placeholder="0812 3456 7890"
+                                    value={formData.phone || ""}
+                                    onChange={(e) => {
+                                        const cleaned = e.target.value.replace(/[^0-9+\-\s]/g, "");
+                                        setFormData((prev) => ({ ...prev, phone: cleaned }));
+                                    }}
                                     required
                                 />
                             </div>

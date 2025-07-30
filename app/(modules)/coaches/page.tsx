@@ -26,6 +26,9 @@ interface Coach {
     user_id: number;
     birth_date: string;
     description: string;
+    user: {
+        name: string;
+    };
 }
 
 interface CoachForm {
@@ -56,7 +59,6 @@ export default function CoachesPage() {
     const fetchCoaches = useCallback(async () => {
         try {
             const token = Cookies.get("token");
-            console.log("token:", token);
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
                 headers: {
@@ -73,7 +75,6 @@ export default function CoachesPage() {
 
             const { data } = await response.json();
             console.log("Coach data:", data);
-
             setCoaches(data);
         } catch (error) {
             console.error("Fetch coaches failed:", error);
@@ -185,7 +186,11 @@ export default function CoachesPage() {
     };
 
     const columns: ColumnDef<Coach>[] = [
-        { accessorKey: 'user_id', header: 'User ID' },
+        { 
+            accessorKey: 'user.name',
+            header: 'Name',
+            cell: ({ row }) => row.original.user?.name || 'N/A'
+        },
         { accessorKey: 'birth_date', header: 'Birth Date' },
         { accessorKey: 'description', header: 'Description' },
         {
@@ -231,19 +236,16 @@ export default function CoachesPage() {
 
     return (
         <>
-            {/* DataTable */}
             <div className="px-6">
                 <DataTable columns={columns} data={coaches} />
             </div>
 
-            {/* Floating Add Button */}
             <FloatingAddButton onClick={() => {
                 setIsEditing(false);
                 setFormData(defaultForm);
                 setIsDialogOpen(true);
             }} tooltip="Add Coach" />
 
-            {/* Dialog for Create/Edit */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
@@ -257,9 +259,7 @@ export default function CoachesPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveCoach}>
-
                         <div className="grid gap-4">
-                            {/* User ID */}
                             <div className="space-y-1">
                                 <Label>User ID</Label>
                                 <Input
@@ -279,7 +279,6 @@ export default function CoachesPage() {
                                 />
                             </div>
 
-                            {/* Description */}
                             <div className="space-y-1">
                                 <Label>Description</Label>
                                 <Input
