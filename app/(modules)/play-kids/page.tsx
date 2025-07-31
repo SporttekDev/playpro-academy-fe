@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/date-picker'; // Pastikan Anda memiliki komponen DatePicker
 import Cookies from 'js-cookie';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -181,8 +182,8 @@ export default function PlayKidsPage() {
             const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
             if (photoInput?.files?.[0]) {
                 formDataToSend.append('photo', photoInput.files[0]);
-            } else if (formData.photo && !photoInput?.files?.length) {
-                formDataToSend.append('photo', formData.photo);
+            } else if (isEditing && formData.photo && !photoInput?.files?.length) {
+                formDataToSend.append('existing_photo', formData.photo);
             }
 
             const res = await fetch(url, {
@@ -280,11 +281,13 @@ export default function PlayKidsPage() {
             cell: ({ row }) => {
                 const playKid = row.original;
                 return playKid.photo ? (
-                    <div className="w-12 h-12 flex items-center justify-center">
-                        <img 
-                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}`} 
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center">
+                        <Image
+                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}`}
                             alt={playKid.name}
-                            className="w-10 h-10 object-cover rounded-full border"
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
                         />
                     </div>
                 ) : (
@@ -294,10 +297,18 @@ export default function PlayKidsPage() {
                 );
             }
         },
+
         { accessorKey: 'name', header: 'Name' },
         { accessorKey: 'nick_name', header: 'Nick Name' },
         { accessorKey: 'birth_date', header: 'Birth Date' },
-        { accessorKey: 'gender', header: 'Gender' },
+        {
+            accessorKey: 'gender',
+            header: 'Gender',
+            cell: ({ row }) => {
+                const gender = row.original.gender;
+                return gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : gender;
+            }
+        },
         { accessorKey: 'school_origin', header: 'School Origin' },
         {
             id: 'actions',
@@ -480,18 +491,22 @@ export default function PlayKidsPage() {
                             <div className="mt-2">
                                 {photoPreview ? (
                                     <div className="flex flex-col items-start gap-2">
-                                        <img 
-                                            src={photoPreview} 
-                                            alt="Preview" 
-                                            className="w-20 h-20 object-cover rounded border"
+                                        <Image
+                                            src={photoPreview}
+                                            alt="Preview"
+                                            width={80}
+                                            height={80}
+                                            className="object-cover rounded border"
                                         />
                                     </div>
                                 ) : formData.photo ? (
                                     <div className="flex flex-col items-start gap-2">
-                                        <img 
-                                            src={`${process.env.NEXT_PUBLIC_API_URL}/${formData.photo.replace('storage/', '')}`} 
-                                            alt="Current" 
-                                            className="w-20 h-20 object-cover rounded border"
+                                        <Image
+                                            src={`${process.env.NEXT_PUBLIC_API_URL}/${formData.photo.replace('storage/', '')}`}
+                                            alt="Current"
+                                            width={80}
+                                            height={80}
+                                            className="object-cover rounded border"
                                         />
                                         <span className="text-xs text-gray-500">Current photo</span>
                                     </div>

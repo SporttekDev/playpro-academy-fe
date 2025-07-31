@@ -20,12 +20,14 @@ import { DatePicker } from '@/components/date-picker';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
+import Image from 'next/image';
 
 interface Coach {
     id: number;
     user_id: number;
     birth_date: string;
     description: string;
+    photo: string;
     user: {
         name: string;
     };
@@ -35,12 +37,14 @@ interface CoachForm {
     user_id: number;
     birth_date: string;
     description: string;
+    photo: string;
 }
 
 const defaultForm: CoachForm = {
     user_id: 0,
     birth_date: '',
     description: '',
+    photo: '',
 };
 
 export default function CoachesPage() {
@@ -50,6 +54,7 @@ export default function CoachesPage() {
 
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [formData, setFormData] = useState<CoachForm>(defaultForm);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -89,6 +94,7 @@ export default function CoachesPage() {
     useEffect(() => {
         if (!isDialogOpen) {
             setFormData(defaultForm);
+            setPhotoPreview(null);
             setIsEditing(false);
         }
     }, [isDialogOpen]);
@@ -102,21 +108,36 @@ export default function CoachesPage() {
 
         try {
             setIsLoading(true);
+            const token = Cookies.get("token");
+            if (!token) {
+                throw new Error("No authentication token found");
+            }
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${editId}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/coach`;
-            const token = Cookies.get("token");
+
+            const formDataToSend = new FormData();
+            
+            formDataToSend.append('_method', method === 'PUT' ? 'PUT' : 'POST');
+            formDataToSend.append('user_id', formData.user_id.toString());
+            formDataToSend.append('birth_date', formData.birth_date);
+            formDataToSend.append('description', formData.description || '');
+
+            const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
+            if (photoInput?.files?.[0]) {
+                formDataToSend.append('photo', photoInput.files[0]);
+            } else if (isEditing && formData.photo && !photoInput?.files?.length) {
+                formDataToSend.append('existing_photo', formData.photo);
+            }
 
             const res = await fetch(url, {
-                method,
+                method: method === 'PUT' ? 'POST' : 'POST',
                 headers: {
-                    "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
                 },
-                body: JSON.stringify(formData),
+                body: formDataToSend,
             });
 
             if (!res.ok) {
@@ -129,6 +150,7 @@ export default function CoachesPage() {
             setIsDialogOpen(false);
             setIsEditing(false);
             setFormData(defaultForm);
+            setPhotoPreview(null);
             toast.success(isEditing ? "Coach updated successfully!" : "Coach created successfully!");
         } catch (error) {
             const message = error instanceof Error ? error.message : "An error occurred";
@@ -176,6 +198,17 @@ export default function CoachesPage() {
         }));
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPhotoPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
             setFormData((prev) => ({
@@ -186,6 +219,28 @@ export default function CoachesPage() {
     };
 
     const columns: ColumnDef<Coach>[] = [
+        {
+            accessorKey: 'photo',
+            header: 'Photo',
+            cell: ({ row }) => {
+                const coach = row.original;
+                return coach.photo ? (
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center">
+                        <Image
+                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}`}
+                            alt={coach.user?.name || 'Coach'}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+                ) : (
+                    <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded-full">
+                        <span className="text-xs text-gray-400">No photo</span>
+                    </div>
+                );
+            }
+        },
         { 
             accessorKey: 'user.name',
             header: 'Name',
@@ -210,7 +265,9 @@ export default function CoachesPage() {
                                     user_id: coach.user_id,
                                     birth_date: coach.birth_date,
                                     description: coach.description,
+                                    photo: coach.photo || '',
                                 });
+                                setPhotoPreview(coach.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}` : null);
                                 setIsDialogOpen(true);
                             }}
                             aria-label={`Edit coach ${coach.user_id}`}
@@ -260,16 +317,6 @@ export default function CoachesPage() {
                     </DialogHeader>
                     <form onSubmit={handleSaveCoach}>
                         <div className="grid gap-4">
-                            <div className="space-y-1">
-                                <Label>User ID</Label>
-                                <Input
-                                    name="user_id"
-                                    type="number"
-                                    value={formData.user_id}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
                             
                             <div className="space-y-1">
                                 <Label>Birth Date</Label>
@@ -287,6 +334,44 @@ export default function CoachesPage() {
                                     onChange={handleChange}
                                     required
                                 />
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label>Photo</Label>
+                                <Input
+                                    type="file"
+                                    name="photo"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                />
+                                <div className="mt-2">
+                                    {photoPreview ? (
+                                        <div className="flex flex-col items-start gap-2">
+                                            <Image
+                                                src={photoPreview}
+                                                alt="Preview"
+                                                width={80}
+                                                height={80}
+                                                className="object-cover rounded border"
+                                            />
+                                        </div>
+                                    ) : formData.photo ? (
+                                        <div className="flex flex-col items-start gap-2">
+                                            <Image
+                                                src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${formData.photo.replace('storage/', '')}`}
+                                                alt="Current"
+                                                width={80}
+                                                height={80}
+                                                className="object-cover rounded border"
+                                            />
+                                            <span className="text-xs text-gray-500">Current photo</span>
+                                        </div>
+                                    ) : (
+                                        <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">
+                                            No photo
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
