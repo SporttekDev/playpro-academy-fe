@@ -19,42 +19,54 @@ import { Input } from '@/components/ui/input';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface Category {
+interface User {
     id: number;
     name: string;
-    description: string;
+    email: string;
+    password: string;
+    role: string;
+    phone: string;
+    address?: string;
 }
 
-interface CategoryForm {
+interface UserForm {
     name: string;
-    description: string;
+    email: string;
+    password: string;
+    role: string;
+    phone: string;
+    address?: string;
 }
 
-const defaultForm: CategoryForm = {
-    name: "",
-    description: "",
+const defaultForm: UserForm = {
+    name: '',
+    email: '',
+    password: '',
+    role: '',
+    phone: '',
+    address: '',
 };
 
-export default function CategoriesPage() {
+export default function UsersPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [formData, setFormData] = useState<CategoryForm>(defaultForm);
+    const [users, setUsers] = useState<User[]>([]);
+    const [formData, setFormData] = useState<UserForm>(defaultForm);
 
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
 
     const [isLoading, setIsLoading] = useState(false);
 
-    const fetchCategories = useCallback(async () => {
+    const fetchUsers = useCallback(async () => {
         try {
             const token = Cookies.get("token");
-            console.log("token:", token);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/category`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
@@ -62,24 +74,21 @@ export default function CategoriesPage() {
             });
 
             if (!response.ok) {
-                const error = await response.text();
-                console.error("Server returned error response:", error);
-                throw new Error("Failed to fetch categories from server");
+                throw new Error("Failed to fetch users from server");
             }
 
             const { data } = await response.json();
-            console.log("Category data:", data);
-
-            setCategories(data);
+            console.log(data)
+            setUsers(data);
         } catch (error) {
-            console.error("Fetch categories failed:", error);
-            toast.error("Failed to fetch category data");
+            console.error("Fetch users failed:", error);
+            toast.error("Failed to fetch user data");
         }
     }, []);
 
     useEffect(() => {
-        fetchCategories();
-    }, [fetchCategories]);
+        fetchUsers();
+    }, [fetchUsers]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -88,20 +97,16 @@ export default function CategoriesPage() {
         }
     }, [isDialogOpen]);
 
-    const handleSaveCategory = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!formData.name.trim()) {
-            toast.error("Category name is required");
-            return;
-        }
 
         try {
             setIsLoading(true);
 
             const method = isEditing ? "PUT" : "POST";
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/category/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/category`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/users`;
             const token = Cookies.get("token");
 
             const res = await fetch(url, {
@@ -116,30 +121,30 @@ export default function CategoriesPage() {
 
             if (!res.ok) {
                 const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || "Failed to save category";
+                const errorMessage = errorResponse?.message || "Failed to save user";
                 throw new Error(errorMessage);
             }
 
-            await fetchCategories();
+            await fetchUsers();
             setIsDialogOpen(false);
             setIsEditing(false);
             setFormData(defaultForm);
-            toast.success(isEditing ? "Category updated successfully!" : "Category created successfully!");
+            toast.success(isEditing ? "User updated successfully!" : "User created successfully!");
         } catch (error) {
             const message = error instanceof Error ? error.message : "An error occurred";
-            console.error("Save category error:", error);
+            console.error("Save user error:", error);
             toast.error(message);
         } finally {
             setIsLoading(false);
         }
     };
 
-    async function handleDeleteCategory() {
+    async function handleDeleteUser() {
         try {
             const token = Cookies.get("token");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/category/${deleteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${deleteId}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -150,14 +155,14 @@ export default function CategoriesPage() {
             );
 
             if (!res.ok) {
-                throw new Error("Failed to delete category");
+                throw new Error("Failed to delete user");
             }
 
-            toast.success("Category deleted successfully!");
-            fetchCategories();
+            toast.success("User deleted successfully!");
+            fetchUsers();
         } catch (error) {
             console.error("Delete error:", error);
-            toast.error("Failed to delete category");
+            toast.error("Failed to delete user");
         } finally {
             setIsDeleteDialogOpen(false);
         }
@@ -165,20 +170,20 @@ export default function CategoriesPage() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const columns: ColumnDef<Category>[] = [
+    const columns: ColumnDef<User>[] = [
         { accessorKey: 'name', header: 'Name' },
-        { accessorKey: 'description', header: 'Description' },
+        { accessorKey: 'email', header: 'Email' },
+        { accessorKey: 'role', header: 'Role' },
+        { accessorKey: 'phone', header: 'Phone' },
+        { accessorKey: 'address', header: 'Address' },
         {
             id: 'actions',
             header: 'Actions',
             cell: ({ row }) => {
-                const category = row.original;
+                const user = row.original;
                 return (
                     <div className="flex gap-2">
                         <Button
@@ -186,14 +191,12 @@ export default function CategoriesPage() {
                             size="icon"
                             onClick={() => {
                                 setIsEditing(true);
-                                setEditId(category.id);
+                                setEditId(user.id);
                                 setFormData({
-                                    name: category.name,
-                                    description: category.description,
+                                    ...user
                                 });
                                 setIsDialogOpen(true);
                             }}
-                            aria-label={`Edit category ${category.name}`}
                         >
                             <IconPencil className="w-4 h-4" />
                         </Button>
@@ -201,10 +204,9 @@ export default function CategoriesPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                                setDeleteId(category.id);
+                                setDeleteId(user.id);
                                 setIsDeleteDialogOpen(true);
                             }}
-                            aria-label={`Delete category ${category.name}`}
                         >
                             <IconTrash className="w-4 h-4 text-red-600" />
                         </Button>
@@ -216,53 +218,100 @@ export default function CategoriesPage() {
 
     return (
         <>
-            {/* DataTable */}
             <div className="px-6">
-                <DataTable columns={columns} data={categories} />
+                <DataTable columns={columns} data={users} />
             </div>
 
-            {/* Floating Add Button */}
             <FloatingAddButton onClick={() => {
                 setIsEditing(false);
                 setFormData(defaultForm);
                 setIsDialogOpen(true);
-            }} tooltip="Add Category" />
+            }} tooltip="Add User" />
 
-            {/* Dialog for Create/Edit */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>
-                            {isEditing ? 'Edit Category' : 'New Category'}
+                            {isEditing ? 'Edit User' : 'Add New User'}
                         </DialogTitle>
                         <DialogDescription>
                             {isEditing
-                                ? 'Edit category details as needed.'
-                                : 'Fill in the form below to add a new category.'}
+                                ? 'Edit user details below'
+                                : 'Fill in the new user details below'}
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSaveCategory}>
-
+                    <form onSubmit={handleSaveUser}>
                         <div className="grid gap-4">
-                            {/* Name */}
                             <div className="space-y-1">
                                 <Label>Name</Label>
                                 <Input
                                     name="name"
-                                    value={formData.name}
+                                    value={formData.name || ''}
                                     onChange={handleChange}
                                     required
                                 />
                             </div>
 
-                            {/* Description */}
                             <div className="space-y-1">
-                                <Label>Description</Label>
+                                <Label>Email</Label>
                                 <Input
-                                    name="description"
-                                    value={formData.description}
+                                    type="email"
+                                    name="email"
+                                    value={formData.email || ''}
                                     onChange={handleChange}
                                     required
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label>Password</Label>
+                                <Input
+                                    type="password"
+                                    name="password"
+                                    value={formData.password || ''}
+                                    onChange={handleChange}
+                                    required={!isEditing}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label>Role</Label>
+                                <Select
+                                    value={formData.role}
+                                    onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="parent">Parent</SelectItem>
+                                        <SelectItem value="coach">Coach</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label>Phone Number</Label>
+                                <Input
+                                    type="tel"
+                                    name="phone"
+                                    placeholder="0812 3456 7890"
+                                    value={formData.phone || ""}
+                                    onChange={(e) => {
+                                        const cleaned = e.target.value.replace(/[^0-9+\-\s]/g, "");
+                                        setFormData((prev) => ({ ...prev, phone: cleaned }));
+                                    }}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label>Address</Label>
+                                <Input
+                                    name="address"
+                                    value={formData.address || ''}
+                                    onChange={handleChange}
                                 />
                             </div>
                         </div>
@@ -272,7 +321,7 @@ export default function CategoriesPage() {
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isLoading}>
-                                {isLoading ? "Loading..." : isEditing ? "Save Changes" : "Create"}
+                                {isLoading ? "Processing..." : isEditing ? "Save Changes" : "Create"}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -282,7 +331,7 @@ export default function CategoriesPage() {
             <AlertDialogDelete
                 isOpen={isDeleteDialogOpen}
                 setIsOpen={setIsDeleteDialogOpen}
-                onConfirm={handleDeleteCategory}
+                onConfirm={handleDeleteUser}
             />
         </>
     );
