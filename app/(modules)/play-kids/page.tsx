@@ -143,14 +143,14 @@ export default function PlayKidsPage() {
     useEffect(() => {
         if (!isDialogOpen) {
             setFormData(defaultForm);
-            setPhotoPreview(null); 
+            setPhotoPreview(null);
             setIsEditing(false);
         }
     }, [isDialogOpen]);
 
     const handleSavePlayKid = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        
+
         if (!formData.parent_id || !formData.name.trim() || !formData.birth_date.trim() || !formData.gender.trim()) {
             toast.error("Please fill in all required fields");
             return;
@@ -169,7 +169,7 @@ export default function PlayKidsPage() {
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`;
 
             const formDataToSend = new FormData();
-            
+
             formDataToSend.append('_method', method === 'PUT' ? 'PUT' : 'POST');
             formDataToSend.append('parent_id', formData.parent_id);
             formDataToSend.append('name', formData.name);
@@ -187,7 +187,7 @@ export default function PlayKidsPage() {
             }
 
             const res = await fetch(url, {
-                method: method === 'PUT' ? 'POST' : 'POST', 
+                method: method === 'PUT' ? 'POST' : 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -196,9 +196,9 @@ export default function PlayKidsPage() {
 
             if (!res.ok) {
                 const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || 
-                                errorResponse?.error || 
-                                `Failed to ${isEditing ? 'update' : 'create'} play kid`;
+                const errorMessage = errorResponse?.message ||
+                    errorResponse?.error ||
+                    `Failed to ${isEditing ? 'update' : 'create'} play kid`;
                 throw new Error(errorMessage);
             }
 
@@ -324,20 +324,20 @@ export default function PlayKidsPage() {
                                 setIsEditing(true);
                                 setEditId(playKid.id);
                                 setFormData({
-                                parent_id: playKid.parent_id.toString(),
-                                name: playKid.name,
-                                nick_name: playKid.nick_name,
-                                birth_date: playKid.birth_date,
-                                gender: playKid.gender,
-                                photo: playKid.photo,
-                                medical_history: playKid.medical_history,
-                                school_origin: playKid.school_origin,
+                                    parent_id: playKid.parent_id.toString(),
+                                    name: playKid.name,
+                                    nick_name: playKid.nick_name,
+                                    birth_date: playKid.birth_date,
+                                    gender: playKid.gender,
+                                    photo: playKid.photo,
+                                    medical_history: playKid.medical_history,
+                                    school_origin: playKid.school_origin,
                                 });
                                 setPhotoPreview(playKid.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}` : null);
                                 setIsDialogOpen(true);
                             }}
                             aria-label={`Edit play kid ${playKid.name}`}
-                            >
+                        >
                             <IconPencil className="w-4 h-4" />
                         </Button>
                         <Button
@@ -389,7 +389,7 @@ export default function PlayKidsPage() {
                         <div className="grid gap-4">
                             {/* Parent ID */}
                             <div className="space-y-1">
-                                <Label>Parent ID</Label>
+                                <Label>Parent</Label>
                                 <Select
                                     value={formData.parent_id}
                                     onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value }))}
@@ -480,43 +480,43 @@ export default function PlayKidsPage() {
 
                             {/* Photo */}
                             <div className="space-y-1">
-                            <Label>Photo</Label>
-                            <Input
-                                type="file"
-                                name="photo"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                            />
-                            {/* Tampilkan preview */}
-                            <div className="mt-2">
-                                {photoPreview ? (
-                                    <div className="flex flex-col items-start gap-2">
-                                        <Image
-                                            src={photoPreview}
-                                            alt="Preview"
-                                            width={80}
-                                            height={80}
-                                            className="object-cover rounded border"
-                                        />
-                                    </div>
-                                ) : formData.photo ? (
-                                    <div className="flex flex-col items-start gap-2">
-                                        <Image
-                                            src={`${process.env.NEXT_PUBLIC_API_URL}/${formData.photo.replace('storage/', '')}`}
-                                            alt="Current"
-                                            width={80}
-                                            height={80}
-                                            className="object-cover rounded border"
-                                        />
-                                        <span className="text-xs text-gray-500">Current photo</span>
-                                    </div>
-                                ) : (
-                                    <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">
-                                        No photo
-                                    </div>
-                                )}
+                                <Label>Photo</Label>
+                                <Input
+                                    type="file"
+                                    name="photo"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                />
+                                {/* Tampilkan preview */}
+                                <div className="mt-2">
+                                    {photoPreview ? (
+                                        <div className="flex flex-col items-start gap-2">
+                                            <Image
+                                                src={photoPreview}
+                                                alt="Preview"
+                                                width={80}
+                                                height={80}
+                                                className="object-cover rounded border"
+                                            />
+                                        </div>
+                                    ) : formData.photo ? (
+                                        <div className="flex flex-col items-start gap-2">
+                                            <Image
+                                                src={`${process.env.NEXT_PUBLIC_API_URL}/${formData.photo.replace('storage/', '')}`}
+                                                alt="Current"
+                                                width={80}
+                                                height={80}
+                                                className="object-cover rounded border"
+                                            />
+                                            <span className="text-xs text-gray-500">Current photo</span>
+                                        </div>
+                                    ) : (
+                                        <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">
+                                            No photo
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
                         </div>
 
                         <DialogFooter>

@@ -20,6 +20,10 @@ export default function DashboardLayout({
         if (pathname.startsWith("/sports")) return "Sports";
         if (pathname.startsWith("/products")) return "Products";
         if (pathname.startsWith("/branches")) return "Branches";
+        if (pathname.startsWith("/classes")) return "Classes";
+        if (pathname.startsWith("/venues")) return "Venues";
+        if (pathname.startsWith("/play-kids")) return "PlayKids";
+        if (pathname.startsWith("/coaches")) return "Coaches";
         if (pathname.startsWith("/users")) return "Users";
         return "Page";
     }, [pathname]);

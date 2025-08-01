@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table';
-import { FloatingAddButton } from '@/components/floating-add-button';
 import {
     Dialog,
     DialogContent,
@@ -119,7 +118,7 @@ export default function CoachesPage() {
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/coach`;
 
             const formDataToSend = new FormData();
-            
+
             formDataToSend.append('_method', method === 'PUT' ? 'PUT' : 'POST');
             formDataToSend.append('user_id', formData.user_id.toString());
             formDataToSend.append('birth_date', formData.birth_date);
@@ -241,7 +240,7 @@ export default function CoachesPage() {
                 );
             }
         },
-        { 
+        {
             accessorKey: 'user.name',
             header: 'Name',
             cell: ({ row }) => row.original.user?.name || 'N/A'
@@ -297,12 +296,6 @@ export default function CoachesPage() {
                 <DataTable columns={columns} data={coaches} />
             </div>
 
-            <FloatingAddButton onClick={() => {
-                setIsEditing(false);
-                setFormData(defaultForm);
-                setIsDialogOpen(true);
-            }} tooltip="Add Coach" />
-
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
@@ -317,7 +310,7 @@ export default function CoachesPage() {
                     </DialogHeader>
                     <form onSubmit={handleSaveCoach}>
                         <div className="grid gap-4">
-                            
+
                             <div className="space-y-1">
                                 <Label>Birth Date</Label>
                                 <DatePicker

@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   IconBallBasketball,
+  IconBook,
   IconCamera,
   IconCategory,
   IconChartBar,
@@ -20,6 +21,7 @@ import {
   IconReport,
   IconSearch,
   IconSettings,
+  IconSoccerField,
   IconUserCheck,
   IconUsers,
   IconUsersGroup,
@@ -137,6 +139,16 @@ const data = {
       name: "Branches",
       url: "/branches",
       icon: IconMapPin,
+    },
+    {
+      name: "Classes",
+      url: "/classes",
+      icon: IconBook,
+    },
+    {
+      name: "Venues",
+      url: "/venues",
+      icon: IconSoccerField,
     },
     {
       name: "PlayKids",
