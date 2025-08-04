@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { getNameById } from '@/helpers/getNameById';
 
 interface Roster {
     id: number;
@@ -28,6 +29,8 @@ interface Roster {
     schedule_id: string;
     is_head_coach: boolean;
     attendance: string | null;
+    coach: Coach;
+    schedule: Schedule;
 }
 
 interface RosterForm {
@@ -39,10 +42,12 @@ interface RosterForm {
 
 interface Coach {
     id: string;
+    user_id: string;
     user: User;
 }
 
 interface User {
+    id: string;
     name: string
 }
 
@@ -66,6 +71,7 @@ export default function RostersPage() {
     const [rosters, setRosters] = useState<Roster[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [schedules, setSchedules] = useState<Schedule[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [formData, setFormData] = useState<RosterForm>(defaultForm);
 
     const [editId, setEditId] = useState<number | null>(null);
@@ -90,6 +96,7 @@ export default function RostersPage() {
             }
 
             const { data } = await response.json();
+            console.log("Data Roster : ", data);
             setRosters(data);
         } catch (error) {
             console.error('Fetch rosters error:', error);
@@ -114,7 +121,6 @@ export default function RostersPage() {
             }
 
             const { data } = await response.json();
-            console.log("Data Coach : ", data);
             setCoaches(data);
         } catch (error) {
             console.error('Fetch coaches error:', error);
@@ -139,7 +145,6 @@ export default function RostersPage() {
             }
 
             const { data } = await response.json();
-            console.log("Data Schedule : ", data);
             setSchedules(data);
         } catch (error) {
             console.error('Fetch schedules error:', error);
@@ -147,11 +152,36 @@ export default function RostersPage() {
         }
     }, []);
 
+    const fetchUsers = useCallback(async () => {
+        try {
+            const token = Cookies.get('token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                console.error("Error : ", error);
+                throw new Error('Failed to fetch users');
+            }
+
+            const { data } = await response.json();
+            setUsers(data);
+        } catch (error) {
+            console.error('Fetch users error:', error);
+            toast.error('Failed to fetch user data');
+        }
+    }, []);
+
     useEffect(() => {
         fetchRosters();
         fetchCoaches();
         fetchSchedules();
-    }, [fetchRosters, fetchCoaches, fetchSchedules]);
+        fetchUsers();
+    }, [fetchRosters, fetchCoaches, fetchSchedules, fetchUsers]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -247,8 +277,16 @@ export default function RostersPage() {
     };
 
     const columns: ColumnDef<Roster>[] = [
-        { accessorKey: 'coach_id', header: 'Coach ID' },
-        { accessorKey: 'schedule_id', header: 'Schedule ID' },
+        {
+            accessorKey: 'coach.user_id',
+            header: 'Coach',
+            cell: ({ row }) => getNameById(row.original.coach.user_id, users)
+        },
+        {
+            accessorKey: 'schedule_id',
+            header: 'Schedule',
+            cell: ({ row }) => getNameById(row.original.schedule_id, schedules)
+        },
         {
             accessorKey: 'is_head_coach',
             header: 'Is Head Coach',
