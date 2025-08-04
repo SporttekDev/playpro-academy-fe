@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface Schedule {
     id: number;
+    name: string;
     class_id: string;
     start_time: string;
     end_time: string;
@@ -41,6 +42,7 @@ interface Schedule {
 }
 
 interface ScheduleForm {
+    name: string;
     class_id: string;
     start_time: string;
     end_time: string;
@@ -60,6 +62,7 @@ interface Venue {
 }
 
 const defaultForm: ScheduleForm = {
+    name: '',
     class_id: '',
     start_time: '',
     end_time: '',
@@ -70,21 +73,21 @@ const defaultForm: ScheduleForm = {
 
 const formatTimeForInput = (timeString: string): string => {
     if (!timeString) return '';
-    
+
     if (/^\d{2}:\d{2}$/.test(timeString)) {
         return timeString;
     }
-    
+
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
         return timeString.substring(0, 5);
     }
-    
+
     return timeString;
 };
 
 const formatTimeForAPI = (timeString: string): string => {
     if (!timeString) return '';
-    
+
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
         return timeString.substring(0, 5);
     }
@@ -92,7 +95,7 @@ const formatTimeForAPI = (timeString: string): string => {
     if (/^\d{2}:\d{2}$/.test(timeString)) {
         return timeString;
     }
-    
+
     return timeString;
 };
 
@@ -198,7 +201,7 @@ export default function SchedulesPage() {
 
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        
+
         if (!formData.class_id || !formData.start_time.trim() || !formData.end_time.trim() || !formData.date.trim() || !formData.quota || !formData.venue_id) {
             toast.error('All fields are required');
             return;
@@ -206,7 +209,7 @@ export default function SchedulesPage() {
 
         const startTime = formatTimeForAPI(formData.start_time);
         const endTime = formatTimeForAPI(formData.end_time);
-        
+
         if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
             toast.error('Please enter valid time format (HH:MM)');
             return;
@@ -217,8 +220,6 @@ export default function SchedulesPage() {
             return;
         }
 
-        console.log('Form data to submit:', formData);
-
         try {
             setIsLoading(true);
             const method = isEditing ? 'PUT' : 'POST';
@@ -227,12 +228,24 @@ export default function SchedulesPage() {
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule`;
             const token = Cookies.get('token');
 
-            const submitData = {
+            let submitData = {
                 ...formData,
                 start_time: startTime,
                 end_time: endTime,
                 quota: Number(formData.quota),
             };
+    
+            if (!isEditing) {
+                const selectedClass = classes.find(cls => cls.id.toString() === formData.class_id);
+                const selectedVenue = venues.find(venue => venue.id.toString() === formData.venue_id);
+                if (selectedClass && selectedVenue) {
+                    const generatedName = `${selectedClass.name}, ${selectedVenue.name}, ${formData.date}, ${startTime}-${endTime}`;
+                    console.log("generatedName : ", generatedName);
+                    submitData = { ...submitData, name: generatedName };
+                }
+            }
+
+            console.log("submitData : ", submitData);
 
             const response = await fetch(url, {
                 method,
@@ -247,13 +260,13 @@ export default function SchedulesPage() {
             if (!response.ok) {
                 const errorResponse = await response.json().catch(() => null);
                 console.error('Server error response:', errorResponse);
-                
+
                 if (response.status === 422 && errorResponse?.errors) {
                     const errors = Object.values(errorResponse.errors).flat();
                     toast.error(errors.join(', '));
                     return;
                 }
-                
+
                 const errorMessage = errorResponse?.message || 'Failed to save schedule';
                 throw new Error(errorMessage);
             }
@@ -321,16 +334,16 @@ export default function SchedulesPage() {
     };
 
     const columns: ColumnDef<Schedule>[] = [
-        { 
-            accessorKey: 'class_id', 
+        {
+            accessorKey: 'class_id',
             header: 'Class',
             cell: ({ row }) => {
                 const schedule = row.original;
                 return schedule.class_model?.name || schedule.class_id;
             }
         },
-        { 
-            accessorKey: 'venue_id', 
+        {
+            accessorKey: 'venue_id',
             header: 'Venue',
             cell: ({ row }) => {
                 const schedule = row.original;
@@ -338,13 +351,13 @@ export default function SchedulesPage() {
             }
         },
         { accessorKey: 'date', header: 'Date' },
-        { 
-            accessorKey: 'start_time', 
+        {
+            accessorKey: 'start_time',
             header: 'Start Time',
             cell: ({ row }) => formatTimeForInput(row.getValue('start_time'))
         },
-        { 
-            accessorKey: 'end_time', 
+        {
+            accessorKey: 'end_time',
             header: 'End Time',
             cell: ({ row }) => formatTimeForInput(row.getValue('end_time'))
         },
@@ -363,6 +376,7 @@ export default function SchedulesPage() {
                                 setIsEditing(true);
                                 setEditId(schedule.id);
                                 setFormData({
+                                    name: schedule.name ? schedule.name : '',
                                     class_id: schedule.class_id.toString(),
                                     start_time: formatTimeForInput(schedule.start_time),
                                     end_time: formatTimeForInput(schedule.end_time),

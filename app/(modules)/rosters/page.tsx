@@ -39,7 +39,11 @@ interface RosterForm {
 
 interface Coach {
     id: string;
-    name: string;
+    user: User;
+}
+
+interface User {
+    name: string
 }
 
 interface Schedule {
@@ -72,7 +76,7 @@ export default function RostersPage() {
     const fetchRosters = useCallback(async () => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach_schedule`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach-schedule`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
@@ -110,6 +114,7 @@ export default function RostersPage() {
             }
 
             const { data } = await response.json();
+            console.log("Data Coach : ", data);
             setCoaches(data);
         } catch (error) {
             console.error('Fetch coaches error:', error);
@@ -134,6 +139,7 @@ export default function RostersPage() {
             }
 
             const { data } = await response.json();
+            console.log("Data Schedule : ", data);
             setSchedules(data);
         } catch (error) {
             console.error('Fetch schedules error:', error);
@@ -165,8 +171,8 @@ export default function RostersPage() {
             setIsLoading(true);
             const method = isEditing ? 'PUT' : 'POST';
             const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/coach_schedule/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/coach_schedule`;
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/coach-schedule/${editId}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/coach-schedule`;
             const token = Cookies.get('token');
 
             console.log("Form Data : ", formData);
@@ -203,7 +209,7 @@ export default function RostersPage() {
     async function handleDeleteRoster() {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach_schedule/${deleteId}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach-schedule/${deleteId}`, {
                 method: 'DELETE',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -320,7 +326,7 @@ export default function RostersPage() {
                                 <Label>Coach</Label>
                                 <Select
                                     value={formData.coach_id}
-                                    onValueChange={(value) => setFormData(prev => ({ ...prev, class_id: value }))}
+                                    onValueChange={(value) => setFormData(prev => ({ ...prev, coach_id: value }))}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Choose coach" />
@@ -328,7 +334,7 @@ export default function RostersPage() {
                                     <SelectContent>
                                         {coaches.map((coach) => (
                                             <SelectItem key={coach.id} value={coach.id.toString()}>
-                                                {coach.name}
+                                                {coach.user.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -339,7 +345,7 @@ export default function RostersPage() {
                                 <Label>Schedule</Label>
                                 <Select
                                     value={formData.schedule_id}
-                                    onValueChange={(value) => setFormData(prev => ({ ...prev, class_id: value }))}
+                                    onValueChange={(value) => setFormData(prev => ({ ...prev, schedule_id: value }))}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Choose schedule" />
