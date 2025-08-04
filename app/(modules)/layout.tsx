@@ -25,6 +25,7 @@ export default function DashboardLayout({
         if (pathname.startsWith("/play-kids")) return "PlayKids";
         if (pathname.startsWith("/coaches")) return "Coaches";
         if (pathname.startsWith("/schedules")) return "Schedules";
+        if (pathname.startsWith("/rosters")) return "Rosters";
         if (pathname.startsWith("/users")) return "Users";
         return "Page";
     }, [pathname]);

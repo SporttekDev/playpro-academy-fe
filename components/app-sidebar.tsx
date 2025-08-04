@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   IconBallBasketball,
   IconBook,
+  IconCalendarCog,
   IconCalendarEvent,
   IconCamera,
   IconCategory,
@@ -155,6 +156,11 @@ const data = {
       name: "Schedules",
       url: "/schedules",
       icon: IconCalendarEvent,
+    },
+    {
+      name: "Rosters",
+      url: "/rosters",
+      icon: IconCalendarCog,
     },
     {
       name: "PlayKids",
