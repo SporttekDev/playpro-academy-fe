@@ -296,16 +296,16 @@ export default function VenuesPage() {
                             </div>
 
                             <div className="space-y-1">
-                                <Label>Branch ID</Label>
+                                <Label>Branch</Label>
                                 <Select
                                     value={formData.branch_id}
                                     onValueChange={(value) => setFormData(prev => ({ ...prev, branch_id: value }))}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Choose category" />
+                                        <SelectValue placeholder="Choose branch" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {/* Render option dari state parents */}
+                                        
                                         {branches.map((branch) => (
                                             <SelectItem key={branch.id} value={branch.id.toString()}>
                                                 {branch.name}
