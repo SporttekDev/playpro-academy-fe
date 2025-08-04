@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { DatePicker } from '@/components/date-picker'; // Pastikan Anda memiliki komponen DatePicker
+import { DatePicker } from '@/components/date-picker';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
@@ -30,6 +30,14 @@ interface Schedule {
     date: string;
     quota: number;
     venue_id: string;
+    class_model?: {
+        id: string;
+        name: string;
+    };
+    venue?: {
+        id: string;
+        name: string;
+    };
 }
 
 interface ScheduleForm {
@@ -58,6 +66,34 @@ const defaultForm: ScheduleForm = {
     date: '',
     quota: 0,
     venue_id: '',
+};
+
+const formatTimeForInput = (timeString: string): string => {
+    if (!timeString) return '';
+    
+    if (/^\d{2}:\d{2}$/.test(timeString)) {
+        return timeString;
+    }
+    
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
+        return timeString.substring(0, 5);
+    }
+    
+    return timeString;
+};
+
+const formatTimeForAPI = (timeString: string): string => {
+    if (!timeString) return '';
+    
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
+        return timeString.substring(0, 5);
+    }
+
+    if (/^\d{2}:\d{2}$/.test(timeString)) {
+        return timeString;
+    }
+    
+    return timeString;
 };
 
 export default function SchedulesPage() {
@@ -162,10 +198,26 @@ export default function SchedulesPage() {
 
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        
         if (!formData.class_id || !formData.start_time.trim() || !formData.end_time.trim() || !formData.date.trim() || !formData.quota || !formData.venue_id) {
             toast.error('All fields are required');
             return;
         }
+
+        const startTime = formatTimeForAPI(formData.start_time);
+        const endTime = formatTimeForAPI(formData.end_time);
+        
+        if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+            toast.error('Please enter valid time format (HH:MM)');
+            return;
+        }
+
+        if (startTime >= endTime) {
+            toast.error('End time must be after start time');
+            return;
+        }
+
+        console.log('Form data to submit:', formData);
 
         try {
             setIsLoading(true);
@@ -175,6 +227,13 @@ export default function SchedulesPage() {
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule`;
             const token = Cookies.get('token');
 
+            const submitData = {
+                ...formData,
+                start_time: startTime,
+                end_time: endTime,
+                quota: Number(formData.quota),
+            };
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -182,11 +241,19 @@ export default function SchedulesPage() {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(submitData),
             });
 
             if (!response.ok) {
                 const errorResponse = await response.json().catch(() => null);
+                console.error('Server error response:', errorResponse);
+                
+                if (response.status === 422 && errorResponse?.errors) {
+                    const errors = Object.values(errorResponse.errors).flat();
+                    toast.error(errors.join(', '));
+                    return;
+                }
+                
                 const errorMessage = errorResponse?.message || 'Failed to save schedule';
                 throw new Error(errorMessage);
             }
@@ -198,7 +265,7 @@ export default function SchedulesPage() {
             toast.success(isEditing ? 'Schedule updated successfully!' : 'Schedule created successfully!');
         } catch (error) {
             console.error('Save schedule error:', error);
-            toast.error('Failed to save schedule');
+            toast.error(error instanceof Error ? error.message : 'Failed to save schedule');
         } finally {
             setIsLoading(false);
         }
@@ -233,7 +300,7 @@ export default function SchedulesPage() {
         const { name, value } = e.target;
         setFormData((prev) => ({
             ...prev,
-            [name]: name === 'quota' ? parseInt(value) : value,
+            [name]: name === 'quota' ? parseInt(value) || 0 : value,
         }));
     };
 
@@ -254,12 +321,34 @@ export default function SchedulesPage() {
     };
 
     const columns: ColumnDef<Schedule>[] = [
-        { accessorKey: 'class_id', header: 'Class ID' },
-        { accessorKey: 'start_time', header: 'Start Time' },
-        { accessorKey: 'end_time', header: 'End Time' },
+        { 
+            accessorKey: 'class_id', 
+            header: 'Class',
+            cell: ({ row }) => {
+                const schedule = row.original;
+                return schedule.class_model?.name || schedule.class_id;
+            }
+        },
+        { 
+            accessorKey: 'venue_id', 
+            header: 'Venue',
+            cell: ({ row }) => {
+                const schedule = row.original;
+                return schedule.venue?.name || schedule.venue_id;
+            }
+        },
         { accessorKey: 'date', header: 'Date' },
+        { 
+            accessorKey: 'start_time', 
+            header: 'Start Time',
+            cell: ({ row }) => formatTimeForInput(row.getValue('start_time'))
+        },
+        { 
+            accessorKey: 'end_time', 
+            header: 'End Time',
+            cell: ({ row }) => formatTimeForInput(row.getValue('end_time'))
+        },
         { accessorKey: 'quota', header: 'Quota' },
-        { accessorKey: 'venue_id', header: 'Venue ID' },
         {
             id: 'actions',
             header: 'Actions',
@@ -275,8 +364,8 @@ export default function SchedulesPage() {
                                 setEditId(schedule.id);
                                 setFormData({
                                     class_id: schedule.class_id.toString(),
-                                    start_time: schedule.start_time,
-                                    end_time: schedule.end_time,
+                                    start_time: formatTimeForInput(schedule.start_time),
+                                    end_time: formatTimeForInput(schedule.end_time),
                                     date: schedule.date,
                                     quota: schedule.quota,
                                     venue_id: schedule.venue_id.toString(),
@@ -375,28 +464,28 @@ export default function SchedulesPage() {
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <Label>Start Time</Label>
-                                <Input
-                                    type='time'
-                                    step={1}
-                                    value={formData.start_time}
-                                    onChange={(e) => handleTimeChange(e.target.value, 'start_time')}
-                                    className='appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
-                                    required
-                                />
-                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label>Start Time</Label>
+                                    <Input
+                                        type="time"
+                                        value={formData.start_time}
+                                        onChange={(e) => handleTimeChange(e.target.value, 'start_time')}
+                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                        required
+                                    />
+                                </div>
 
-                            <div className="space-y-1">
-                                <Label>End Time</Label>
-                                <Input
-                                    type='time'
-                                    step={1}
-                                    value={formData.end_time}
-                                    onChange={(e) => handleTimeChange(e.target.value, 'end_time')}
-                                    className='appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
-                                    required
-                                />
+                                <div className="space-y-1">
+                                    <Label>End Time</Label>
+                                    <Input
+                                        type="time"
+                                        value={formData.end_time}
+                                        onChange={(e) => handleTimeChange(e.target.value, 'end_time')}
+                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                        required
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-1">
@@ -404,8 +493,10 @@ export default function SchedulesPage() {
                                 <Input
                                     name="quota"
                                     type="number"
-                                    value={formData.quota}
+                                    min="1"
+                                    value={formData.quota || ''}
                                     onChange={handleChange}
+                                    placeholder="Enter quota"
                                     required
                                 />
                             </div>
@@ -416,6 +507,7 @@ export default function SchedulesPage() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => setIsDialogOpen(false)}
+                                disabled={isLoading}
                             >
                                 Cancel
                             </Button>
