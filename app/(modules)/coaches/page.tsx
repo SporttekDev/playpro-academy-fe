@@ -20,6 +20,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import Image from 'next/image';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Coach {
     id: number;
@@ -254,36 +255,50 @@ export default function CoachesPage() {
                 const coach = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(coach.id);
-                                setFormData({
-                                    user_id: coach.user_id,
-                                    birth_date: coach.birth_date,
-                                    description: coach.description,
-                                    photo: coach.photo || '',
-                                });
-                                setPhotoPreview(coach.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}` : null);
-                                setIsDialogOpen(true);
-                            }}
-                            aria-label={`Edit coach ${coach.user_id}`}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(coach.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                            aria-label={`Delete coach ${coach.user_id}`}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(coach.id);
+                                        setFormData({
+                                            user_id: coach.user_id,
+                                            birth_date: coach.birth_date,
+                                            description: coach.description,
+                                            photo: coach.photo || '',
+                                        });
+                                        setPhotoPreview(coach.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}` : null);
+                                        setIsDialogOpen(true);
+                                    }}
+                                    aria-label={`Edit coach ${coach.user_id}`}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(coach.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                    aria-label={`Delete coach ${coach.user_id}`}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },

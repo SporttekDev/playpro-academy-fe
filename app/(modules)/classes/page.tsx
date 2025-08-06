@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getNameById } from '@/helpers/getNameById';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ClassData {
     id: number;
@@ -288,33 +289,47 @@ export default function ClassesPage() {
                 const cls = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(cls.id);
-                                setFormData({
-                                    name: cls.name,
-                                    sport_id: cls.sport_id.toString(),
-                                    category_id: cls.category_id.toString(),
-                                    branch_id: cls.branch_id.toString(),
-                                });
-                                setIsDialogOpen(true);
-                            }}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(cls.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(cls.id);
+                                        setFormData({
+                                            name: cls.name,
+                                            sport_id: cls.sport_id.toString(),
+                                            category_id: cls.category_id.toString(),
+                                            branch_id: cls.branch_id.toString(),
+                                        });
+                                        setIsDialogOpen(true);
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(cls.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },

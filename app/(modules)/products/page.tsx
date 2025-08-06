@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Product {
     id: number;
@@ -202,34 +203,48 @@ export default function ProductsPage() {
                 const prod = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(prod.id);
-                                setFormData({
-                                    name: prod.name,
-                                    session_count: prod.session_count,
-                                    is_membership: prod.is_membership,
-                                });
-                                setIsDialogOpen(true);
-                            }}
-                            aria-label={`Edit product ${prod.name}`}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(prod.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                            aria-label={`Delete product ${prod.name}`}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(prod.id);
+                                        setFormData({
+                                            name: prod.name,
+                                            session_count: prod.session_count,
+                                            is_membership: prod.is_membership,
+                                        });
+                                        setIsDialogOpen(true);
+                                    }}
+                                    aria-label={`Edit product ${prod.name}`}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(prod.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                    aria-label={`Delete product ${prod.name}`}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },
