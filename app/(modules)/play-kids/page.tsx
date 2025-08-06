@@ -22,6 +22,8 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { UserPlus } from 'lucide-react';
 
 interface PlayKid {
     id: number;
@@ -67,6 +69,8 @@ export default function PlayKidsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
+    const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
 
     const [playKids, setPlayKids] = useState<PlayKid[]>([]);
     const [formData, setFormData] = useState<PlayKidForm>(defaultForm);
@@ -317,40 +321,88 @@ export default function PlayKidsPage() {
                 const playKid = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(playKid.id);
-                                setFormData({
-                                    parent_id: playKid.parent_id.toString(),
-                                    name: playKid.name,
-                                    nick_name: playKid.nick_name,
-                                    birth_date: playKid.birth_date,
-                                    gender: playKid.gender,
-                                    photo: playKid.photo,
-                                    medical_history: playKid.medical_history,
-                                    school_origin: playKid.school_origin,
-                                });
-                                setPhotoPreview(playKid.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}` : null);
-                                setIsDialogOpen(true);
-                            }}
-                            aria-label={`Edit play kid ${playKid.name}`}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(playKid.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                            aria-label={`Delete play kid ${playKid.name}`}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsMembershipDialogOpen(true);
+                                    }}
+                                    aria-label={`Add membership play kid ${playKid.name}`}
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Add Membership
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsSessionDialogOpen(true);
+                                    }}
+                                    aria-label={`Add session play kid ${playKid.name}`}
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Add Session
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(playKid.id);
+                                        setFormData({
+                                            parent_id: playKid.parent_id.toString(),
+                                            name: playKid.name,
+                                            nick_name: playKid.nick_name,
+                                            birth_date: playKid.birth_date,
+                                            gender: playKid.gender,
+                                            photo: playKid.photo,
+                                            medical_history: playKid.medical_history,
+                                            school_origin: playKid.school_origin,
+                                        });
+                                        setPhotoPreview(playKid.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}` : null);
+                                        setIsDialogOpen(true);
+                                    }}
+                                    aria-label={`Edit play kid ${playKid.name}`}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(playKid.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                    aria-label={`Delete play kid ${playKid.name}`}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },
@@ -529,6 +581,50 @@ export default function PlayKidsPage() {
                         </DialogFooter>
                     </form>
                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Add Membership
+                        </DialogTitle>
+                        <DialogDescription>
+                            Fill in the form below to add playkid&apos;s membership.
+                        </DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+
+                <DialogFooter>
+                    <Button type='button' variant="outline" onClick={() => setIsMembershipDialogOpen(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Loading..." : "Create"}
+                    </Button>
+                </DialogFooter>
+            </Dialog>
+
+            <Dialog open={isSessionDialogOpen} onOpenChange={setIsSessionDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Add Session
+                        </DialogTitle>
+                        <DialogDescription>
+                            Fill in the form below to add playkid&apos;s session.
+                        </DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+
+                <DialogFooter>
+                    <Button type='button' variant="outline" onClick={() => setIsSessionDialogOpen(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Loading..." : "Create"}
+                    </Button>
+                </DialogFooter>
             </Dialog>
 
             <AlertDialogDelete
