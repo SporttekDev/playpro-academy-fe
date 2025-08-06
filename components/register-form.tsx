@@ -36,6 +36,7 @@ export function RegisterForm({
                     email,
                     password,
                     password_confirmation: passwordConfirmation,
+                    role: "parent",
                     phone: phone || null,
                     address: address || null,
                 }),
@@ -56,7 +57,8 @@ export function RegisterForm({
             alert("Registrasi berhasil!");
             router.push("/login");
 
-        } catch (err: any) {
+        } catch (err) {
+            // const message = err instanceof Error ? err.message : "An error occurred";
             console.error("Registration error:", err);
             alert("Terjadi kesalahan saat registrasi.");
         } finally {

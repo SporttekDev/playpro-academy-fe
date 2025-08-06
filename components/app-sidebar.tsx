@@ -3,6 +3,9 @@
 import * as React from "react"
 import {
   IconBallBasketball,
+  IconBook,
+  IconCalendarCog,
+  IconCalendarEvent,
   IconCamera,
   IconCategory,
   IconChartBar,
@@ -20,7 +23,10 @@ import {
   IconReport,
   IconSearch,
   IconSettings,
+  IconSoccerField,
+  IconUserCheck,
   IconUsers,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -135,6 +141,41 @@ const data = {
       name: "Branches",
       url: "/branches",
       icon: IconMapPin,
+    },
+    {
+      name: "Classes",
+      url: "/classes",
+      icon: IconBook,
+    },
+    {
+      name: "Venues",
+      url: "/venues",
+      icon: IconSoccerField,
+    },
+    {
+      name: "Schedules",
+      url: "/schedules",
+      icon: IconCalendarEvent,
+    },
+    {
+      name: "Rosters",
+      url: "/rosters",
+      icon: IconCalendarCog,
+    },
+    {
+      name: "PlayKids",
+      url: "/play-kids",
+      icon: IconUsersGroup,
+    },
+    {
+      name: "Coaches",
+      url: "/coaches",
+      icon: IconUserCheck,
+    },
+    {
+      name: "Users",
+      url: "/users",
+      icon: IconUsers,
     },
   ],
 }

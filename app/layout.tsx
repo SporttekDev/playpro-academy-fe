@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 // import { Dongle } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({
         className={`antialiased`}
       >
         {children}
+        <Toaster position="top-right"/>
       </body>
     </html>
   );
