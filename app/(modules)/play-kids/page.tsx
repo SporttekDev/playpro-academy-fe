@@ -54,6 +54,11 @@ interface Parent {
     role: string;
 }
 
+interface Branch {
+    id: number;
+    name: string;
+}
+
 const defaultForm: PlayKidForm = {
     parent_id: '',
     name: "",
@@ -65,22 +70,43 @@ const defaultForm: PlayKidForm = {
     school_origin: "",
 };
 
+interface MembershipWithSessionForm {
+    play_kid_id: number;
+    registered_date: string;
+    valid_until: string;
+    status: string;
+    branch_id: number;
+    session_count: number;
+    session_expiry_date: string;
+}
+
+const defaultMembershipWithSessionForm: MembershipWithSessionForm = {
+    play_kid_id: 0,
+    registered_date: "",
+    valid_until: "",
+    status: "active",
+    branch_id: 0,
+    session_count: 0,
+    session_expiry_date: "",
+};
+
+
 export default function PlayKidsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
-    const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
 
     const [playKids, setPlayKids] = useState<PlayKid[]>([]);
     const [formData, setFormData] = useState<PlayKidForm>(defaultForm);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-
     const [parents, setParents] = useState<Parent[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [membershipForm, setMembershipForm] = useState<MembershipWithSessionForm>(defaultMembershipWithSessionForm);
 
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
-
+    const [selectedPlayKidId, setSelectedPlayKidId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const fetchPlayKids = useCallback(async () => {
@@ -139,10 +165,30 @@ export default function PlayKidsPage() {
         }
     }, []);
 
+    const fetchBranches = useCallback(async () => {
+        try {
+            const token = Cookies.get("token");
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch branches");
+            const { data } = await response.json();
+            setBranches(data);
+        } catch (error) {
+            console.error("Fetch branches failed:", error);
+            toast.error("Failed to fetch branches data");
+        }
+    }, []);
+
     useEffect(() => {
         fetchPlayKids();
         fetchParents();
-    }, [fetchPlayKids, fetchParents]);
+        fetchBranches();
+    }, [fetchPlayKids, fetchParents, fetchBranches]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -151,6 +197,40 @@ export default function PlayKidsPage() {
             setIsEditing(false);
         }
     }, [isDialogOpen]);
+
+    const handleMembershipWithSessionSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setIsLoading(true);
+            const token = Cookies.get("token");
+            
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    ...membershipForm,
+                    play_kid_id: selectedPlayKidId,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to create membership with session");
+            }
+
+            toast.success("Membership and Session created successfully!");
+            setIsMembershipDialogOpen(false);
+            setMembershipForm(defaultMembershipWithSessionForm);
+        } catch (error) {
+            console.error("Create membership with session error:", error);
+            toast.error(error instanceof Error ? error.message : "Failed to create membership with session");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSavePlayKid = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -327,6 +407,7 @@ export default function PlayKidsPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
+                                        setSelectedPlayKidId(playKid.id);
                                         setIsMembershipDialogOpen(true);
                                     }}
                                     aria-label={`Add membership play kid ${playKid.name}`}
@@ -336,23 +417,6 @@ export default function PlayKidsPage() {
                             </TooltipTrigger>
                             <TooltipContent side="top">
                                 Add Membership
-                            </TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                        setIsSessionDialogOpen(true);
-                                    }}
-                                    aria-label={`Add session play kid ${playKid.name}`}
-                                >
-                                    <UserPlus className="w-4 h-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Add Session
                             </TooltipContent>
                         </Tooltip>
                         <Tooltip>
@@ -586,46 +650,143 @@ export default function PlayKidsPage() {
             <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>
-                            Add Membership
-                        </DialogTitle>
-                        <DialogDescription>
-                            Fill in the form below to add playkid&apos;s membership.
-                        </DialogDescription>
+                    <DialogTitle>Add Membership with Session</DialogTitle>
+                    <DialogDescription>
+                        Fill all fields to create membership and initial session.
+                    </DialogDescription>
                     </DialogHeader>
-                </DialogContent>
 
-                <DialogFooter>
-                    <Button type='button' variant="outline" onClick={() => setIsMembershipDialogOpen(false)}>
+                    <form onSubmit={handleMembershipWithSessionSubmit}>
+                    <div className="grid gap-4">
+                        {/* Membership Fields */}
+                        <div className="space-y-2">
+                        <Label htmlFor="registered_date">Registered Date</Label>
+                        <DatePicker
+                            value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : undefined}
+                            onChange={(date) =>
+                            date &&
+                            setMembershipForm((prev) => ({
+                                ...prev,
+                                registered_date: date.toISOString().split("T")[0],
+                            }))
+                            }
+                        />
+                        </div>
+
+                        <div className="space-y-2">
+                        <Label htmlFor="valid_until">Valid Until</Label>
+                        <DatePicker
+                            value={membershipForm.valid_until ? new Date(membershipForm.valid_until) : undefined}
+                            onChange={(date) =>
+                            date &&
+                            setMembershipForm((prev) => ({
+                                ...prev,
+                                valid_until: date.toISOString().split("T")[0],
+                            }))
+                            }
+                        />
+                        </div>
+
+                        <div className="space-y-2">
+                        <Label htmlFor="branch_id">Branch</Label>
+                        <Select
+                            value={membershipForm.branch_id?.toString() || ""}
+                            onValueChange={(value) =>
+                            setMembershipForm((prev) => ({
+                                ...prev,
+                                branch_id: parseInt(value),
+                            }))
+                            }
+                        >
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            {branches.map((branch) => (
+                                <SelectItem key={branch.id} value={branch.id.toString()}>
+                                {branch.name}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <Select
+                            value={membershipForm.status || ""}
+                            onValueChange={(value) =>
+                            setMembershipForm((prev) => ({
+                                ...prev,
+                                status: value,
+                            }))
+                            }
+                        >
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        </div>
+
+                        {/* Session Fields */}
+                        <div className="border-t pt-4 mt-4">
+                        <h3 className="font-medium mb-2">Initial Session</h3>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="session_count">Session Count</Label>
+                            <Input
+                            type="number"
+                            value={membershipForm.session_count || ""}
+                            onChange={(e) =>
+                                setMembershipForm((prev) => ({
+                                ...prev,
+                                session_count: parseInt(e.target.value) || 0,
+                                }))
+                            }
+                            min="1"
+                            />
+                        </div>
+
+                        <div className="space-y-2 mt-2">
+                            <Label htmlFor="session_expiry_date">Expiry Date</Label>
+                            <DatePicker
+                            value={
+                                membershipForm.session_expiry_date
+                                ? new Date(membershipForm.session_expiry_date)
+                                : undefined
+                            }
+                            onChange={(date) =>
+                                date &&
+                                setMembershipForm((prev) => ({
+                                ...prev,
+                                session_expiry_date: date.toISOString().split("T")[0],
+                                }))
+                            }
+                            />
+                        </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="mt-4">
+                        <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsMembershipDialogOpen(false)}
+                        >
                         Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                        {isLoading ? "Loading..." : "Create"}
-                    </Button>
-                </DialogFooter>
-            </Dialog>
-
-            <Dialog open={isSessionDialogOpen} onOpenChange={setIsSessionDialogOpen}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>
-                            Add Session
-                        </DialogTitle>
-                        <DialogDescription>
-                            Fill in the form below to add playkid&apos;s session.
-                        </DialogDescription>
-                    </DialogHeader>
+                        </Button>
+                        <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Loading..." : "Create Membership & Session"}
+                        </Button>
+                    </DialogFooter>
+                    </form>
                 </DialogContent>
+                </Dialog>
 
-                <DialogFooter>
-                    <Button type='button' variant="outline" onClick={() => setIsSessionDialogOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                        {isLoading ? "Loading..." : "Create"}
-                    </Button>
-                </DialogFooter>
-            </Dialog>
 
             <AlertDialogDelete
                 isOpen={isDeleteDialogOpen}
