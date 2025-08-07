@@ -198,6 +198,12 @@ export default function PlayKidsPage() {
         }
     }, [isDialogOpen]);
 
+    useEffect(() => {
+        if (!isMembershipDialogOpen) {
+            setMembershipForm(defaultMembershipWithSessionForm);
+        }
+    }, [isMembershipDialogOpen]);
+
     const handleMembershipWithSessionSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
