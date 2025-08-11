@@ -54,6 +54,17 @@ interface Parent {
     role: string;
 }
 
+interface Membership {
+    id: number;
+    play_kid_id: number;
+    registered_date: string;
+    valid_until: string;
+    status: string;
+    branch_id: number;
+    session_count: number;
+    session_expiry_date: string;
+}
+
 interface Branch {
     id: number;
     name: string;
@@ -103,6 +114,7 @@ export default function PlayKidsPage() {
     const [parents, setParents] = useState<Parent[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [membershipForm, setMembershipForm] = useState<MembershipWithSessionForm>(defaultMembershipWithSessionForm);
+    const [memberships, setMemberships] = useState<Membership[]>([]);
 
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -184,6 +196,26 @@ export default function PlayKidsPage() {
         }
     }, []);
 
+    const fetchMemberships = useCallback(async (playKidId: number) => {
+        try {
+            const token = Cookies.get("token");
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${playKidId}/memberships`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch memberships");
+            const { data } = await response.json();
+            setMemberships(data);
+        } catch (error) {
+            console.error("Fetch memberships failed:", error);
+            toast.error("Failed to fetch membership data");
+        }
+    }, []);
+
+
     useEffect(() => {
         fetchPlayKids();
         fetchParents();
@@ -199,17 +231,17 @@ export default function PlayKidsPage() {
     }, [isDialogOpen]);
 
     useEffect(() => {
-        if (!isMembershipDialogOpen) {
-            setMembershipForm(defaultMembershipWithSessionForm);
+        if (isMembershipDialogOpen && selectedPlayKidId) {
+            fetchMemberships(selectedPlayKidId);
         }
-    }, [isMembershipDialogOpen]);
+    }, [isMembershipDialogOpen, selectedPlayKidId, fetchMemberships]);
 
-    const handleMembershipWithSessionSubmit = async (e: React.FormEvent) => {
+    const handleMembershipSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             setIsLoading(true);
             const token = Cookies.get("token");
-            
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership`, {
                 method: "POST",
                 headers: {
@@ -222,17 +254,14 @@ export default function PlayKidsPage() {
                 }),
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Failed to create membership with session");
-            }
+            if (!response.ok) throw new Error("Failed to create membership");
 
-            toast.success("Membership and Session created successfully!");
-            setIsMembershipDialogOpen(false);
+            await fetchMemberships(selectedPlayKidId!);
             setMembershipForm(defaultMembershipWithSessionForm);
+            toast.success("Membership created successfully!");
         } catch (error) {
-            console.error("Create membership with session error:", error);
-            toast.error(error instanceof Error ? error.message : "Failed to create membership with session");
+            console.error("Create membership error:", error);
+            toast.error("Failed to create membership");
         } finally {
             setIsLoading(false);
         }
@@ -416,13 +445,13 @@ export default function PlayKidsPage() {
                                         setSelectedPlayKidId(playKid.id);
                                         setIsMembershipDialogOpen(true);
                                     }}
-                                    aria-label={`Add membership play kid ${playKid.name}`}
+                                    aria-label={`Manage memberships for ${playKid.name}`}
                                 >
                                     <UserPlus className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top">
-                                Add Membership
+                                Manage Memberships
                             </TooltipContent>
                         </Tooltip>
                         <Tooltip>
@@ -654,145 +683,116 @@ export default function PlayKidsPage() {
             </Dialog>
 
             <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-3xl">
                     <DialogHeader>
-                    <DialogTitle>Add Membership with Session</DialogTitle>
-                    <DialogDescription>
-                        Fill all fields to create membership and initial session.
-                    </DialogDescription>
+                        <DialogTitle>Memberships</DialogTitle>
+                        <DialogDescription>
+                            Manage memberships for {selectedPlayKidId ? "selected student" : "student"}
+                        </DialogDescription>
                     </DialogHeader>
-
-                    <form onSubmit={handleMembershipWithSessionSubmit}>
-                    <div className="grid gap-4">
-                        {/* Membership Fields */}
-                        <div className="space-y-2">
-                        <Label htmlFor="registered_date">Registered Date</Label>
-                        <DatePicker
-                            value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : undefined}
-                            onChange={(date) =>
-                            date &&
-                            setMembershipForm((prev) => ({
-                                ...prev,
-                                registered_date: date.toISOString().split("T")[0],
-                            }))
-                            }
-                        />
-                        </div>
-
-                        <div className="space-y-2">
-                        <Label htmlFor="valid_until">Valid Until</Label>
-                        <DatePicker
-                            value={membershipForm.valid_until ? new Date(membershipForm.valid_until) : undefined}
-                            onChange={(date) =>
-                            date &&
-                            setMembershipForm((prev) => ({
-                                ...prev,
-                                valid_until: date.toISOString().split("T")[0],
-                            }))
-                            }
-                        />
-                        </div>
-
-                        <div className="space-y-2">
-                        <Label htmlFor="branch_id">Branch</Label>
-                        <Select
-                            value={membershipForm.branch_id?.toString() || ""}
-                            onValueChange={(value) =>
-                            setMembershipForm((prev) => ({
-                                ...prev,
-                                branch_id: parseInt(value),
-                            }))
-                            }
-                        >
-                            <SelectTrigger>
-                            <SelectValue placeholder="Select branch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                            {branches.map((branch) => (
-                                <SelectItem key={branch.id} value={branch.id.toString()}>
-                                {branch.name}
-                                </SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select
-                            value={membershipForm.status || ""}
-                            onValueChange={(value) =>
-                            setMembershipForm((prev) => ({
-                                ...prev,
-                                status: value,
-                            }))
-                            }
-                        >
-                            <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        </div>
-
-                        {/* Session Fields */}
-                        <div className="border-t pt-4 mt-4">
-                        <h3 className="font-medium mb-2">Initial Session</h3>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="session_count">Session Count</Label>
-                            <Input
-                            type="number"
-                            value={membershipForm.session_count || ""}
-                            onChange={(e) =>
-                                setMembershipForm((prev) => ({
-                                ...prev,
-                                session_count: parseInt(e.target.value) || 0,
-                                }))
-                            }
-                            min="1"
+                    {selectedPlayKidId && (
+                        <div className="space-y-4">
+                            <DataTable
+                                columns={[
+                                    { accessorKey: 'registered_date', header: 'Registered Date' },
+                                    { accessorKey: 'valid_until', header: 'Valid Until' },
+                                    { accessorKey: 'status', header: 'Status' },
+                                    {
+                                        accessorKey: 'branch_id',
+                                        header: 'Branch',
+                                        cell: ({ row }) => {
+                                            const branchId = row.original.branch_id;
+                                            const branch = branches.find(b => b.id === branchId);
+                                            return branch?.name || "N/A";
+                                        }
+                                    },
+                                    { accessorKey: 'session_count', header: 'Session Count' },
+                                    { accessorKey: 'session_expiry_date', header: 'Session Expiry' },
+                                ]}
+                                data={memberships}
                             />
-                        </div>
 
-                        <div className="space-y-2 mt-2">
-                            <Label htmlFor="session_expiry_date">Expiry Date</Label>
-                            <DatePicker
-                            value={
-                                membershipForm.session_expiry_date
-                                ? new Date(membershipForm.session_expiry_date)
-                                : undefined
-                            }
-                            onChange={(date) =>
-                                date &&
-                                setMembershipForm((prev) => ({
-                                ...prev,
-                                session_expiry_date: date.toISOString().split("T")[0],
-                                }))
-                            }
-                            />
-                        </div>
-                        </div>
-                    </div>
+                            <form onSubmit={handleMembershipSubmit} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label>Registered Date</Label>
+                                        <DatePicker
+                                            value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : undefined}
+                                            onChange={(date) => {
+                                                if (date) {
+                                                    setMembershipForm(prev => ({
+                                                        ...prev,
+                                                        registered_date: date.toISOString().split('T')[0],
+                                                    }));
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Valid Until</Label>
+                                        <DatePicker
+                                            value={membershipForm.valid_until ? new Date(membershipForm.valid_until) : undefined}
+                                            onChange={(date) => {
+                                                if (date) {
+                                                    setMembershipForm(prev => ({
+                                                        ...prev,
+                                                        valid_until: date.toISOString().split('T')[0],
+                                                    }));
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className='space-y-1'>
+                                        <Label>Status</Label>
+                                        <Select
+                                            value={membershipForm.status}
+                                            onValueChange={(value) =>
+                                                setMembershipForm(prev => ({ ...prev, status: value }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="active">Active</SelectItem>
+                                                <SelectItem value="expired">Expired</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Branch</Label>
+                                        <Select
+                                            value={membershipForm.branch_id.toString()}
+                                            onValueChange={(value) =>
+                                                setMembershipForm(prev => ({ ...prev, branch_id: parseInt(value) }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select branch" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {branches.map(branch => (
+                                                    <SelectItem key={branch.id} value={branch.id.toString()}>
+                                                        {branch.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
 
-                    <DialogFooter className="mt-4">
-                        <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsMembershipDialogOpen(false)}
-                        >
-                        Cancel
-                        </Button>
-                        <Button type="submit" disabled={isLoading}>
-                        {isLoading ? "Loading..." : "Create Membership & Session"}
-                        </Button>
-                    </DialogFooter>
-                    </form>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setIsMembershipDialogOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={isLoading}>
+                                        {isLoading ? "Loading..." : "Add Membership"}
+                                    </Button>
+                                </DialogFooter>
+
+                            </form>
+                        </div>
+                    )}
                 </DialogContent>
-                </Dialog>
-
+            </Dialog>
 
             <AlertDialogDelete
                 isOpen={isDeleteDialogOpen}
