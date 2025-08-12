@@ -55,11 +55,15 @@ interface ScheduleForm {
 interface ClassData {
     id: string;
     name: string;
+    branch_id: string;
 }
 
 interface Venue {
     id: string;
     name: string;
+    branch: {
+        id: string;
+    };
 }
 
 const defaultForm: ScheduleForm = {
@@ -476,11 +480,27 @@ export default function SchedulesPage() {
                                         <SelectValue placeholder="Choose venue" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {venues.map((venue) => (
-                                            <SelectItem key={venue.id} value={venue.id.toString()}>
-                                                {venue.name}
-                                            </SelectItem>
-                                        ))}
+                                        {venues
+                                            .filter(venue => {
+                                                // Jika belum ada kelas yang dipilih, tampilkan semua venue
+                                                if (!formData.class_id) return true;
+
+                                                // Cari kelas yang dipilih
+                                                const selectedClass = classes.find(cls =>
+                                                    parseInt(cls.id) === parseInt(formData.class_id, 10)
+                                                );
+
+                                                // Jika kelas tidak ditemukan, tampilkan semua venue
+                                                if (!selectedClass) return true;
+
+                                                // Filter venue berdasarkan branch_id kelas yang dipilih
+                                                return venue.branch.id === selectedClass.branch_id;
+                                            })
+                                            .map(venue => (
+                                                <SelectItem key={venue.id} value={venue.id.toString()}>
+                                                    {venue.name}
+                                                </SelectItem>
+                                            ))}
                                     </SelectContent>
                                 </Select>
                             </div>
