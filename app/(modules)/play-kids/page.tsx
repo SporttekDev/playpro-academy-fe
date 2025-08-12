@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { DatePicker } from '@/components/date-picker'; // Pastikan Anda memiliki komponen DatePicker
+import { DatePicker } from '@/components/date-picker';
 import Cookies from 'js-cookie';
 import Image from 'next/image';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserPlus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface PlayKid {
     id: number;
@@ -61,8 +62,13 @@ interface Membership {
     valid_until: string;
     status: string;
     branch_id: number;
-    session_count: number;
-    session_expiry_date: string;
+}
+
+interface Session {
+    id: number;
+    membership_id: number;
+    count: number;
+    expiry_date: string;
 }
 
 interface Branch {
@@ -81,26 +87,33 @@ const defaultForm: PlayKidForm = {
     school_origin: "",
 };
 
-interface MembershipWithSessionForm {
+interface MembershipForm {
     play_kid_id: number;
     registered_date: string;
     valid_until: string;
     status: string;
     branch_id: number;
-    session_count: number;
-    session_expiry_date: string;
 }
 
-const defaultMembershipWithSessionForm: MembershipWithSessionForm = {
+const defaultMembershipForm: MembershipForm = {
     play_kid_id: 0,
     registered_date: "",
     valid_until: "",
     status: "active",
     branch_id: 0,
-    session_count: 0,
-    session_expiry_date: "",
 };
 
+interface SessionForm {
+    membership_id: number;
+    count: number;
+    expiry_date: string;
+}
+
+const defaultSessionForm: SessionForm = {
+    membership_id: 0,
+    count: 0,
+    expiry_date: "",
+};
 
 export default function PlayKidsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -113,19 +126,20 @@ export default function PlayKidsPage() {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [parents, setParents] = useState<Parent[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
-    const [membershipForm, setMembershipForm] = useState<MembershipWithSessionForm>(defaultMembershipWithSessionForm);
+    const [membershipForm, setMembershipForm] = useState<MembershipForm>(defaultMembershipForm);
+    const [sessionForm, setSessionForm] = useState<SessionForm>(defaultSessionForm);
     const [memberships, setMemberships] = useState<Membership[]>([]);
+    const [sessions, setSessions] = useState<Session[]>([]);
 
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [selectedPlayKidId, setSelectedPlayKidId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("memberships");
 
     const fetchPlayKids = useCallback(async () => {
         try {
             const token = Cookies.get("token");
-            console.log("token:", token);
-
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -134,14 +148,10 @@ export default function PlayKidsPage() {
             });
 
             if (!response.ok) {
-                const error = await response.text();
-                console.error("Server returned error response:", error);
                 throw new Error("Failed to fetch play kids from server");
             }
 
             const { data } = await response.json();
-            console.log("PlayKid data:", data);
-
             setPlayKids(data);
         } catch (error) {
             console.error("Fetch play kids failed:", error);
@@ -160,20 +170,15 @@ export default function PlayKidsPage() {
             });
 
             if (!response.ok) {
-                const error = await response.text();
-                console.error("Server returned error response:", error);
                 throw new Error("Failed to fetch parents from server");
             }
 
             const { data } = await response.json();
-            console.log("Parent data:", data);
-
             const parentsData = data.filter((item: Parent) => item.role === "parent");
-
             setParents(parentsData);
         } catch (error) {
             console.error("Fetch parents failed:", error);
-            toast.error("Failed to fetch play kid data");
+            toast.error("Failed to fetch parents data");
         }
     }, []);
 
@@ -209,12 +214,76 @@ export default function PlayKidsPage() {
             if (!response.ok) throw new Error("Failed to fetch memberships");
             const { data } = await response.json();
             setMemberships(data);
+            return data;
         } catch (error) {
             console.error("Fetch memberships failed:", error);
             toast.error("Failed to fetch membership data");
+            return [];
         }
     }, []);
 
+    const fetchAllSessions = useCallback(async (playKidId: number, currentMemberships: Membership[] = []) => {
+        if (!playKidId) return;
+        
+        try {
+            const token = Cookies.get("token");
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${playKidId}/sessions`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (response.ok) {
+                const { data } = await response.json();
+                setSessions(data);
+            } else {
+                const membershipList = currentMemberships.length > 0 ? currentMemberships : memberships;
+                const allSessions: Session[] = [];
+                for (const membership of membershipList) {
+                    try {
+                        const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                            },
+                        });
+                        if (sessionResponse.ok) {
+                            const { data } = await sessionResponse.json();
+                            allSessions.push(...data);
+                        }
+                    } catch (err) {
+                        console.error(`Failed to fetch sessions for membership ${membership.id}:`, err);
+                    }
+                }
+                setSessions(allSessions);
+            }
+        } catch (error) {
+            console.error("Fetch all sessions failed:", error);
+            const membershipList = currentMemberships.length > 0 ? currentMemberships : memberships;
+            if (membershipList.length > 0) {
+                const allSessions: Session[] = [];
+                const token = Cookies.get("token");
+                for (const membership of membershipList) {
+                    try {
+                        const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                Accept: "application/json",
+                            },
+                        });
+                        if (sessionResponse.ok) {
+                            const { data } = await sessionResponse.json();
+                            allSessions.push(...data);
+                        }
+                    } catch (err) {
+                        console.error(`Failed to fetch sessions for membership ${membership.id}:`, err);
+                    }
+                }
+                setSessions(allSessions);
+            }
+        }
+    }, [memberships]);
 
     useEffect(() => {
         fetchPlayKids();
@@ -232,9 +301,21 @@ export default function PlayKidsPage() {
 
     useEffect(() => {
         if (isMembershipDialogOpen && selectedPlayKidId) {
-            fetchMemberships(selectedPlayKidId);
+            fetchMemberships(selectedPlayKidId).then((membershipData) => {
+                fetchAllSessions(selectedPlayKidId, membershipData);
+            });
+            setActiveTab("memberships");
+        } else {
+            setMemberships([]);
+            setSessions([]);
         }
     }, [isMembershipDialogOpen, selectedPlayKidId, fetchMemberships]);
+ 
+    useEffect(() => {
+        if (activeTab === "sessions" && selectedPlayKidId && memberships.length > 0) {
+            fetchAllSessions(selectedPlayKidId, memberships);
+        }
+    }, [activeTab, selectedPlayKidId]);
 
     const handleMembershipSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -257,11 +338,42 @@ export default function PlayKidsPage() {
             if (!response.ok) throw new Error("Failed to create membership");
 
             await fetchMemberships(selectedPlayKidId!);
-            setMembershipForm(defaultMembershipWithSessionForm);
+            if (activeTab === "sessions") {
+                await fetchAllSessions(selectedPlayKidId!, memberships);
+            }
+            setMembershipForm(defaultMembershipForm);
             toast.success("Membership created successfully!");
         } catch (error) {
             console.error("Create membership error:", error);
             toast.error("Failed to create membership");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSessionSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setIsLoading(true);
+            const token = Cookies.get("token");
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(sessionForm),
+            });
+
+            if (!response.ok) throw new Error("Failed to create session");
+
+            await fetchAllSessions(selectedPlayKidId!, memberships);
+            setSessionForm(defaultSessionForm);
+            toast.success("Session created successfully!");
+        } catch (error) {
+            console.error("Create session error:", error);
+            toast.error("Failed to create session");
         } finally {
             setIsLoading(false);
         }
@@ -416,7 +528,6 @@ export default function PlayKidsPage() {
                 );
             }
         },
-
         { accessorKey: 'name', header: 'Name' },
         { accessorKey: 'nick_name', header: 'Nick Name' },
         { accessorKey: 'birth_date', header: 'Birth Date' },
@@ -508,6 +619,59 @@ export default function PlayKidsPage() {
         },
     ];
 
+    const membershipColumns: ColumnDef<Membership>[] = [
+        { 
+            accessorKey: 'registered_date', 
+            header: 'Registered Date',
+            cell: ({ row }) => {
+                const date = row.original.registered_date;
+                return date ? new Date(date).toLocaleDateString('en-CA') : "N/A";
+            }
+        },
+        { 
+            accessorKey: 'valid_until', 
+            header: 'Valid Until',
+            cell: ({ row }) => {
+                const date = row.original.valid_until;
+                return date ? new Date(date).toLocaleDateString('en-CA') : "N/A";
+            }
+        },
+        { accessorKey: 'status', header: 'Status' },
+        {
+            accessorKey: 'branch_id',
+            header: 'Branch',
+            cell: ({ row }) => {
+                const branchId = row.original.branch_id;
+                const branch = branches.find(b => b.id === branchId);
+                return branch?.name || "N/A";
+            }
+        }
+    ];
+
+    const sessionColumns: ColumnDef<Session>[] = [
+        {
+            accessorKey: 'membership_id',
+            header: 'Membership',
+            cell: ({ row }) => {
+                const membershipId = row.original.membership_id;
+                const membership = memberships.find(m => m.id === membershipId);
+                return membership ? `Membership #${membership.id}` : "N/A";
+            }
+        },
+        { accessorKey: 'count', header: 'Session Count' },
+        { 
+            accessorKey: 'expiry_date', 
+            header: 'Expiry Date',
+            cell: ({ row }) => {
+                const expiryDate = row.original.expiry_date;
+                if (expiryDate) {
+                    return new Date(expiryDate).toLocaleDateString('en-CA'); 
+                }
+                return "N/A";
+            }
+        },
+    ];
+
     return (
         <>
             {/* DataTable */}
@@ -522,7 +686,7 @@ export default function PlayKidsPage() {
                 setIsDialogOpen(true);
             }} tooltip="Add Play Kid" />
 
-            {/* Dialog for Create/Edit */}
+            {/* Dialog for Create/Edit PlayKid */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
@@ -536,7 +700,6 @@ export default function PlayKidsPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSavePlayKid}>
-
                         <div className="grid gap-4">
                             {/* Parent ID */}
                             <div className="space-y-1">
@@ -549,7 +712,6 @@ export default function PlayKidsPage() {
                                         <SelectValue placeholder="Choose parent" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {/* Render option dari state parents */}
                                         {parents.map((parent) => (
                                             <SelectItem key={parent.id} value={parent.id.toString()}>
                                                 {parent.name}
@@ -577,7 +739,6 @@ export default function PlayKidsPage() {
                                     name="nick_name"
                                     value={formData.nick_name}
                                     onChange={handleChange}
-                                    required
                                 />
                             </div>
 
@@ -614,7 +775,6 @@ export default function PlayKidsPage() {
                                     name="medical_history"
                                     value={formData.medical_history}
                                     onChange={handleChange}
-                                    required
                                 />
                             </div>
 
@@ -625,7 +785,6 @@ export default function PlayKidsPage() {
                                     name="school_origin"
                                     value={formData.school_origin}
                                     onChange={handleChange}
-                                    required
                                 />
                             </div>
 
@@ -638,7 +797,7 @@ export default function PlayKidsPage() {
                                     accept="image/*"
                                     onChange={handleFileChange}
                                 />
-                                {/* Tampilkan preview */}
+                                {/* Photo Preview */}
                                 <div className="mt-2">
                                     {photoPreview ? (
                                         <div className="flex flex-col items-start gap-2">
@@ -683,36 +842,30 @@ export default function PlayKidsPage() {
             </Dialog>
 
             <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
-                <DialogContent className="sm:max-w-3xl">
+                <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Memberships</DialogTitle>
+                        <DialogTitle>Membership & Session Management</DialogTitle>
                         <DialogDescription>
-                            Manage memberships for {selectedPlayKidId ? "selected student" : "student"}
+                            Manage memberships and sessions for the selected student
                         </DialogDescription>
                     </DialogHeader>
-                    {selectedPlayKidId && (
-                        <div className="space-y-4">
+                    
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="memberships">Memberships</TabsTrigger>
+                            <TabsTrigger value="sessions">Sessions</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="memberships" className="space-y-4">
+                            {/* Memberships Table */}
                             <DataTable
-                                columns={[
-                                    { accessorKey: 'registered_date', header: 'Registered Date' },
-                                    { accessorKey: 'valid_until', header: 'Valid Until' },
-                                    { accessorKey: 'status', header: 'Status' },
-                                    {
-                                        accessorKey: 'branch_id',
-                                        header: 'Branch',
-                                        cell: ({ row }) => {
-                                            const branchId = row.original.branch_id;
-                                            const branch = branches.find(b => b.id === branchId);
-                                            return branch?.name || "N/A";
-                                        }
-                                    },
-                                    { accessorKey: 'session_count', header: 'Session Count' },
-                                    { accessorKey: 'session_expiry_date', header: 'Session Expiry' },
-                                ]}
+                                columns={membershipColumns}
                                 data={memberships}
                             />
 
-                            <form onSubmit={handleMembershipSubmit} className="space-y-4">
+                            {/* Add Membership Form */}
+                            <form onSubmit={handleMembershipSubmit} className="space-y-4 border-t pt-4">
+                                <h4 className="font-medium">Add New Membership</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <Label>Registered Date</Label>
@@ -754,7 +907,7 @@ export default function PlayKidsPage() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="active">Active</SelectItem>
-                                                <SelectItem value="expired">Expired</SelectItem>
+                                                <SelectItem value="inactive">Inactive</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -778,19 +931,104 @@ export default function PlayKidsPage() {
                                         </Select>
                                     </div>
                                 </div>
-
-                                <DialogFooter>
-                                    <Button type="button" variant="outline" onClick={() => setIsMembershipDialogOpen(false)}>
-                                        Cancel
-                                    </Button>
-                                    <Button type="submit" disabled={isLoading}>
-                                        {isLoading ? "Loading..." : "Add Membership"}
-                                    </Button>
-                                </DialogFooter>
-
+                                <Button type="submit" disabled={isLoading}>
+                                    {isLoading ? "Loading..." : "Add Membership"}
+                                </Button>
                             </form>
-                        </div>
-                    )}
+                        </TabsContent>
+
+                        <TabsContent value="sessions" className="space-y-4">
+                            {sessions.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    {memberships.length === 0 ? 
+                                        "No memberships found. Please add a membership first." : 
+                                        "No sessions found for this student"}
+                                </div>
+                            ) : (
+                                /* Sessions Table */
+                                <DataTable
+                                    columns={sessionColumns}
+                                    data={sessions}
+                                />
+                            )}
+
+                            {/* Add Session Form */}
+                            {memberships.length > 0 ? (
+                                <form onSubmit={handleSessionSubmit} className="space-y-4 border-t pt-4">
+                                    <h4 className="font-medium">Add New Session</h4>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                            <Label>Membership</Label>
+                                            <Select
+                                                value={sessionForm.membership_id.toString()}
+                                                onValueChange={(value) =>
+                                                    setSessionForm(prev => ({ ...prev, membership_id: parseInt(value) }))}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select membership" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {memberships.map(membership => (
+                                                        <SelectItem key={membership.id} value={membership.id.toString()}>
+                                                            Membership #{membership.id} - {membership.status}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label>Session Count</Label>
+                                            <Input
+                                                type="number"
+                                                value={sessionForm.count}
+                                                onChange={(e) =>
+                                                    setSessionForm(prev => ({ ...prev, count: parseInt(e.target.value) || 0 }))}
+                                                min="1"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label>Expiry Date</Label>
+                                            <DatePicker
+                                                value={sessionForm.expiry_date ? new Date(sessionForm.expiry_date) : undefined}
+                                                onChange={(date) => {
+                                                    if (date) {
+                                                        setSessionForm(prev => ({
+                                                            ...prev,
+                                                            expiry_date: date.toISOString().split('T')[0],
+                                                        }));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <Button type="submit" disabled={isLoading || !sessionForm.membership_id}>
+                                        {isLoading ? "Loading..." : "Add Session"}
+                                    </Button>
+                                </form>
+                            ) : (
+                                <div className="border-t pt-4 text-center text-gray-500">
+                                    Please create a membership first before adding sessions
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+
+                    <DialogFooter>
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => {
+                                setIsMembershipDialogOpen(false);
+                                setMembershipForm(defaultMembershipForm);
+                                setSessionForm(defaultSessionForm);
+                                setSessions([]);
+                                setActiveTab("memberships"); 
+                            }}
+                        >
+                            Close
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
