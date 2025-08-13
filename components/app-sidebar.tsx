@@ -132,11 +132,11 @@ const data = {
       url: "/sports",
       icon: IconBallBasketball,
     },
-    {
-      name: "Products",
-      url: "/products",
-      icon: IconPackage,
-    },
+    // {
+    //   name: "Products",
+    //   url: "/products",
+    //   icon: IconPackage,
+    // },
     {
       name: "Branches",
       url: "/branches",

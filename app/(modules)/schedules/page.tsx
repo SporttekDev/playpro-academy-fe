@@ -21,6 +21,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Schedule {
     id: number;
@@ -54,11 +55,15 @@ interface ScheduleForm {
 interface ClassData {
     id: string;
     name: string;
+    branch_id: string;
 }
 
 interface Venue {
     id: string;
     name: string;
+    branch: {
+        id: string;
+    };
 }
 
 const defaultForm: ScheduleForm = {
@@ -234,7 +239,7 @@ export default function SchedulesPage() {
                 end_time: endTime,
                 quota: Number(formData.quota),
             };
-    
+
             if (!isEditing) {
                 const selectedClass = classes.find(cls => cls.id.toString() === formData.class_id);
                 const selectedVenue = venues.find(venue => venue.id.toString() === formData.venue_id);
@@ -369,36 +374,50 @@ export default function SchedulesPage() {
                 const schedule = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(schedule.id);
-                                setFormData({
-                                    name: schedule.name ? schedule.name : '',
-                                    class_id: schedule.class_id.toString(),
-                                    start_time: formatTimeForInput(schedule.start_time),
-                                    end_time: formatTimeForInput(schedule.end_time),
-                                    date: schedule.date,
-                                    quota: schedule.quota,
-                                    venue_id: schedule.venue_id.toString(),
-                                });
-                                setIsDialogOpen(true);
-                            }}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(schedule.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(schedule.id);
+                                        setFormData({
+                                            name: schedule.name ? schedule.name : '',
+                                            class_id: schedule.class_id.toString(),
+                                            start_time: formatTimeForInput(schedule.start_time),
+                                            end_time: formatTimeForInput(schedule.end_time),
+                                            date: schedule.date,
+                                            quota: schedule.quota,
+                                            venue_id: schedule.venue_id.toString(),
+                                        });
+                                        setIsDialogOpen(true);
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(schedule.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },
@@ -461,11 +480,27 @@ export default function SchedulesPage() {
                                         <SelectValue placeholder="Choose venue" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {venues.map((venue) => (
-                                            <SelectItem key={venue.id} value={venue.id.toString()}>
-                                                {venue.name}
-                                            </SelectItem>
-                                        ))}
+                                        {venues
+                                            .filter(venue => {
+                                                // Jika belum ada kelas yang dipilih, tampilkan semua venue
+                                                if (!formData.class_id) return true;
+
+                                                // Cari kelas yang dipilih
+                                                const selectedClass = classes.find(cls =>
+                                                    parseInt(cls.id) === parseInt(formData.class_id, 10)
+                                                );
+
+                                                // Jika kelas tidak ditemukan, tampilkan semua venue
+                                                if (!selectedClass) return true;
+
+                                                // Filter venue berdasarkan branch_id kelas yang dipilih
+                                                return venue.branch.id === selectedClass.branch_id;
+                                            })
+                                            .map(venue => (
+                                                <SelectItem key={venue.id} value={venue.id.toString()}>
+                                                    {venue.name}
+                                                </SelectItem>
+                                            ))}
                                     </SelectContent>
                                 </Select>
                             </div>

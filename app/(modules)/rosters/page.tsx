@@ -22,6 +22,7 @@ import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { getNameById } from '@/helpers/getNameById';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Roster {
     id: number;
@@ -300,33 +301,47 @@ export default function RostersPage() {
                 const roster = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(roster.id);
-                                setFormData({
-                                    coach_id: roster.coach_id.toString(),
-                                    schedule_id: roster.schedule_id.toString(),
-                                    is_head_coach: roster.is_head_coach,
-                                    attendance: roster.attendance,
-                                });
-                                setIsDialogOpen(true);
-                            }}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(roster.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(roster.id);
+                                        setFormData({
+                                            coach_id: roster.coach_id.toString(),
+                                            schedule_id: roster.schedule_id.toString(),
+                                            is_head_coach: roster.is_head_coach,
+                                            attendance: roster.attendance,
+                                        });
+                                        setIsDialogOpen(true);
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(roster.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },

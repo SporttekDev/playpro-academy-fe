@@ -15,12 +15,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getNameById } from '@/helpers/getNameById';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ClassData {
     id: number;
@@ -189,10 +189,22 @@ export default function ClassesPage() {
 
     const handleSaveClass = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!formData.name.trim() || !formData.sport_id || !formData.category_id || !formData.branch_id) {
+
+        const sportName = sports.find(sport => parseInt(sport.id) === parseInt(formData.sport_id))?.name;
+        const categoryName = categories.find(category => parseInt(category.id) === parseInt(formData.category_id))?.name;
+        const branchName = branches.find(branch => parseInt(branch.id) === parseInt(formData.branch_id))?.name;
+
+        const formName = `${sportName} - ${categoryName} - ${branchName}`;
+
+        if (!formName || !formData.sport_id || !formData.category_id || !formData.branch_id) {
             toast.error('All fields are required');
             return;
         }
+
+        const payload: ClassForm = {
+            ...formData,
+            name: formName,
+        };
 
         try {
             setIsLoading(true);
@@ -209,7 +221,7 @@ export default function ClassesPage() {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
@@ -256,14 +268,6 @@ export default function ClassesPage() {
         }
     }
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-    };
-
     const columns: ColumnDef<ClassData>[] = [
         { accessorKey: 'name', header: 'Name' },
         {
@@ -288,33 +292,47 @@ export default function ClassesPage() {
                 const cls = row.original;
                 return (
                     <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditId(cls.id);
-                                setFormData({
-                                    name: cls.name,
-                                    sport_id: cls.sport_id.toString(),
-                                    category_id: cls.category_id.toString(),
-                                    branch_id: cls.branch_id.toString(),
-                                });
-                                setIsDialogOpen(true);
-                            }}
-                        >
-                            <IconPencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                setDeleteId(cls.id);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                        >
-                            <IconTrash className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsEditing(true);
+                                        setEditId(cls.id);
+                                        setFormData({
+                                            name: cls.name,
+                                            sport_id: cls.sport_id.toString(),
+                                            category_id: cls.category_id.toString(),
+                                            branch_id: cls.branch_id.toString(),
+                                        });
+                                        setIsDialogOpen(true);
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(cls.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 );
             },
@@ -348,7 +366,7 @@ export default function ClassesPage() {
                     </DialogHeader>
                     <form onSubmit={handleSaveClass}>
                         <div className="grid gap-4">
-                            <div className="space-y-1">
+                            {/* <div className="space-y-1">
                                 <Label>Name</Label>
                                 <Input
                                     name="name"
@@ -356,7 +374,7 @@ export default function ClassesPage() {
                                     onChange={handleChange}
                                     required
                                 />
-                            </div>
+                            </div> */}
 
                             <div className="space-y-1">
                                 <Label>Sport</Label>
