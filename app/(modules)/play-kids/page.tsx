@@ -107,12 +107,14 @@ interface SessionForm {
     membership_id: number;
     count: number;
     expiry_date: number;
+    purchase_date?: string;
 }
 
 const defaultSessionForm: SessionForm = {
     membership_id: 0,
     count: 0,
     expiry_date: 0,
+    purchase_date: "",
 };
 
 export default function PlayKidsPage() {
@@ -330,21 +332,22 @@ export default function PlayKidsPage() {
         e.preventDefault();
         try {
             setIsLoading(true);
-            const token = Cookies.get("token");
+            // const token = Cookies.get("token");
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(sessionForm),
-            });
+            // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session`, {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //         Authorization: `Bearer ${token}`,
+            //     },
+            //     body: JSON.stringify(sessionForm),
+            // });
 
-            if (!response.ok) throw new Error("Failed to create session");
+            // if (!response.ok) throw new Error("Failed to create session");
 
-            await fetchAllSessions(selectedPlayKidId!, memberships);
-            setSessionForm(defaultSessionForm);
+            // await fetchAllSessions(selectedPlayKidId!, memberships);
+            // setSessionForm(defaultSessionForm);
+            console.log("sessionForm : ", sessionForm);
             toast.success("Session created successfully!");
         } catch (error) {
             console.error("Create session error:", error);
@@ -933,7 +936,7 @@ export default function PlayKidsPage() {
                             {memberships.length > 0 ? (
                                 <form onSubmit={handleSessionSubmit} className="space-y-4 border-t pt-4">
                                     <h4 className="font-medium">Add New Session</h4>
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-4 gap-4">
                                         <div className="space-y-1">
                                             <Label>Membership</Label>
                                             <Select
@@ -954,6 +957,20 @@ export default function PlayKidsPage() {
                                             </Select>
                                         </div>
                                         <div className="space-y-1">
+                                            <Label>Purchase Date</Label>
+                                            <DatePicker
+                                                value={sessionForm.purchase_date ? new Date(sessionForm.purchase_date) : undefined}
+                                                onChange={(date) => {
+                                                    if (date) {
+                                                        setSessionForm(prev => ({
+                                                            ...prev,
+                                                            purchase_date: date.toISOString().split('T')[0],
+                                                        }));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
                                             <Label>Session Count</Label>
                                             <Input
                                                 type="number"
@@ -965,7 +982,7 @@ export default function PlayKidsPage() {
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label htmlFor="expiry_date">Session Duration (Months)</Label>
+                                            <Label>Session Duration (Months)</Label>
                                             <Input
                                                 id="expiry_date"
                                                 type="number"
