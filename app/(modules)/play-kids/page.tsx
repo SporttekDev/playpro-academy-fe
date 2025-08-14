@@ -332,21 +332,21 @@ export default function PlayKidsPage() {
         e.preventDefault();
         try {
             setIsLoading(true);
-            // const token = Cookies.get("token");
+            const token = Cookies.get("token");
 
-            // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session`, {
-            //     method: "POST",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //         Authorization: `Bearer ${token}`,
-            //     },
-            //     body: JSON.stringify(sessionForm),
-            // });
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(sessionForm),
+            });
 
-            // if (!response.ok) throw new Error("Failed to create session");
+            if (!response.ok) throw new Error("Failed to create session");
 
-            // await fetchAllSessions(selectedPlayKidId!, memberships);
-            // setSessionForm(defaultSessionForm);
+            await fetchAllSessions(selectedPlayKidId!, memberships);
+            setSessionForm(defaultSessionForm);
             console.log("sessionForm : ", sessionForm);
             toast.success("Session created successfully!");
         } catch (error) {
