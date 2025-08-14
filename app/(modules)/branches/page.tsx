@@ -25,19 +25,16 @@ interface Branch {
     id: number;
     name: string;
     description: string;
-    address: string;
 }
 
 interface BranchForm {
     name: string;
     description: string;
-    address: string;
 }
 
 const defaultForm: BranchForm = {
     name: "",
     description: "",
-    address: "",
 };
 
 export default function BranchesPage() {
@@ -178,7 +175,6 @@ export default function BranchesPage() {
     const columns: ColumnDef<Branch>[] = [
         { accessorKey: 'name', header: 'Name' },
         { accessorKey: 'description', header: 'Description' },
-        { accessorKey: 'address', header: 'Address' },
         {
             id: 'actions',
             header: 'Actions',
@@ -198,7 +194,6 @@ export default function BranchesPage() {
                                         setFormData({
                                             name: branch.name,
                                             description: branch.description,
-                                            address: branch.address,
                                         });
                                         setIsDialogOpen(true);
                                     }}
@@ -286,17 +281,7 @@ export default function BranchesPage() {
                                     required
                                 />
                             </div>
-
-                            {/* Address */}
-                            <div className="space-y-1">
-                                <Label>Address</Label>
-                                <Input
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
+                            
                         </div>
 
                         <DialogFooter>
