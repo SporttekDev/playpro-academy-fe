@@ -222,68 +222,53 @@ export default function PlayKidsPage() {
         }
     }, []);
 
-    const fetchAllSessions = useCallback(async (playKidId: number, currentMemberships: Membership[] = []) => {
-        if (!playKidId) return;
+    const fetchAllSessions = useCallback(
+        async (playKidId: number, currentMemberships?: Membership[]) => {
+            if (!playKidId) return;
 
-        try {
-            const token = Cookies.get("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${playKidId}/sessions`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
-                },
-            });
-
-            if (response.ok) {
-                const { data } = await response.json();
-                setSessions(data);
-            } else {
-                const membershipList = currentMemberships.length > 0 ? currentMemberships : memberships;
-                const allSessions: Session[] = [];
-                for (const membership of membershipList) {
-                    try {
-                        const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                Accept: "application/json",
-                            },
-                        });
-                        if (sessionResponse.ok) {
-                            const { data } = await sessionResponse.json();
-                            allSessions.push(...data);
-                        }
-                    } catch (err) {
-                        console.error(`Failed to fetch sessions for membership ${membership.id}:`, err);
-                    }
-                }
-                setSessions(allSessions);
-            }
-        } catch (error) {
-            console.error("Fetch all sessions failed:", error);
-            const membershipList = currentMemberships.length > 0 ? currentMemberships : memberships;
-            if (membershipList.length > 0) {
-                const allSessions: Session[] = [];
+            try {
                 const token = Cookies.get("token");
-                for (const membership of membershipList) {
-                    try {
-                        const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                Accept: "application/json",
-                            },
-                        });
-                        if (sessionResponse.ok) {
-                            const { data } = await sessionResponse.json();
-                            allSessions.push(...data);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${playKidId}/sessions`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                });
+
+                if (response.ok) {
+                    const { data } = await response.json();
+                    setSessions(data);
+                } else {
+                    const membershipList = currentMemberships ?? [];
+                    const allSessions: Session[] = [];
+
+                    for (const membership of membershipList) {
+                        try {
+                            const sessionResponse = await fetch(
+                                `${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`,
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${token}`,
+                                        Accept: "application/json",
+                                    },
+                                }
+                            );
+                            if (sessionResponse.ok) {
+                                const { data } = await sessionResponse.json();
+                                allSessions.push(...data);
+                            }
+                        } catch (err) {
+                            console.error(`Failed to fetch sessions for membership ${membership.id}:`, err);
                         }
-                    } catch (err) {
-                        console.error(`Failed to fetch sessions for membership ${membership.id}:`, err);
                     }
+                    setSessions(allSessions);
                 }
-                setSessions(allSessions);
+            } catch (error) {
+                console.error("Fetch all sessions failed:", error);
             }
-        }
-    }, [memberships]);
+        },
+        [] // ← memberships dihapus dari dependency
+    );
 
     useEffect(() => {
         fetchPlayKids();
@@ -301,9 +286,10 @@ export default function PlayKidsPage() {
 
     useEffect(() => {
         if (isMembershipDialogOpen && selectedPlayKidId) {
-            fetchMemberships(selectedPlayKidId).then((membershipData) => {
+            (async () => {
+                const membershipData = await fetchMemberships(selectedPlayKidId);
                 fetchAllSessions(selectedPlayKidId, membershipData);
-            });
+            })();
             setActiveTab("memberships");
         } else {
             setMemberships([]);
@@ -315,7 +301,7 @@ export default function PlayKidsPage() {
         if (activeTab === "sessions" && selectedPlayKidId && memberships.length > 0) {
             fetchAllSessions(selectedPlayKidId, memberships);
         }
-    }, [activeTab, fetchAllSessions, memberships, selectedPlayKidId]);
+    }, [activeTab, selectedPlayKidId, memberships, fetchAllSessions]);
 
     const handleMembershipSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
