@@ -13,7 +13,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconCalendarCog, IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/date-picker';
@@ -22,6 +22,8 @@ import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { is } from 'date-fns/locale';
 
 interface Schedule {
     id: number;
@@ -66,6 +68,44 @@ interface Venue {
     };
 }
 
+interface CoachSchedule {
+    id: number;
+    coach_id: number;
+    schedule_id: number;
+    is_head_coach: boolean;
+    attendance?: string;
+    coach?: {
+        id: string;
+        name: string;
+    };
+}
+
+interface AttendanceReport {
+    id: number;
+    schedule_id: number;
+    coach_id: number;
+    play_kid_id: number;
+    attendance: boolean;
+    motorik?: string;
+    locomotor?: string;
+    body_control?: string;
+    overall?: number;
+    play_kid?: {
+        id: string;
+        name: string;
+        gender: string;
+    }
+    coach?: {
+        id: string;
+        name: string;
+    }
+}
+
+interface PlayKid {
+    id: string;
+    name: string;
+}
+
 const defaultForm: ScheduleForm = {
     name: '',
     class_id: '',
@@ -75,6 +115,46 @@ const defaultForm: ScheduleForm = {
     quota: 0,
     venue_id: '',
 };
+
+interface CoachScheduleForm {
+    id: number;
+    schedule_id: number;
+    coach_id: number;
+    is_head_coach: boolean;
+    attendance?: string;
+}
+
+const defaultCoachScheduleForm: CoachScheduleForm = {
+    id: 0,
+    schedule_id: 0,
+    coach_id: 0,
+    is_head_coach: false,
+    attendance: '',
+}
+
+interface AttendanceReportForm {
+    id: number;
+    schedule_id: number;
+    coach_id: number;
+    play_kid_id: number;
+    attendance: boolean;
+    motorik?: string;
+    locomotor?: string;
+    body_control?: string;
+    overall?: number;
+}
+
+const defaultAttendanceReportForm: AttendanceReportForm = {
+    id: 0,
+    schedule_id: 0,
+    coach_id: 0,
+    play_kid_id: 0,
+    attendance: false,
+    motorik: '',
+    locomotor: '',
+    body_control: '',
+    overall: 0,
+}
 
 const formatTimeForInput = (timeString: string): string => {
     if (!timeString) return '';
@@ -108,14 +188,22 @@ export default function SchedulesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [classes, setClasses] = useState<ClassData[]>([]);
     const [venues, setVenues] = useState<Venue[]>([]);
+    const [playKids, setPlayKids] = useState<PlayKid[]>([]);
+    const [coachSchedule, setCoachSchedule] = useState<CoachSchedule[]>([]);
+    const [attendanceReport, setAttendanceReport] = useState<AttendanceReport[]>([]);
+
     const [formData, setFormData] = useState<ScheduleForm>(defaultForm);
+    const [coachScheduleFormData, setCoachScheduleFormData] = useState<CoachScheduleForm>(defaultCoachScheduleForm);
+    const [attendanceFormData, setAttendanceFormData] = useState<AttendanceReportForm>(defaultAttendanceReportForm);
 
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState("coaches");
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -191,11 +279,36 @@ export default function SchedulesPage() {
         }
     }, []);
 
+    const fetchPlayKids = useCallback(async () => {
+        try {
+            const token = Cookies.get('token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                console.error(error);
+                throw new Error('Failed to fetch play kids');
+            }
+
+            const { data } = await response.json();
+            setPlayKids(data);
+        } catch (error) {
+            console.error('Fetch play kids error:', error);
+            toast.error('Failed to fetch play kid data');
+        }
+    }, []);
+
     useEffect(() => {
         fetchSchedules();
         fetchClasses();
         fetchVenues();
-    }, [fetchSchedules, fetchClasses, fetchVenues]);
+        fetchPlayKids();
+    }, [fetchSchedules, fetchClasses, fetchVenues, fetchPlayKids]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -338,6 +451,42 @@ export default function SchedulesPage() {
         }));
     };
 
+    const handleSaveCoachSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!coachScheduleFormData.coach_id || !coachScheduleFormData.is_head_coach) {
+            toast.error('Coach and Head Coach status are required');
+            return;
+        }
+        try {
+            setIsLoading(true);
+            console.log("coachScheduleFormData : ", coachScheduleFormData);
+        } catch (error) {
+            console.error('Save coach schedule error:', error);
+            toast.error('Failed to save coach schedule');
+        }
+        finally {
+            setCoachScheduleFormData(defaultCoachScheduleForm);
+        }
+    };
+
+    const handleSaveAttendanceReport = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!attendanceFormData.play_kid_id || !attendanceFormData.coach_id || attendanceFormData.attendance === undefined) {
+            toast.error('Play Kid, Coach, and Attendance status are required');
+            return;
+        }
+        try {
+            setIsLoading(true);
+            console.log("attendanceFormData : ", attendanceFormData);
+        } catch (error) {
+            console.error('Save attendance report error:', error);
+            toast.error('Failed to save attendance report');
+        }
+        finally {
+            setAttendanceFormData(defaultAttendanceReportForm);
+        }
+    };
+
     const columns: ColumnDef<Schedule>[] = [
         {
             accessorKey: 'class_id',
@@ -380,6 +529,22 @@ export default function SchedulesPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
+                                        setIsScheduleDialogOpen(true);
+                                    }}
+                                >
+                                    <IconCalendarCog className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Manage Schedule
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
                                         setIsEditing(true);
                                         setEditId(schedule.id);
                                         setFormData({
@@ -409,6 +574,161 @@ export default function SchedulesPage() {
                                     onClick={() => {
                                         setDeleteId(schedule.id);
                                         setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                );
+            },
+        },
+    ];
+
+    const coachColumns: ColumnDef<CoachSchedule>[] = [
+        {
+            accessorKey: 'coach.name',
+            header: 'Coach',
+        },
+        {
+            accessorKey: 'is_head_coach',
+            header: 'Head Coach',
+        },
+        {
+            accessorKey: 'attendance',
+            header: 'Attendance',
+            cell: ({ row }) => {
+                const attendance = row.getValue('attendance');
+                return attendance ? attendance : 'Not Set';
+            }
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const coachSchedule = row.original;
+                return (
+                    <div className="flex gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        // Handle edit coach schedule logic here
+                                        setCoachScheduleFormData({
+                                            id: coachSchedule.id,
+                                            schedule_id: coachSchedule.schedule_id,
+                                            coach_id: coachSchedule.coach_id,
+                                            is_head_coach: coachSchedule.is_head_coach,
+                                            attendance: coachSchedule.attendance,
+                                        });
+                                    }
+                                    }
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        // Handle delete coach schedule logic here
+                                        setDeleteId(coachSchedule.id);
+                                        console.log("coachSchedule.id : ", coachSchedule.id);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                );
+            }
+        },
+    ];
+
+    const attendanceColumns: ColumnDef<AttendanceReport>[] = [
+        {
+            accessorKey: 'play_kid.name',
+            header: 'Play Kid',
+        },
+        {
+            accessorKey: 'play_kid.gender',
+            header: 'Gender',
+        },
+        {
+            accessorKey: 'attendance',
+            header: 'Attendance',
+            cell: ({ row }) => {
+                const attendance = row.getValue('attendance');
+                return attendance ? (attendance ? 'Present' : 'Absent') : 'Not Set';
+            }
+        },
+        {
+            accessorKey: 'coach.name',
+            header: 'Coach',
+        },
+        {
+            header: 'Report',
+            cell: ({ row }) => {
+                const report = row.original;
+                const isReport = report.motorik && report.locomotor && report.body_control && report.overall;
+                return isReport ? (isReport ? 'Reported' : 'Not Reported') : 'Not Set';
+            }
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const attendanceReport = row.original;
+                return (
+                    <div className="flex gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        // Handle edit attendance report logic here
+                                        setAttendanceFormData({
+                                            id: attendanceReport.id,
+                                            schedule_id: attendanceReport.schedule_id,
+                                            coach_id: attendanceReport.coach_id,
+                                            play_kid_id: attendanceReport.play_kid_id,
+                                            attendance: attendanceReport.attendance,
+                                        });
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        // Handle delete attendance report logic here
+                                        setDeleteId(attendanceReport.id);
+                                        console.log("attendanceReport.id : ", attendanceReport.id);
                                     }}
                                 >
                                     <IconTrash className="w-4 h-4 text-red-600" />
@@ -569,6 +889,147 @@ export default function SchedulesPage() {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+                <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Manage Schedule</DialogTitle>
+                        <DialogDescription>
+                            Manage coach and play kid list for the selected schedule.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <TabsList className='grid w-full grid-cols-2'>
+                            <TabsTrigger value='coach_schedule'>Coach</TabsTrigger>
+                            <TabsTrigger value='attendance_report'>Play Kids</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value='coach_schedule' className='space-y-4'>
+                            <DataTable
+                                columns={coachColumns}
+                                data={coachSchedule}
+                            />
+                            <form onSubmit={handleSaveCoachSchedule}>
+                                <div className="grid gap-4">
+                                    <div className="space-y-1">
+                                        <Label>Coach</Label>
+                                        <Select
+                                            value={coachScheduleFormData.coach_id.toString()}
+                                            onValueChange={(value) => setCoachScheduleFormData(prev => ({ ...prev, coach_id: parseInt(value, 10) }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose coach" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {playKids.map((coach) => (
+                                                    <SelectItem key={coach.id} value={coach.id.toString()}>
+                                                        {coach.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Is Head Coach</Label>
+                                        <Select
+                                            value={coachScheduleFormData.is_head_coach ? 'true' : 'false'}
+                                            onValueChange={(value) => setCoachScheduleFormData(prev => ({ ...prev, is_head_coach: value === 'true' }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select option" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="true">Yes</SelectItem>
+                                                <SelectItem value="false">No</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button type="submit" disabled={isLoading}>
+                                        {isLoading ? 'Loading...' : 'Save Coach Schedule'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </TabsContent>
+
+                        <TabsContent value='attendance_report' className='space-y-4'>
+                            <DataTable
+                                columns={attendanceColumns}
+                                data={attendanceReport}
+                            />
+                            <form onSubmit={handleSaveAttendanceReport}>
+                                <div className="grid gap-4">
+                                    <div className="space-y-1">
+                                        <Label>Play Kid</Label>
+                                        <Select
+                                            value={attendanceFormData.play_kid_id.toString()}
+                                            onValueChange={(value) => setAttendanceFormData(prev => ({ ...prev, play_kid_id: parseInt(value, 10) }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose play kid" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {playKids.map((playKid) => (
+                                                    <SelectItem key={playKid.id} value={playKid.id.toString()}>
+                                                        {playKid.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Coach</Label>
+                                        <Select
+                                            value={attendanceFormData.coach_id.toString()}
+                                            onValueChange={(value) => setAttendanceFormData(prev => ({ ...prev, coach_id: parseInt(value, 10) }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose coach" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {playKids.map((coach) => (
+                                                    <SelectItem key={coach.id} value={coach.id.toString()}>
+                                                        {coach.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Attendance</Label>
+                                        <Select
+                                            value={attendanceFormData.attendance ? 'true' : 'false'}
+                                            onValueChange={(value) => setAttendanceFormData(prev => ({ ...prev, attendance: value === 'true' }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select attendance" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="true">Present</SelectItem>
+                                                <SelectItem value="false">Absent</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button type="submit" disabled={isLoading}>
+                                        {isLoading ? 'Loading...' : 'Save Attendance Report'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </TabsContent>
+
+                    </Tabs>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsScheduleDialogOpen(false)}
+                            disabled={isLoading}
+                        >
+                            Close
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
