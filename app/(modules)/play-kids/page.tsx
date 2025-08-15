@@ -90,7 +90,7 @@ const defaultForm: PlayKidForm = {
 interface MembershipForm {
     play_kid_id: number;
     registered_date: string;
-    valid_until: string;
+    valid_until: number;
     status: string;
     branch_id: number;
 }
@@ -98,7 +98,7 @@ interface MembershipForm {
 const defaultMembershipForm: MembershipForm = {
     play_kid_id: 0,
     registered_date: "",
-    valid_until: "",
+    valid_until: 0,
     status: "active",
     branch_id: 0,
 };
@@ -106,13 +106,15 @@ const defaultMembershipForm: MembershipForm = {
 interface SessionForm {
     membership_id: number;
     count: number;
-    expiry_date: string;
+    expiry_date: number;
+    purchase_date?: string;
 }
 
 const defaultSessionForm: SessionForm = {
     membership_id: 0,
     count: 0,
-    expiry_date: "",
+    expiry_date: 0,
+    purchase_date: "",
 };
 
 export default function PlayKidsPage() {
@@ -222,56 +224,26 @@ export default function PlayKidsPage() {
         }
     }, []);
 
-    const fetchAllSessions = useCallback(async (playKidId: number, currentMemberships: Membership[] = []) => {
-        if (!playKidId) return;
-        
-        try {
-            const token = Cookies.get("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${playKidId}/sessions`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
-                },
-            });
+    const fetchAllSessions = useCallback(
+        async (playKidId: number, currentMemberships?: Membership[]) => {
+            if (!playKidId) return;
 
-            if (response.ok) {
-                const { data } = await response.json();
-                setSessions(data);
-            } else {
-                const membershipList = currentMemberships.length > 0 ? currentMemberships : memberships;
-                const allSessions: Session[] = [];
-                for (const membership of membershipList) {
-                    try {
-                        const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                Accept: "application/json",
-                            },
-                        });
-                        if (sessionResponse.ok) {
-                            const { data } = await sessionResponse.json();
-                            allSessions.push(...data);
-                        }
-                    } catch (err) {
-                        console.error(`Failed to fetch sessions for membership ${membership.id}:`, err);
-                    }
-                }
-                setSessions(allSessions);
-            }
-        } catch (error) {
-            console.error("Fetch all sessions failed:", error);
-            const membershipList = currentMemberships.length > 0 ? currentMemberships : memberships;
-            if (membershipList.length > 0) {
-                const allSessions: Session[] = [];
+            try {
                 const token = Cookies.get("token");
+                const membershipList = currentMemberships ?? [];
+                const allSessions: Session[] = [];
+
                 for (const membership of membershipList) {
                     try {
-                        const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`, {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                Accept: "application/json",
-                            },
-                        });
+                        const sessionResponse = await fetch(
+                            `${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membership.id}/sessions`,
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                    Accept: "application/json",
+                                },
+                            }
+                        );
                         if (sessionResponse.ok) {
                             const { data } = await sessionResponse.json();
                             allSessions.push(...data);
@@ -281,9 +253,13 @@ export default function PlayKidsPage() {
                     }
                 }
                 setSessions(allSessions);
+
+            } catch (error) {
+                console.error("Fetch all sessions failed:", error);
             }
-        }
-    }, [memberships]);
+        },
+        [] // ← memberships dihapus dari dependency
+    );
 
     useEffect(() => {
         fetchPlayKids();
@@ -301,21 +277,22 @@ export default function PlayKidsPage() {
 
     useEffect(() => {
         if (isMembershipDialogOpen && selectedPlayKidId) {
-            fetchMemberships(selectedPlayKidId).then((membershipData) => {
+            (async () => {
+                const membershipData = await fetchMemberships(selectedPlayKidId);
                 fetchAllSessions(selectedPlayKidId, membershipData);
-            });
+            })();
             setActiveTab("memberships");
         } else {
             setMemberships([]);
             setSessions([]);
         }
-    }, [isMembershipDialogOpen, selectedPlayKidId, fetchMemberships]);
- 
+    }, [isMembershipDialogOpen, selectedPlayKidId, fetchMemberships, fetchAllSessions]);
+
     useEffect(() => {
         if (activeTab === "sessions" && selectedPlayKidId && memberships.length > 0) {
             fetchAllSessions(selectedPlayKidId, memberships);
         }
-    }, [activeTab, selectedPlayKidId]);
+    }, [activeTab, selectedPlayKidId, memberships, fetchAllSessions]);
 
     const handleMembershipSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -370,6 +347,7 @@ export default function PlayKidsPage() {
 
             await fetchAllSessions(selectedPlayKidId!, memberships);
             setSessionForm(defaultSessionForm);
+            console.log("sessionForm : ", sessionForm);
             toast.success("Session created successfully!");
         } catch (error) {
             console.error("Create session error:", error);
@@ -620,16 +598,16 @@ export default function PlayKidsPage() {
     ];
 
     const membershipColumns: ColumnDef<Membership>[] = [
-        { 
-            accessorKey: 'registered_date', 
+        {
+            accessorKey: 'registered_date',
             header: 'Registered Date',
             cell: ({ row }) => {
                 const date = row.original.registered_date;
                 return date ? new Date(date).toLocaleDateString('en-CA') : "N/A";
             }
         },
-        { 
-            accessorKey: 'valid_until', 
+        {
+            accessorKey: 'valid_until',
             header: 'Valid Until',
             cell: ({ row }) => {
                 const date = row.original.valid_until;
@@ -659,13 +637,13 @@ export default function PlayKidsPage() {
             }
         },
         { accessorKey: 'count', header: 'Session Count' },
-        { 
-            accessorKey: 'expiry_date', 
+        {
+            accessorKey: 'expiry_date',
             header: 'Expiry Date',
             cell: ({ row }) => {
                 const expiryDate = row.original.expiry_date;
                 if (expiryDate) {
-                    return new Date(expiryDate).toLocaleDateString('en-CA'); 
+                    return new Date(expiryDate).toLocaleDateString('en-CA');
                 }
                 return "N/A";
             }
@@ -849,13 +827,13 @@ export default function PlayKidsPage() {
                             Manage memberships and sessions for the selected student
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="memberships">Memberships</TabsTrigger>
                             <TabsTrigger value="sessions">Sessions</TabsTrigger>
                         </TabsList>
-                        
+
                         <TabsContent value="memberships" className="space-y-4">
                             {/* Memberships Table */}
                             <DataTable
@@ -882,16 +860,18 @@ export default function PlayKidsPage() {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label>Valid Until</Label>
-                                        <DatePicker
-                                            value={membershipForm.valid_until ? new Date(membershipForm.valid_until) : undefined}
-                                            onChange={(date) => {
-                                                if (date) {
-                                                    setMembershipForm(prev => ({
-                                                        ...prev,
-                                                        valid_until: date.toISOString().split('T')[0],
-                                                    }));
-                                                }
+                                        <Label htmlFor="valid_until">Membership Duration (Months)</Label>
+                                        <Input
+                                            id="valid_until"
+                                            type="number"
+                                            min="0"
+                                            value={membershipForm.valid_until}
+                                            onChange={(e) => {
+                                                const months = parseInt(e.target.value, 10) || 0;
+                                                setMembershipForm(prev => ({
+                                                    ...prev,
+                                                    valid_until: isNaN(months) ? 0 : months,
+                                                }));
                                             }}
                                         />
                                     </div>
@@ -940,8 +920,8 @@ export default function PlayKidsPage() {
                         <TabsContent value="sessions" className="space-y-4">
                             {sessions.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500">
-                                    {memberships.length === 0 ? 
-                                        "No memberships found. Please add a membership first." : 
+                                    {memberships.length === 0 ?
+                                        "No memberships found. Please add a membership first." :
                                         "No sessions found for this student"}
                                 </div>
                             ) : (
@@ -956,7 +936,7 @@ export default function PlayKidsPage() {
                             {memberships.length > 0 ? (
                                 <form onSubmit={handleSessionSubmit} className="space-y-4 border-t pt-4">
                                     <h4 className="font-medium">Add New Session</h4>
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-4 gap-4">
                                         <div className="space-y-1">
                                             <Label>Membership</Label>
                                             <Select
@@ -977,6 +957,20 @@ export default function PlayKidsPage() {
                                             </Select>
                                         </div>
                                         <div className="space-y-1">
+                                            <Label>Purchase Date</Label>
+                                            <DatePicker
+                                                value={sessionForm.purchase_date ? new Date(sessionForm.purchase_date) : undefined}
+                                                onChange={(date) => {
+                                                    if (date) {
+                                                        setSessionForm(prev => ({
+                                                            ...prev,
+                                                            purchase_date: date.toISOString().split('T')[0],
+                                                        }));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
                                             <Label>Session Count</Label>
                                             <Input
                                                 type="number"
@@ -988,16 +982,18 @@ export default function PlayKidsPage() {
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label>Expiry Date</Label>
-                                            <DatePicker
-                                                value={sessionForm.expiry_date ? new Date(sessionForm.expiry_date) : undefined}
-                                                onChange={(date) => {
-                                                    if (date) {
-                                                        setSessionForm(prev => ({
-                                                            ...prev,
-                                                            expiry_date: date.toISOString().split('T')[0],
-                                                        }));
-                                                    }
+                                            <Label>Session Duration (Months)</Label>
+                                            <Input
+                                                id="expiry_date"
+                                                type="number"
+                                                min="0"
+                                                value={sessionForm.expiry_date}
+                                                onChange={(e) => {
+                                                    const months = parseInt(e.target.value, 10) || 0;
+                                                    setSessionForm(prev => ({
+                                                        ...prev,
+                                                        expiry_date: isNaN(months) ? 0 : months,
+                                                    }));
                                                 }}
                                             />
                                         </div>
@@ -1015,15 +1011,15 @@ export default function PlayKidsPage() {
                     </Tabs>
 
                     <DialogFooter>
-                        <Button 
-                            type="button" 
-                            variant="outline" 
+                        <Button
+                            type="button"
+                            variant="outline"
                             onClick={() => {
                                 setIsMembershipDialogOpen(false);
                                 setMembershipForm(defaultMembershipForm);
                                 setSessionForm(defaultSessionForm);
                                 setSessions([]);
-                                setActiveTab("memberships"); 
+                                setActiveTab("memberships");
                             }}
                         >
                             Close
