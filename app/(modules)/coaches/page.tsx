@@ -24,66 +24,57 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 interface Coach {
     id: number;
-    user_id: number;
-    birth_date: string;
-    description: string;
-    photo: string;
-    user: {
-        name: string;
-    };
+    name: string;
+    birth_date: string | null;
+    description: string | null;
+    photo: string | null;
 }
 
 interface CoachForm {
-    user_id: number;
     birth_date: string;
     description: string;
-    photo: string;
+    photo: File | null;
 }
 
 const defaultForm: CoachForm = {
-    user_id: 0,
     birth_date: '',
     description: '',
-    photo: '',
+    photo: null,
 };
 
 export default function CoachesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [formData, setFormData] = useState<CoachForm>(defaultForm);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
-
     const [isLoading, setIsLoading] = useState(false);
+    const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
 
     const fetchCoaches = useCallback(async () => {
         try {
-            const token = Cookies.get("token");
+            const token = Cookies.get('token');
+            if (!token) throw new Error('No authentication token found');
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
+                    Accept: 'application/json',
                 },
             });
 
             if (!response.ok) {
                 const error = await response.text();
-                console.error("Server returned error response:", error);
-                throw new Error("Failed to fetch coaches from server");
+                throw new Error(`Failed to fetch coaches: ${error}`);
             }
 
             const { data } = await response.json();
-            console.log("Coach data:", data);
             setCoaches(data);
         } catch (error) {
-            console.error("Fetch coaches failed:", error);
-            toast.error("Failed to fetch coach data");
+            console.error('Fetch coaches failed:', error);
+            toast.error('Failed to fetch coach data');
         }
     }, []);
 
@@ -95,45 +86,34 @@ export default function CoachesPage() {
         if (!isDialogOpen) {
             setFormData(defaultForm);
             setPhotoPreview(null);
-            setIsEditing(false);
+            setCurrentPhoto(null);
+            setEditId(null);
         }
     }, [isDialogOpen]);
 
     const handleSaveCoach = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!formData.user_id || !formData.birth_date.trim() || !formData.description.trim()) {
-            toast.error("All fields are required");
+
+        if (!formData.birth_date.trim() || !formData.description.trim()) {
+            toast.error('Birth date and description are required');
             return;
         }
 
         try {
             setIsLoading(true);
-            const token = Cookies.get("token");
-            if (!token) {
-                throw new Error("No authentication token found");
-            }
-
-            const method = isEditing ? "PUT" : "POST";
-            const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/coach`;
+            const token = Cookies.get('token');
+            if (!token) throw new Error('No authentication token found');
 
             const formDataToSend = new FormData();
-
-            formDataToSend.append('_method', method === 'PUT' ? 'PUT' : 'POST');
-            formDataToSend.append('user_id', formData.user_id.toString());
+            formDataToSend.append('_method', 'PUT');
             formDataToSend.append('birth_date', formData.birth_date);
-            formDataToSend.append('description', formData.description || '');
-
-            const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
-            if (photoInput?.files?.[0]) {
-                formDataToSend.append('photo', photoInput.files[0]);
-            } else if (isEditing && formData.photo && !photoInput?.files?.length) {
-                formDataToSend.append('existing_photo', formData.photo);
+            formDataToSend.append('description', formData.description);
+            if (formData.photo) {
+                formDataToSend.append('photo', formData.photo);
             }
 
-            const res = await fetch(url, {
-                method: method === 'PUT' ? 'POST' : 'POST',
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${editId}`, {
+                method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -142,65 +122,57 @@ export default function CoachesPage() {
 
             if (!res.ok) {
                 const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || "Failed to save coach";
+                const errorMessage = errorResponse?.message || 'Failed to update coach';
                 throw new Error(errorMessage);
             }
 
             await fetchCoaches();
             setIsDialogOpen(false);
-            setIsEditing(false);
             setFormData(defaultForm);
             setPhotoPreview(null);
-            toast.success(isEditing ? "Coach updated successfully!" : "Coach created successfully!");
+            setCurrentPhoto(null);
+            toast.success('Coach updated successfully!');
         } catch (error) {
-            const message = error instanceof Error ? error.message : "An error occurred";
-            console.error("Save coach error:", error);
+            const message = error instanceof Error ? error.message : 'An error occurred';
+            console.error('Update coach error:', error);
             toast.error(message);
         } finally {
             setIsLoading(false);
         }
     };
 
-    async function handleDeleteCoach() {
+    const handleDeleteCoach = async () => {
         try {
-            const token = Cookies.get("token");
+            const token = Cookies.get('token');
+            if (!token) throw new Error('No authentication token found');
 
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${deleteId}`,
-                {
-                    method: "DELETE",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: "application/json",
-                    },
-                }
-            );
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${deleteId}`, {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
 
             if (!res.ok) {
-                throw new Error("Failed to delete coach");
+                throw new Error('Failed to delete coach');
             }
 
-            toast.success("Coach deleted successfully!");
-            fetchCoaches();
+            toast.success('Coach deleted successfully!');
+            await fetchCoaches();
         } catch (error) {
-            console.error("Delete error:", error);
-            toast.error("Failed to delete coach");
+            console.error('Delete error:', error);
+            toast.error('Failed to delete coach');
         } finally {
             setIsDeleteDialogOpen(false);
+            setDeleteId(null);
         }
-    }
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
+            setFormData((prev) => ({ ...prev, photo: file }));
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPhotoPreview(reader.result as string);
@@ -228,7 +200,7 @@ export default function CoachesPage() {
                     <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center">
                         <Image
                             src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}`}
-                            alt={coach.user?.name || 'Coach'}
+                            alt={coach.name || 'Coach'}
                             width={48}
                             height={48}
                             className="w-full h-full object-cover"
@@ -241,11 +213,7 @@ export default function CoachesPage() {
                 );
             }
         },
-        {
-            accessorKey: 'user.name',
-            header: 'Name',
-            cell: ({ row }) => row.original.user?.name || 'N/A'
-        },
+        { accessorKey: 'name', header: 'Name' },
         { accessorKey: 'birth_date', header: 'Birth Date' },
         { accessorKey: 'description', header: 'Description' },
         {
@@ -261,25 +229,24 @@ export default function CoachesPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
-                                        setIsEditing(true);
                                         setEditId(coach.id);
                                         setFormData({
-                                            user_id: coach.user_id,
-                                            birth_date: coach.birth_date,
-                                            description: coach.description,
-                                            photo: coach.photo || '',
+                                            birth_date: coach.birth_date || '',
+                                            description: coach.description || '',
+                                            photo: null,
                                         });
-                                        setPhotoPreview(coach.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}` : null);
+                                        setCurrentPhoto(coach.photo 
+                                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}`
+                                            : null);
+                                        setPhotoPreview(null);
                                         setIsDialogOpen(true);
                                     }}
-                                    aria-label={`Edit coach ${coach.user_id}`}
+                                    aria-label={`Edit coach ${coach.name}`}
                                 >
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
+                            <TooltipContent side="top">Edit</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -290,14 +257,12 @@ export default function CoachesPage() {
                                         setDeleteId(coach.id);
                                         setIsDeleteDialogOpen(true);
                                     }}
-                                    aria-label={`Delete coach ${coach.user_id}`}
+                                    aria-label={`Delete coach ${coach.name}`}
                                 >
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -306,26 +271,17 @@ export default function CoachesPage() {
     ];
 
     return (
-        <>
-            <div className="px-6">
-                <DataTable columns={columns} data={coaches} />
-            </div>
+        <div className="px-6">
+            <DataTable columns={columns} data={coaches} />
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>
-                            {isEditing ? 'Edit Coach' : 'New Coach'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {isEditing
-                                ? 'Edit coach details as needed.'
-                                : 'Fill in the form below to add a new coach.'}
-                        </DialogDescription>
+                        <DialogTitle>Edit Coach</DialogTitle>
+                        <DialogDescription>Update the coach details below.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveCoach}>
                         <div className="grid gap-4">
-
                             <div className="space-y-1">
                                 <Label>Birth Date</Label>
                                 <DatePicker
@@ -339,7 +295,7 @@ export default function CoachesPage() {
                                 <Input
                                     name="description"
                                     value={formData.description}
-                                    onChange={handleChange}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
                                     required
                                 />
                             </div>
@@ -363,16 +319,15 @@ export default function CoachesPage() {
                                                 className="object-cover rounded border"
                                             />
                                         </div>
-                                    ) : formData.photo ? (
+                                    ) : currentPhoto ? (
                                         <div className="flex flex-col items-start gap-2">
                                             <Image
-                                                src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${formData.photo.replace('storage/', '')}`}
+                                                src={currentPhoto}
                                                 alt="Current"
                                                 width={80}
                                                 height={80}
                                                 className="object-cover rounded border"
                                             />
-                                            <span className="text-xs text-gray-500">Current photo</span>
                                         </div>
                                     ) : (
                                         <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">
@@ -384,11 +339,11 @@ export default function CoachesPage() {
                         </div>
 
                         <DialogFooter>
-                            <Button type='button' variant="outline" onClick={() => setIsDialogOpen(false)}>
+                            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isLoading}>
-                                {isLoading ? "Loading..." : isEditing ? "Save Changes" : "Create"}
+                                {isLoading ? 'Saving...' : 'Save Changes'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -400,6 +355,6 @@ export default function CoachesPage() {
                 setIsOpen={setIsDeleteDialogOpen}
                 onConfirm={handleDeleteCoach}
             />
-        </>
+        </div>
     );
 }
