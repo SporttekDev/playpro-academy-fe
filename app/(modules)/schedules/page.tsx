@@ -140,7 +140,7 @@ const defaultCoachScheduleForm: CoachScheduleForm = {
 interface AttendanceReportForm {
     id?: number;
     schedule_id: number;
-    coach_id: number;
+    coach_id?: number | null;
     play_kid_id: number[];
     attendance: boolean;
     motorik?: string;
@@ -151,7 +151,7 @@ interface AttendanceReportForm {
 
 const defaultAttendanceReportForm: AttendanceReportForm = {
     schedule_id: 0,
-    coach_id: 0,
+    coach_id: null,
     play_kid_id: [],
     attendance: false,
     motorik: '',
@@ -891,7 +891,7 @@ export default function SchedulesPage() {
         {
             accessorKey: 'play_kid.name',
             header: 'Play Kid',
-            cell: ({ row }) => row.original.play_kid?.name,
+            cell: ({ row }) => row.original.play_kid?.name || 'Unknown',
         },
         {
             accessorKey: 'play_kid.gender',
@@ -909,7 +909,7 @@ export default function SchedulesPage() {
         {
             accessorKey: 'coach.name',
             header: 'Coach',
-            cell: ({ row }) => row.original.coach?.name,
+            cell: ({ row }) => row.original.coach?.name || 'Not assigned',
         },
         {
             header: 'Report',
@@ -937,7 +937,7 @@ export default function SchedulesPage() {
                                             id: attendanceReport.id,
                                             schedule_id: attendanceReport.schedule_id,
                                             coach_id: attendanceReport.coach_id,
-                                            play_kid_id: Array.isArray(attendanceReport.play_kid_id) ? attendanceReport.play_kid_id : [attendanceReport.play_kid_id],
+                                            play_kid_id: Array.isArray(attendanceReport.play_kid_id) ? attendanceReport.play_kid_id : [attendanceReport.play_kid_id], 
                                             attendance: attendanceReport.attendance,
                                             motorik: attendanceReport.motorik || '',
                                             locomotor: attendanceReport.locomotor || '',
@@ -1200,7 +1200,10 @@ export default function SchedulesPage() {
                                         <MultiSelect
                                             value={attendanceFormData.play_kid_id.map(String)}
                                             onValueChange={(value) =>
-                                                setAttendanceFormData((prev) => ({  ...prev, play_kid_id: value.map(Number) }))
+                                                setAttendanceFormData((prev) => ({ 
+                                                    ...prev, 
+                                                    play_kid_id: value.map(Number)
+                                                }))
                                             }
                                             options={playKids.map((kid) => ({
                                                 value: kid.id.toString(),
@@ -1209,7 +1212,6 @@ export default function SchedulesPage() {
                                             placeholder="Select play kids"
                                             modalPopover={true}
                                         />
-
                                     </div>
                                     {/* <div className="space-y-1">
                                         <Label>Coach</Label>
