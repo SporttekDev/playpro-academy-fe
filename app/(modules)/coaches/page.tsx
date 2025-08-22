@@ -187,6 +187,8 @@ export default function CoachesPage() {
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
 
+            console.log("handleDateChange date:", date);
+
             setFormData((prev) => ({
                 ...prev,
                 birth_date: `${year}-${month}-${day}`,
@@ -239,7 +241,7 @@ export default function CoachesPage() {
                                             description: coach.description || '',
                                             photo: null,
                                         });
-                                        setCurrentPhoto(coach.photo 
+                                        setCurrentPhoto(coach.photo
                                             ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}`
                                             : null);
                                         setPhotoPreview(null);
@@ -278,7 +280,17 @@ export default function CoachesPage() {
         <div className="px-6">
             <DataTable columns={columns} data={coaches} />
 
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                // Prevent closing the Dialog when clicking inside the DatePicker
+                const datePickerPopover = document.querySelector('[data-state="open"]');
+                const handleClick = (e: MouseEvent) => {
+                    if (open === false && datePickerPopover?.contains(e.target as Node)) {
+                        return;
+                    }
+                    setIsDialogOpen(open);
+                };
+                document.addEventListener('click', handleClick, { once: true });
+            }}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Edit Coach</DialogTitle>
@@ -291,6 +303,7 @@ export default function CoachesPage() {
                                 <DatePicker
                                     value={formData.birth_date ? new Date(formData.birth_date) : undefined}
                                     onChange={handleDateChange}
+                                    modal={true}
                                 />
                             </div>
 

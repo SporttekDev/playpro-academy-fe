@@ -1053,6 +1053,7 @@ export default function SchedulesPage() {
                                 <DatePicker
                                     value={formData.date ? new Date(formData.date) : undefined}
                                     onChange={handleDateChange}
+                                    modal={true}
                                 />
                             </div>
 

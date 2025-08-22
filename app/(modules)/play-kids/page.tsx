@@ -730,6 +730,7 @@ export default function PlayKidsPage() {
                                 <DatePicker
                                     value={formData.birth_date ? new Date(formData.birth_date) : undefined}
                                     onChange={handleDateChange}
+                                    modal={true}
                                 />
                             </div>
 
@@ -861,6 +862,7 @@ export default function PlayKidsPage() {
                                                     }));
                                                 }
                                             }}
+                                            modal={true}
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -972,6 +974,7 @@ export default function PlayKidsPage() {
                                                         }));
                                                     }
                                                 }}
+                                                modal={true}
                                             />
                                         </div>
                                         <div className="space-y-1">

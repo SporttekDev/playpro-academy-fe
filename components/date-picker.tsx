@@ -10,14 +10,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 export interface DatePickerProps {
     value: Date | undefined
     onChange: (date: Date | undefined) => void
+    modal?: boolean // Optional modal property
 }
 
-export function DatePicker({ value, onChange }: DatePickerProps) {
-    const [open, setOpen] = React.useState(false)
+export function DatePicker({ value, onChange, modal }: DatePickerProps) {
+    const [open, setOpen] = React.useState(false);
 
     return (
         <div className="flex flex-col gap-3">
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={setOpen} modal={modal}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
@@ -28,18 +29,20 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
                         <ChevronDownIcon />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[1000]" align="start">
                     <Calendar
                         mode="single"
                         selected={value}
+                        defaultMonth={value || new Date()} // Set to today if value is undefined
                         captionLayout="dropdown"
                         onSelect={(date) => {
-                            onChange(date)
-                            setOpen(false)
+                            console.log("Date selected:", date);
+                            onChange(date);
+                            setOpen(false);
                         }}
                     />
                 </PopoverContent>
             </Popover>
         </div>
-    )
+    );
 }
