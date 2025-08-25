@@ -23,6 +23,7 @@ import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { MultiSelect } from '@/components/multi-select';
 
 interface Schedule {
     id: number;
@@ -124,14 +125,14 @@ const defaultForm: ScheduleForm = {
 interface CoachScheduleForm {
     id?: number;
     schedule_id: number;
-    coach_id: number;
+    coach_id: string;
     is_head_coach: boolean;
     attendance?: string;
 }
 
 const defaultCoachScheduleForm: CoachScheduleForm = {
     schedule_id: 0,
-    coach_id: 0,
+    coach_id: "",
     is_head_coach: false,
     attendance: '',
 };
@@ -139,8 +140,8 @@ const defaultCoachScheduleForm: CoachScheduleForm = {
 interface AttendanceReportForm {
     id?: number;
     schedule_id: number;
-    coach_id: number;
-    play_kid_id: number;
+    coach_id?: number | null;
+    play_kid_id: number[];
     attendance: boolean;
     motorik?: string;
     locomotor?: string;
@@ -150,8 +151,8 @@ interface AttendanceReportForm {
 
 const defaultAttendanceReportForm: AttendanceReportForm = {
     schedule_id: 0,
-    coach_id: 0,
-    play_kid_id: 0,
+    coach_id: null,
+    play_kid_id: [],
     attendance: false,
     motorik: '',
     locomotor: '',
@@ -522,9 +523,13 @@ export default function SchedulesPage() {
 
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+
             setFormData((prev) => ({
                 ...prev,
-                date: date.toISOString().split('T')[0],
+                date: `${year}-${month}-${day}`,
             }));
         }
     };
@@ -621,10 +626,11 @@ export default function SchedulesPage() {
 
     const handleSaveAttendanceReport = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!attendanceFormData.play_kid_id || !attendanceFormData.coach_id || attendanceFormData.attendance === undefined) {
-            toast.error('Play Kid, Coach, and Attendance status are required');
+        if (!attendanceFormData.play_kid_id) {
+            toast.error('Play Kids are required');
             return;
         }
+
         try {
             setIsLoading(true);
             const token = Cookies.get('token');
@@ -640,9 +646,9 @@ export default function SchedulesPage() {
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`;
 
             const submitData = {
-                coach_id: attendanceFormData.coach_id,
+                coach_id: attendanceFormData.coach_id || null,
                 play_kid_id: attendanceFormData.play_kid_id,
-                attendance: attendanceFormData.attendance,
+                attendance: attendanceFormData.attendance || false,
                 motorik: attendanceFormData.motorik || null,
                 locomotor: attendanceFormData.locomotor || null,
                 body_control: attendanceFormData.body_control || null,
@@ -810,164 +816,164 @@ export default function SchedulesPage() {
     ];
 
     const coachColumns: ColumnDef<CoachSchedule>[] = [
-    {
-        accessorKey: 'coach.name',
-        header: 'Coach',
-        cell: ({ row }) => row.original.coach?.name || 'Unknown', // Fallback for missing name
-    },
-    {
-        accessorKey: 'is_head_coach',
-        header: 'Head Coach',
-        cell: ({ row }) => (row.original.is_head_coach ? 'Yes' : 'No'),
-    },
-    {
-        accessorKey: 'attendance',
-        header: 'Attendance',
-        cell: ({ row }) => {
-            const attendance = row.getValue('attendance');
-            return attendance || 'Not Set';
+        {
+            accessorKey: 'coach.name',
+            header: 'Coach',
+            cell: ({ row }) => row.original.coach?.name || 'Unknown', // Fallback for missing name
         },
-    },
-    {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => {
-            const coachSchedule = row.original;
-            return (
-                <div className="flex gap-2">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                    setIsCoachEditing(true);
-                                    setCoachScheduleFormData({
-                                        id: coachSchedule.id,
-                                        schedule_id: coachSchedule.schedule_id,
-                                        coach_id: coachSchedule.coach_id,
-                                        is_head_coach: coachSchedule.is_head_coach,
-                                        attendance: coachSchedule.attendance || '',
-                                    });
-                                }}
-                            >
-                                <IconPencil className="w-4 h-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            Edit
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                    setDeleteId(coachSchedule.id);
-                                    setIsDeleteDialogOpen(true);
-                                }}
-                            >
-                                <IconTrash className="w-4 h-4 text-red-600" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            Delete
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            );
+        {
+            accessorKey: 'is_head_coach',
+            header: 'Head Coach',
+            cell: ({ row }) => (row.original.is_head_coach ? 'Yes' : 'No'),
         },
-    },
+        {
+            accessorKey: 'attendance',
+            header: 'Attendance',
+            cell: ({ row }) => {
+                const attendance = row.getValue('attendance');
+                return attendance || 'Not Set';
+            },
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const coachSchedule = row.original;
+                return (
+                    <div className="flex gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsCoachEditing(true);
+                                        setCoachScheduleFormData({
+                                            id: coachSchedule.id,
+                                            schedule_id: coachSchedule.schedule_id,
+                                            coach_id: coachSchedule.coach_id.toString(),
+                                            is_head_coach: coachSchedule.is_head_coach,
+                                            attendance: coachSchedule.attendance || '',
+                                        });
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(coachSchedule.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                );
+            },
+        },
     ];
 
     const attendanceColumns: ColumnDef<AttendanceReport>[] = [
-    {
-        accessorKey: 'play_kid.name',
-        header: 'Play Kid',
-        cell: ({ row }) => row.original.play_kid?.name,
-    },
-    {
-        accessorKey: 'play_kid.gender',
-        header: 'Gender',
-        cell: ({ row }) => {
-            const gender = row.original.play_kid?.gender;
-            return gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : 'Unknown';
+        {
+            accessorKey: 'play_kid.name',
+            header: 'Play Kid',
+            cell: ({ row }) => row.original.play_kid?.name || 'Unknown',
         },
-    },
-    {
-        accessorKey: 'attendance',
-        header: 'Attendance',
-        cell: ({ row }) => (row.original.attendance ? 'Present' : 'Absent'),
-    },
-    {
-        accessorKey: 'coach.name',
-        header: 'Coach',
-        cell: ({ row }) => row.original.coach?.name,
-    },
-    {
-        header: 'Report',
-        cell: ({ row }) => {
-            const report = row.original;
-            const isReported = report.motorik || report.locomotor || report.body_control || report.overall;
-            return isReported ? 'Reported' : 'Not Reported';
+        {
+            accessorKey: 'play_kid.gender',
+            header: 'Gender',
+            cell: ({ row }) => {
+                const gender = row.original.play_kid?.gender;
+                return gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : 'Unknown';
+            },
         },
-    },
-    {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => {
-            const attendanceReport = row.original;
-            return (
-                <div className="flex gap-2">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                    setIsAttendanceEditing(true);
-                                    setAttendanceFormData({
-                                        id: attendanceReport.id,
-                                        schedule_id: attendanceReport.schedule_id,
-                                        coach_id: attendanceReport.coach_id,
-                                        play_kid_id: attendanceReport.play_kid_id,
-                                        attendance: attendanceReport.attendance,
-                                        motorik: attendanceReport.motorik || '',
-                                        locomotor: attendanceReport.locomotor || '',
-                                        body_control: attendanceReport.body_control || '',
-                                        overall: attendanceReport.overall || 0,
-                                    });
-                                }}
-                            >
-                                <IconPencil className="w-4 h-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            Edit
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                    setDeleteId(attendanceReport.id);
-                                    setIsDeleteDialogOpen(true);
-                                }}
-                            >
-                                <IconTrash className="w-4 h-4 text-red-600" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            Delete
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            );
+        {
+            accessorKey: 'attendance',
+            header: 'Attendance',
+            cell: ({ row }) => (row.original.attendance ? 'Present' : 'Absent'),
         },
-    },
+        {
+            accessorKey: 'coach.name',
+            header: 'Coach',
+            cell: ({ row }) => row.original.coach?.name || 'Not assigned',
+        },
+        {
+            header: 'Report',
+            cell: ({ row }) => {
+                const report = row.original;
+                const isReported = report.motorik || report.locomotor || report.body_control || report.overall;
+                return isReported ? 'Reported' : 'Not Reported';
+            },
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const attendanceReport = row.original;
+                return (
+                    <div className="flex gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setIsAttendanceEditing(true);
+                                        setAttendanceFormData({
+                                            id: attendanceReport.id,
+                                            schedule_id: attendanceReport.schedule_id,
+                                            coach_id: attendanceReport.coach_id,
+                                            play_kid_id: Array.isArray(attendanceReport.play_kid_id) ? attendanceReport.play_kid_id : [attendanceReport.play_kid_id], 
+                                            attendance: attendanceReport.attendance,
+                                            motorik: attendanceReport.motorik || '',
+                                            locomotor: attendanceReport.locomotor || '',
+                                            body_control: attendanceReport.body_control || '',
+                                            overall: attendanceReport.overall || 0,
+                                        });
+                                    }}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setDeleteId(attendanceReport.id);
+                                        setIsDeleteDialogOpen(true);
+                                    }}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                );
+            },
+        },
     ];
 
     return (
@@ -1047,6 +1053,7 @@ export default function SchedulesPage() {
                                 <DatePicker
                                     value={formData.date ? new Date(formData.date) : undefined}
                                     onChange={handleDateChange}
+                                    modal={true}
                                 />
                             </div>
 
@@ -1127,11 +1134,11 @@ export default function SchedulesPage() {
                                     <div className="space-y-1">
                                         <Label>Coach</Label>
                                         <Select
-                                            value={coachScheduleFormData.coach_id.toString()}
+                                            value={coachScheduleFormData.coach_id}
                                             onValueChange={(value) =>
                                                 setCoachScheduleFormData((prev) => ({
                                                     ...prev,
-                                                    coach_id: parseInt(value, 10),
+                                                    coach_id: value,
                                                 }))
                                             }
                                         >
@@ -1177,8 +1184,8 @@ export default function SchedulesPage() {
                                         {isLoading
                                             ? 'Loading...'
                                             : isCoachEditing
-                                            ? 'Update Coach Schedule'
-                                            : 'Add Coach Schedule'}
+                                                ? 'Update Coach Schedule'
+                                                : 'Add Coach Schedule'}
                                     </Button>
                                 </div>
                             </form>
@@ -1190,28 +1197,23 @@ export default function SchedulesPage() {
                                 <div className="grid gap-4">
                                     <div className="space-y-1">
                                         <Label>Play Kid</Label>
-                                        <Select
-                                            value={attendanceFormData.play_kid_id.toString()}
+                                        <MultiSelect
+                                            value={attendanceFormData.play_kid_id.map(String)}
                                             onValueChange={(value) =>
-                                                setAttendanceFormData((prev) => ({
-                                                    ...prev,
-                                                    play_kid_id: parseInt(value, 10),
+                                                setAttendanceFormData((prev) => ({ 
+                                                    ...prev, 
+                                                    play_kid_id: value.map(Number)
                                                 }))
                                             }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Choose play kid" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {playKids.map((playKid) => (
-                                                    <SelectItem key={playKid.id} value={playKid.id.toString()}>
-                                                        {playKid.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            options={playKids.map((kid) => ({
+                                                value: kid.id.toString(),
+                                                label: kid.name,
+                                            }))}
+                                            placeholder="Select play kids"
+                                            modalPopover={true}
+                                        />
                                     </div>
-                                    <div className="space-y-1">
+                                    {/* <div className="space-y-1">
                                         <Label>Coach</Label>
                                         <Select
                                             value={attendanceFormData.coach_id.toString()}
@@ -1259,13 +1261,13 @@ export default function SchedulesPage() {
                                                 <SelectItem value="false">Absent</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    </div>
+                                    </div> */}
                                     <Button type="submit" disabled={isLoading}>
                                         {isLoading
                                             ? 'Loading...'
                                             : isAttendanceEditing
-                                            ? 'Update Attendance Report'
-                                            : 'Add Attendance Report'}
+                                                ? 'Update Attendance Report'
+                                                : 'Add Attendance Report'}
                                     </Button>
                                 </div>
                             </form>
@@ -1280,6 +1282,10 @@ export default function SchedulesPage() {
                                 setActiveScheduleId(null);
                                 setCoachSchedule([]);
                                 setAttendanceReport([]);
+                                setAttendanceFormData(defaultAttendanceReportForm);
+                                setCoachScheduleFormData(defaultCoachScheduleForm);
+                                setIsCoachEditing(false);
+                                setIsAttendanceEditing(false);
                             }}
                             disabled={isLoading}
                         >

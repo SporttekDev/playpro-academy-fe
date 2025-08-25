@@ -92,7 +92,7 @@ interface MembershipForm {
     registered_date: string;
     valid_until: number;
     status: string;
-    branch_id: number;
+    branch_id: string;
 }
 
 const defaultMembershipForm: MembershipForm = {
@@ -100,18 +100,18 @@ const defaultMembershipForm: MembershipForm = {
     registered_date: "",
     valid_until: 0,
     status: "active",
-    branch_id: 0,
+    branch_id: "",
 };
 
 interface SessionForm {
-    membership_id: number;
+    membership_id: string;
     count: number;
     expiry_date: number;
     purchase_date?: string;
 }
 
 const defaultSessionForm: SessionForm = {
-    membership_id: 0,
+    membership_id: "",
     count: 0,
     expiry_date: 0,
     purchase_date: "",
@@ -476,9 +476,13 @@ export default function PlayKidsPage() {
 
     const handleDateChange = (date: Date | undefined) => {
         if (date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+
             setFormData((prev) => ({
                 ...prev,
-                birth_date: date.toISOString().split('T')[0],
+                birth_date: `${year}-${month}-${day}`,
             }));
         }
     };
@@ -726,6 +730,7 @@ export default function PlayKidsPage() {
                                 <DatePicker
                                     value={formData.birth_date ? new Date(formData.birth_date) : undefined}
                                     onChange={handleDateChange}
+                                    modal={true}
                                 />
                             </div>
 
@@ -857,6 +862,7 @@ export default function PlayKidsPage() {
                                                     }));
                                                 }
                                             }}
+                                            modal={true}
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -894,9 +900,9 @@ export default function PlayKidsPage() {
                                     <div className="space-y-1">
                                         <Label>Branch</Label>
                                         <Select
-                                            value={membershipForm.branch_id.toString()}
+                                            value={membershipForm.branch_id}
                                             onValueChange={(value) =>
-                                                setMembershipForm(prev => ({ ...prev, branch_id: parseInt(value) }))}
+                                                setMembershipForm(prev => ({ ...prev, branch_id: value }))}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select branch" />
@@ -940,9 +946,9 @@ export default function PlayKidsPage() {
                                         <div className="space-y-1">
                                             <Label>Membership</Label>
                                             <Select
-                                                value={sessionForm.membership_id.toString()}
+                                                value={sessionForm.membership_id}
                                                 onValueChange={(value) =>
-                                                    setSessionForm(prev => ({ ...prev, membership_id: parseInt(value) }))}
+                                                    setSessionForm(prev => ({ ...prev, membership_id: value }))}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select membership" />
@@ -968,6 +974,7 @@ export default function PlayKidsPage() {
                                                         }));
                                                     }
                                                 }}
+                                                modal={true}
                                             />
                                         </div>
                                         <div className="space-y-1">
