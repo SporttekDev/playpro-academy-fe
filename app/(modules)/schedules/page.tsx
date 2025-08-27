@@ -312,10 +312,10 @@ export default function SchedulesPage() {
         }
     }, []);
 
-    const fetchPlayKids = useCallback(async () => {
+    const fetchEligiblePlayKids = useCallback(async (scheduleId: number) => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/eligible-playkids`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
@@ -325,14 +325,14 @@ export default function SchedulesPage() {
             if (!response.ok) {
                 const error = await response.text();
                 console.error(error);
-                throw new Error('Failed to fetch play kids');
+                throw new Error('Failed to fetch eligible play kids');
             }
 
             const { data } = await response.json();
             setPlayKids(data);
         } catch (error) {
-            console.error('Fetch play kids error:', error);
-            toast.error('Failed to fetch play kid data');
+            console.error('Fetch eligible play kids error:', error);
+            toast.error('Failed to fetch eligible play kid data');
         }
     }, []);
 
@@ -389,8 +389,7 @@ export default function SchedulesPage() {
         fetchClasses();
         fetchVenues();
         fetchCoaches();
-        fetchPlayKids();
-    }, [fetchSchedules, fetchClasses, fetchVenues, fetchCoaches, fetchPlayKids]);
+    }, [fetchSchedules, fetchClasses, fetchVenues, fetchCoaches]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -403,8 +402,9 @@ export default function SchedulesPage() {
         if (isScheduleDialogOpen && activeScheduleId) {
             fetchCoachSchedules(activeScheduleId);
             fetchAttendanceReports(activeScheduleId);
+            fetchEligiblePlayKids(activeScheduleId);
         }
-    }, [isScheduleDialogOpen, activeScheduleId, fetchCoachSchedules, fetchAttendanceReports]);
+    }, [isScheduleDialogOpen, activeScheduleId, fetchCoachSchedules, fetchAttendanceReports, fetchEligiblePlayKids]);
 
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -626,7 +626,7 @@ export default function SchedulesPage() {
 
     const handleSaveAttendanceReport = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!attendanceFormData.play_kid_id) {
+        if (!attendanceFormData.play_kid_id || attendanceFormData.play_kid_id.length === 0) {
             toast.error('Play Kids are required');
             return;
         }
@@ -645,7 +645,15 @@ export default function SchedulesPage() {
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance/${attendanceFormData.id}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`;
 
-            const submitData = {
+            const submitData = isAttendanceEditing ? {
+                coach_id: attendanceFormData.coach_id || null,
+                play_kid_id: attendanceFormData.play_kid_id[0],
+                attendance: attendanceFormData.attendance || false,
+                motorik: attendanceFormData.motorik || null,
+                locomotor: attendanceFormData.locomotor || null,
+                body_control: attendanceFormData.body_control || null,
+                overall: attendanceFormData.overall || null,
+            } : {
                 coach_id: attendanceFormData.coach_id || null,
                 play_kid_id: attendanceFormData.play_kid_id,
                 attendance: attendanceFormData.attendance || false,
@@ -672,6 +680,8 @@ export default function SchedulesPage() {
             }
 
             await fetchAttendanceReports(scheduleId);
+            await fetchSchedules();
+            await fetchEligiblePlayKids(scheduleId);
             setAttendanceFormData(defaultAttendanceReportForm);
             setIsAttendanceEditing(false);
             toast.success(isAttendanceEditing ? 'Attendance report updated successfully!' : 'Attendance report created successfully!');
@@ -702,6 +712,9 @@ export default function SchedulesPage() {
             }
 
             await fetchAttendanceReports(scheduleId);
+            await fetchEligiblePlayKids(scheduleId);
+            await fetchSchedules();
+            
             toast.success('Attendance report deleted successfully!');
         } catch (error) {
             console.error('Delete attendance report error:', error);
@@ -1192,7 +1205,14 @@ export default function SchedulesPage() {
                         </TabsContent>
 
                         <TabsContent value="attendance_report" className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <div className="text-sm text-muted-foreground">
+                                    Available Quota: {schedules.find(s => s.id === activeScheduleId)?.quota || 0}
+                                </div>
+                            </div>
+                            
                             <DataTable columns={attendanceColumns} data={attendanceReport} />
+                            
                             <form onSubmit={handleSaveAttendanceReport}>
                                 <div className="grid gap-4">
                                     <div className="space-y-1">
@@ -1207,61 +1227,69 @@ export default function SchedulesPage() {
                                             }
                                             options={playKids.map((kid) => ({
                                                 value: kid.id.toString(),
-                                                label: kid.name,
+                                                label: `${kid.name} (${kid.gender === 'M' ? 'Male' : 'Female'})`,
                                             }))}
                                             placeholder="Select play kids"
                                             modalPopover={true}
+                                            disabled={isAttendanceEditing} 
                                         />
                                     </div>
-                                    {/* <div className="space-y-1">
-                                        <Label>Coach</Label>
-                                        <Select
-                                            value={attendanceFormData.coach_id.toString()}
-                                            onValueChange={(value) =>
-                                                setAttendanceFormData((prev) => ({
-                                                    ...prev,
-                                                    coach_id: parseInt(value, 10),
-                                                }))
-                                            }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Choose coach" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {coaches.length > 0 ? (
-                                                    coaches.map((coach) => (
-                                                        <SelectItem key={coach.id} value={coach.id.toString()}>
-                                                            {coach.name}
-                                                        </SelectItem>
-                                                    ))
-                                                ) : (
-                                                    <SelectItem value="0" disabled>
-                                                        No coaches available
-                                                    </SelectItem>
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label>Attendance</Label>
-                                        <Select
-                                            value={attendanceFormData.attendance ? 'true' : 'false'}
-                                            onValueChange={(value) =>
-                                                setAttendanceFormData((prev) => ({
-                                                    ...prev,
-                                                    attendance: value === 'true',
-                                                }))
-                                            }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select attendance" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="true">Present</SelectItem>
-                                                <SelectItem value="false">Absent</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div> */}
+                                    
+                                    {isAttendanceEditing && (
+                                        <>
+                                            <div className="space-y-1">
+                                                <Label>Coach</Label>
+                                                <Select
+                                                    value={attendanceFormData.coach_id?.toString() || ''}
+                                                    onValueChange={(value) =>
+                                                        setAttendanceFormData((prev) => ({
+                                                            ...prev,
+                                                            coach_id: parseInt(value, 10),
+                                                        }))
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Choose coach" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {coaches.length > 0 ? (
+                                                            coaches.map((coach) => (
+                                                                <SelectItem key={coach.id} value={coach.id.toString()}>
+                                                                    {coach.name}
+                                                                </SelectItem>
+                                                            ))
+                                                        ) : (
+                                                            <SelectItem value="0" disabled>
+                                                                No coaches available
+                                                            </SelectItem>
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            
+                                            <div className="space-y-1">
+                                                <Label>Attendance</Label>
+                                                <Select
+                                                    value={attendanceFormData.attendance ? 'true' : 'false'}
+                                                    onValueChange={(value) =>
+                                                        setAttendanceFormData((prev) => ({
+                                                            ...prev,
+                                                            attendance: value === 'true',
+                                                        }))
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select attendance" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="true">Present</SelectItem>
+                                                        <SelectItem value="false">Absent</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </>
+                                    )}
+                                    
                                     <Button type="submit" disabled={isLoading}>
                                         {isLoading
                                             ? 'Loading...'
@@ -1273,6 +1301,7 @@ export default function SchedulesPage() {
                             </form>
                         </TabsContent>
                     </Tabs>
+                    
                     <DialogFooter>
                         <Button
                             type="button"
