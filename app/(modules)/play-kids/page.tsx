@@ -637,7 +637,13 @@ export default function PlayKidsPage() {
             cell: ({ row }) => {
                 const membershipId = row.original.membership_id;
                 const membership = memberships.find(m => m.id === membershipId);
-                return membership ? `Membership #${membership.id}` : "N/A";
+                
+                if (membership) {
+                    const branch = branches.find(b => b.id === membership.branch_id);
+                    return branch ? branch.name : "N/A";
+                }
+                
+                return "N/A";
             }
         },
         { accessorKey: 'count', header: 'Session Count' },
@@ -954,11 +960,16 @@ export default function PlayKidsPage() {
                                                     <SelectValue placeholder="Select membership" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {memberships.map(membership => (
-                                                        <SelectItem key={membership.id} value={membership.id.toString()}>
-                                                            Membership #{membership.id} - {membership.status}
-                                                        </SelectItem>
-                                                    ))}
+                                                    {memberships.map(membership => {
+                                                        const branch = branches.find(b => b.id === membership.branch_id);
+                                                        const branchName = branch ? branch.name : "Unknown Branch";
+                                                        
+                                                        return (
+                                                            <SelectItem key={membership.id} value={membership.id.toString()}>
+                                                                {branchName} - {membership.status}
+                                                            </SelectItem>
+                                                        );
+                                                    })}
                                                 </SelectContent>
                                             </Select>
                                         </div>
