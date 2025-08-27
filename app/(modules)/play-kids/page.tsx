@@ -69,6 +69,7 @@ interface Session {
     membership_id: number;
     count: number;
     expiry_date: string;
+    purchase_date?: string;
 }
 
 interface Branch {
@@ -88,6 +89,7 @@ const defaultForm: PlayKidForm = {
 };
 
 interface MembershipForm {
+    id?: number;
     play_kid_id: number;
     registered_date: string;
     valid_until: number;
@@ -104,6 +106,7 @@ const defaultMembershipForm: MembershipForm = {
 };
 
 interface SessionForm {
+    id?: number;
     membership_id: string;
     count: number;
     expiry_date: number;
@@ -138,6 +141,8 @@ export default function PlayKidsPage() {
     const [selectedPlayKidId, setSelectedPlayKidId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("memberships");
+    const [isEditingMembership, setIsEditingMembership] = useState(false);
+    const [isEditingSession, setIsEditingSession] = useState(false);
 
     const fetchPlayKids = useCallback(async () => {
         try {
@@ -253,12 +258,11 @@ export default function PlayKidsPage() {
                     }
                 }
                 setSessions(allSessions);
-
             } catch (error) {
                 console.error("Fetch all sessions failed:", error);
             }
         },
-        [] // ← memberships dihapus dari dependency
+        []
     );
 
     useEffect(() => {
@@ -285,6 +289,10 @@ export default function PlayKidsPage() {
         } else {
             setMemberships([]);
             setSessions([]);
+            setMembershipForm(defaultMembershipForm);
+            setSessionForm(defaultSessionForm);
+            setIsEditingMembership(false);
+            setIsEditingSession(false);
         }
     }, [isMembershipDialogOpen, selectedPlayKidId, fetchMemberships, fetchAllSessions]);
 
@@ -300,8 +308,13 @@ export default function PlayKidsPage() {
             setIsLoading(true);
             const token = Cookies.get("token");
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership`, {
-                method: "POST",
+            const method = isEditingMembership ? "PUT" : "POST";
+            const url = isEditingMembership
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membershipForm.id}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/membership`;
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
@@ -312,17 +325,18 @@ export default function PlayKidsPage() {
                 }),
             });
 
-            if (!response.ok) throw new Error("Failed to create membership");
+            if (!response.ok) throw new Error(`Failed to ${isEditingMembership ? 'update' : 'create'} membership`);
 
             await fetchMemberships(selectedPlayKidId!);
             if (activeTab === "sessions") {
                 await fetchAllSessions(selectedPlayKidId!, memberships);
             }
             setMembershipForm(defaultMembershipForm);
-            toast.success("Membership created successfully!");
+            setIsEditingMembership(false);
+            toast.success(isEditingMembership ? "Membership updated successfully!" : "Membership created successfully!");
         } catch (error) {
-            console.error("Create membership error:", error);
-            toast.error("Failed to create membership");
+            console.error(`${isEditingMembership ? 'Update' : 'Create'} membership error:`, error);
+            toast.error(`Failed to ${isEditingMembership ? 'update' : 'create'} membership`);
         } finally {
             setIsLoading(false);
         }
@@ -334,8 +348,13 @@ export default function PlayKidsPage() {
             setIsLoading(true);
             const token = Cookies.get("token");
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session`, {
-                method: "POST",
+            const method = isEditingSession ? "PUT" : "POST";
+            const url = isEditingSession
+                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/session/${sessionForm.id}`
+                : `${process.env.NEXT_PUBLIC_API_URL}/admin/session`;
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
@@ -343,17 +362,62 @@ export default function PlayKidsPage() {
                 body: JSON.stringify(sessionForm),
             });
 
-            if (!response.ok) throw new Error("Failed to create session");
+            if (!response.ok) throw new Error(`Failed to ${isEditingSession ? 'update' : 'create'} session`);
 
             await fetchAllSessions(selectedPlayKidId!, memberships);
             setSessionForm(defaultSessionForm);
-            console.log("sessionForm : ", sessionForm);
-            toast.success("Session created successfully!");
+            setIsEditingSession(false);
+            toast.success(isEditingSession ? "Session updated successfully!" : "Session created successfully!");
         } catch (error) {
-            console.error("Create session error:", error);
-            toast.error("Failed to create session");
+            console.error(`${isEditingSession ? 'Update' : 'Create'} session error:`, error);
+            toast.error(`Failed to ${isEditingSession ? 'update' : 'create'} session`);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDeleteMembership = async (membershipId: number) => {
+        try {
+            const token = Cookies.get("token");
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membershipId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (!response.ok) throw new Error("Failed to delete membership");
+
+            await fetchMemberships(selectedPlayKidId!);
+            if (activeTab === "sessions") {
+                await fetchAllSessions(selectedPlayKidId!, memberships);
+            }
+            toast.success("Membership deleted successfully!");
+        } catch (error) {
+            console.error("Delete membership error:", error);
+            toast.error("Failed to delete membership");
+        }
+    };
+
+    const handleDeleteSession = async (sessionId: number) => {
+        try {
+            const token = Cookies.get("token");
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/session/${sessionId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (!response.ok) throw new Error("Failed to delete session");
+
+            await fetchAllSessions(selectedPlayKidId!, memberships);
+            toast.success("Session deleted successfully!");
+        } catch (error) {
+            console.error("Delete session error:", error);
+            toast.error("Failed to delete session");
         }
     };
 
@@ -627,7 +691,61 @@ export default function PlayKidsPage() {
                 const branch = branches.find(b => b.id === branchId);
                 return branch?.name || "N/A";
             }
-        }
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const membership = row.original;
+                return (
+                    <div className="flex gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setMembershipForm({
+                                            id: membership.id,
+                                            play_kid_id: membership.play_kid_id,
+                                            registered_date: membership.registered_date,
+                                            valid_until: Math.round(
+                                                (new Date(membership.valid_until).getTime() - new Date(membership.registered_date).getTime()) /
+                                                (1000 * 60 * 60 * 24 * 30)
+                                            ),
+                                            status: membership.status,
+                                            branch_id: membership.branch_id.toString(),
+                                        });
+                                        setIsEditingMembership(true);
+                                    }}
+                                    aria-label={`Edit membership for ${membership.id}`}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteMembership(membership.id)}
+                                    aria-label={`Delete membership ${membership.id}`}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                );
+            },
+        },
     ];
 
     const sessionColumns: ColumnDef<Session>[] = [
@@ -657,6 +775,59 @@ export default function PlayKidsPage() {
                 }
                 return "N/A";
             }
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const session = row.original;
+                return (
+                    <div className="flex gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setSessionForm({
+                                            id: session.id,
+                                            membership_id: session.membership_id.toString(),
+                                            count: session.count,
+                                            expiry_date: Math.round(
+                                                (new Date(session.expiry_date).getTime() - new Date(session.purchase_date || session.expiry_date).getTime()) /
+                                                (1000 * 60 * 60 * 24 * 30)
+                                            ),
+                                            purchase_date: session.purchase_date,
+                                        });
+                                        setIsEditingSession(true);
+                                    }}
+                                    aria-label={`Edit session ${session.id}`}
+                                >
+                                    <IconPencil className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Edit
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteSession(session.id)}
+                                    aria-label={`Delete session ${session.id}`}
+                                >
+                                    <IconTrash className="w-4 h-4 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Delete
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                );
+            },
         },
     ];
 
@@ -852,9 +1023,9 @@ export default function PlayKidsPage() {
                                 data={memberships}
                             />
 
-                            {/* Add Membership Form */}
+                            {/* Add/Edit Membership Form */}
                             <form onSubmit={handleMembershipSubmit} className="space-y-4 border-t pt-4">
-                                <h4 className="font-medium">Add New Membership</h4>
+                                <h4 className="font-medium">{isEditingMembership ? 'Edit Membership' : 'Add New Membership'}</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <Label>Registered Date</Label>
@@ -923,9 +1094,23 @@ export default function PlayKidsPage() {
                                         </Select>
                                     </div>
                                 </div>
-                                <Button type="submit" disabled={isLoading}>
-                                    {isLoading ? "Loading..." : "Add Membership"}
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button type="submit" disabled={isLoading}>
+                                        {isLoading ? "Loading..." : isEditingMembership ? "Save Changes" : "Add Membership"}
+                                    </Button>
+                                    {isEditingMembership && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setMembershipForm(defaultMembershipForm);
+                                                setIsEditingMembership(false);
+                                            }}
+                                        >
+                                            Cancel Edit
+                                        </Button>
+                                    )}
+                                </div>
                             </form>
                         </TabsContent>
 
@@ -944,10 +1129,10 @@ export default function PlayKidsPage() {
                                 />
                             )}
 
-                            {/* Add Session Form */}
+                            {/* Add/Edit Session Form */}
                             {memberships.length > 0 ? (
                                 <form onSubmit={handleSessionSubmit} className="space-y-4 border-t pt-4">
-                                    <h4 className="font-medium">Add New Session</h4>
+                                    <h4 className="font-medium">{isEditingSession ? 'Edit Session' : 'Add New Session'}</h4>
                                     <div className="grid grid-cols-4 gap-4">
                                         <div className="space-y-1">
                                             <Label>Membership</Label>
@@ -1016,9 +1201,23 @@ export default function PlayKidsPage() {
                                             />
                                         </div>
                                     </div>
-                                    <Button type="submit" disabled={isLoading || !sessionForm.membership_id}>
-                                        {isLoading ? "Loading..." : "Add Session"}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button type="submit" disabled={isLoading || !sessionForm.membership_id}>
+                                            {isLoading ? "Loading..." : isEditingSession ? "Save Changes" : "Add Session"}
+                                        </Button>
+                                        {isEditingSession && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setSessionForm(defaultSessionForm);
+                                                    setIsEditingSession(false);
+                                                }}
+                                            >
+                                                Cancel Edit
+                                            </Button>
+                                        )}
+                                    </div>
                                 </form>
                             ) : (
                                 <div className="border-t pt-4 text-center text-gray-500">
@@ -1038,6 +1237,8 @@ export default function PlayKidsPage() {
                                 setSessionForm(defaultSessionForm);
                                 setSessions([]);
                                 setActiveTab("memberships");
+                                setIsEditingMembership(false);
+                                setIsEditingSession(false);
                             }}
                         >
                             Close
