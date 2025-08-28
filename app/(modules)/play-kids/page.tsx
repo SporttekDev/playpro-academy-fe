@@ -364,8 +364,8 @@ export default function PlayKidsPage() {
             const sessionData = {
                 membership_id: parseInt(sessionForm.membership_id),
                 count: sessionForm.count,
-                expiry_date: sessionForm.expiry_date, 
-                purchase_date: sessionForm.purchase_date, 
+                expiry_date: sessionForm.expiry_date,
+                purchase_date: sessionForm.purchase_date,
             };
 
             const response = await fetch(url, {
@@ -557,17 +557,20 @@ export default function PlayKidsPage() {
         }
     };
 
-    const handleDateChange = (date: Date | undefined) => {
-        if (date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
+    const handleDateChange = <T extends object>(
+        date: Date | undefined,
+        field: keyof T,
+        setState: React.Dispatch<React.SetStateAction<T>>
+    ) => {
+        if (!date) return;
 
-            setFormData((prev) => ({
-                ...prev,
-                birth_date: `${year}-${month}-${day}`,
-            }));
-        }
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        setState((prev) => ({
+            ...prev,
+            [field]: `${year}-${month}-${day}`,
+        }));
     };
 
     const columns: ColumnDef<PlayKid>[] = [
@@ -776,12 +779,12 @@ export default function PlayKidsPage() {
             cell: ({ row }) => {
                 const membershipId = row.original.membership_id;
                 const membership = memberships.find(m => m.id === membershipId);
-                
+
                 if (membership) {
                     const branch = branches.find(b => b.id === membership.branch_id);
                     return branch ? branch.name : "N/A";
                 }
-                
+
                 return "N/A";
             }
         },
@@ -933,7 +936,7 @@ export default function PlayKidsPage() {
                                 <Label>Birth Date</Label>
                                 <DatePicker
                                     value={formData.birth_date ? new Date(formData.birth_date) : undefined}
-                                    onChange={handleDateChange}
+                                    onChange={(date) => handleDateChange(date, "birth_date", setFormData)}
                                     modal={true}
                                 />
                             </div>
@@ -1058,14 +1061,7 @@ export default function PlayKidsPage() {
                                         <Label>Registered Date</Label>
                                         <DatePicker
                                             value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : undefined}
-                                            onChange={(date) => {
-                                                if (date) {
-                                                    setMembershipForm(prev => ({
-                                                        ...prev,
-                                                        registered_date: date.toISOString().split('T')[0],
-                                                    }));
-                                                }
-                                            }}
+                                            onChange={(date) => { handleDateChange(date, "registered_date", setMembershipForm) }}
                                             modal={true}
                                         />
                                     </div>
@@ -1185,14 +1181,7 @@ export default function PlayKidsPage() {
                                             <Label>Purchase Date</Label>
                                             <DatePicker
                                                 value={sessionForm.purchase_date ? new Date(sessionForm.purchase_date) : undefined}
-                                                onChange={(date) => {
-                                                    if (date) {
-                                                        setSessionForm((prev) => ({
-                                                            ...prev,
-                                                            purchase_date: date.toISOString().split('T')[0],
-                                                        }));
-                                                    }
-                                                }}
+                                                onChange={(date) => { handleDateChange(date, "purchase_date", setSessionForm) }}
                                                 modal={true}
                                             />
                                         </div>
