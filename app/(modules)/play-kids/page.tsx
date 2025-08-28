@@ -1063,6 +1063,7 @@ export default function PlayKidsPage() {
                                             value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : undefined}
                                             onChange={(date) => { handleDateChange(date, "registered_date", setMembershipForm) }}
                                             modal={true}
+                                            defaultValue={new Date()}
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -1183,6 +1184,7 @@ export default function PlayKidsPage() {
                                                 value={sessionForm.purchase_date ? new Date(sessionForm.purchase_date) : undefined}
                                                 onChange={(date) => { handleDateChange(date, "purchase_date", setSessionForm) }}
                                                 modal={true}
+                                                defaultValue={new Date()}
                                             />
                                         </div>
                                         <div className="space-y-1">
