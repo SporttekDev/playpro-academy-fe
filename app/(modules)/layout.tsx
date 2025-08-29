@@ -27,6 +27,7 @@ export default function DashboardLayout({
         if (pathname.startsWith("/schedules")) return "Schedules";
         if (pathname.startsWith("/rosters")) return "Rosters";
         if (pathname.startsWith("/users")) return "Users";
+        if (pathname.startsWith("/attendance-reports")) return "Attendance Reports";
         return "Page";
     }, [pathname]);
 

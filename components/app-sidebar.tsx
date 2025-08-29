@@ -55,6 +55,22 @@ const data = {
       url: "/dashboard",
       icon: IconDashboard,
     },
+
+    {
+      title: "PlayKids",
+      url: "/play-kids",
+      icon: IconUsersGroup,
+    },
+    {
+      title: "Schedules",
+      url: "/schedules",
+      icon: IconCalendarEvent,
+    },
+    {
+      title: "Attendance Report",
+      url: "/attendance-reports",
+      icon: IconReport,
+    },
   ],
   navClouds: [
     {
@@ -152,21 +168,11 @@ const data = {
       url: "/venues",
       icon: IconSoccerField,
     },
-    {
-      name: "Schedules",
-      url: "/schedules",
-      icon: IconCalendarEvent,
-    },
-    {
-      name: "Rosters",
-      url: "/rosters",
-      icon: IconCalendarCog,
-    },
-    {
-      name: "PlayKids",
-      url: "/play-kids",
-      icon: IconUsersGroup,
-    },
+    // {
+    //   name: "Rosters",
+    //   url: "/rosters",
+    //   icon: IconCalendarCog,
+    // },
     {
       name: "Coaches",
       url: "/coaches",
