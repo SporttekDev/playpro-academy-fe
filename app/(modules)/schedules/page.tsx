@@ -406,6 +406,13 @@ export default function SchedulesPage() {
         }
     }, [isScheduleDialogOpen, activeScheduleId, fetchCoachSchedules, fetchAttendanceReports, fetchEligiblePlayKids]);
 
+    useEffect(() => {
+        setFormData((prev) => ({
+            ...prev,
+            venue_id: '', 
+        }));
+    }, [formData.class_id]);
+
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -1026,11 +1033,17 @@ export default function SchedulesPage() {
                                         <SelectValue placeholder="Choose class" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {classes.map((cls) => (
-                                            <SelectItem key={cls.id} value={cls.id.toString()}>
-                                                {cls.name}
+                                        {classes.length > 0 ? (
+                                            classes.map((cls) => (
+                                                <SelectItem key={cls.id} value={cls.id.toString()}>
+                                                    {cls.name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="0" disabled>
+                                                No classes available
                                             </SelectItem>
-                                        ))}
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1040,23 +1053,37 @@ export default function SchedulesPage() {
                                 <Select
                                     value={formData.venue_id}
                                     onValueChange={(value) => setFormData((prev) => ({ ...prev, venue_id: value }))}
+                                    disabled={!formData.class_id}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Choose venue" />
+                                        <SelectValue placeholder={formData.class_id ? 'Choose venue' : 'Select a class first'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {venues
-                                            .filter((venue) => {
-                                                if (!formData.class_id) return true;
-                                                const selectedClass = classes.find((cls) => cls.id === formData.class_id);
-                                                if (!selectedClass) return true;
-                                                return venue.branch.id === selectedClass.branch_id;
-                                            })
-                                            .map((venue) => (
-                                                <SelectItem key={venue.id} value={venue.id.toString()}>
-                                                    {venue.name}
+                                        {formData.class_id ? (
+                                            venues
+                                                .filter((venue) => {
+                                                    const selectedClass = classes.find((cls) => cls.id.toString() === formData.class_id);
+                                                    return selectedClass ? venue.branch.id === selectedClass.branch_id : false;
+                                                })
+                                                .map((venue) => (
+                                                    <SelectItem key={venue.id} value={venue.id.toString()}>
+                                                        {venue.name}
+                                                    </SelectItem>
+                                                ))
+                                        ) : (
+                                            <SelectItem value="0" disabled>
+                                                Please select a class first
+                                            </SelectItem>
+                                        )}
+                                        {formData.class_id &&
+                                            venues.filter((venue) => {
+                                                const selectedClass = classes.find((cls) => cls.id.toString() === formData.class_id);
+                                                return selectedClass ? venue.branch.id === selectedClass.branch_id : false;
+                                            }).length === 0 && (
+                                                <SelectItem value="0" disabled>
+                                                    No venues available for this class
                                                 </SelectItem>
-                                            ))}
+                                            )}
                                     </SelectContent>
                                 </Select>
                             </div>
