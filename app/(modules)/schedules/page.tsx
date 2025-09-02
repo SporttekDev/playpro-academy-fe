@@ -1272,37 +1272,7 @@ export default function SchedulesPage() {
                                     </div>
                                     
                                     {isAttendanceEditing && (
-                                        <>
-                                            <div className="space-y-1">
-                                                <Label>Coach</Label>
-                                                <Select
-                                                    value={attendanceFormData.coach_id?.toString() || ''}
-                                                    onValueChange={(value) =>
-                                                        setAttendanceFormData((prev) => ({
-                                                            ...prev,
-                                                            coach_id: parseInt(value, 10),
-                                                        }))
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Choose coach" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {coaches.length > 0 ? (
-                                                            coaches.map((coach) => (
-                                                                <SelectItem key={coach.id} value={coach.id.toString()}>
-                                                                    {coach.name}
-                                                                </SelectItem>
-                                                            ))
-                                                        ) : (
-                                                            <SelectItem value="0" disabled>
-                                                                No coaches available
-                                                            </SelectItem>
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            
+                                        <>                                            
                                             <div className="space-y-1">
                                                 <Label>Attendance</Label>
                                                 <Select
