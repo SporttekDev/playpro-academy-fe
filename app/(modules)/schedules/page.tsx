@@ -329,7 +329,16 @@ export default function SchedulesPage() {
             }
 
             const { data } = await response.json();
-            setPlayKids(data);
+            
+            const playKidsWithSessions = data.filter((playKid: any) => {
+                return playKid.memberships && playKid.memberships.length > 0 && 
+                    playKid.memberships.some((membership: any) => 
+                        membership.sessions && membership.sessions.length > 0 && 
+                        membership.sessions.some((session: any) => session.count > 0)
+                    );
+            });
+            
+            setPlayKids(playKidsWithSessions);
         } catch (error) {
             console.error('Fetch eligible play kids error:', error);
             toast.error('Failed to fetch eligible play kid data');
@@ -957,7 +966,7 @@ export default function SchedulesPage() {
                                             id: attendanceReport.id,
                                             schedule_id: attendanceReport.schedule_id,
                                             coach_id: attendanceReport.coach_id,
-                                            play_kid_id: Array.isArray(attendanceReport.play_kid_id) ? attendanceReport.play_kid_id : [attendanceReport.play_kid_id], 
+                                            play_kid_id: [attendanceReport.play_kid_id],
                                             attendance: attendanceReport.attendance,
                                             motorik: attendanceReport.motorik || '',
                                             locomotor: attendanceReport.locomotor || '',
