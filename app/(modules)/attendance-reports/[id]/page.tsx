@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { toast } from 'sonner'
@@ -55,6 +55,9 @@ interface AttendanceReport {
         photo: string | null
         created_at: string | null
         updated_at: string | null
+        user: {
+            name: string
+        }
     }
     play_kid: {
         id: number
@@ -71,59 +74,110 @@ interface AttendanceReport {
     }
 }
 
+interface Session {
+    id: number;
+    coach: {
+        id: number;
+    };
+    name: string;
+    role: string;
+}
+
 export default function AttendanceReportForm() {
     const { id } = useParams()
-    const [report, setReport] = useState<AttendanceReport | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
-    const motorikRef = useRef<HTMLTextAreaElement | null>(null)
-    const locomotorRef = useRef<HTMLTextAreaElement | null>(null)
-    const bodyControlRef = useRef<HTMLTextAreaElement | null>(null)
+    const [report, setReport] = useState<AttendanceReport | null>(null);
+    const [defaultReport, setDefaultReport] = useState<AttendanceReport | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
+    const [coaches, setCoaches] = useState<{ id: number; name: string }[]>([])
+    const [isLoading, setIsLoading] = useState(false);
+    const motorikRef = useRef<HTMLTextAreaElement | null>(null);
+    const locomotorRef = useRef<HTMLTextAreaElement | null>(null);
+    const bodyControlRef = useRef<HTMLTextAreaElement | null>(null);
 
-    useEffect(() => {
-        const fetchReport = async () => {
-            setIsLoading(true)
-            try {
-                const token = Cookies.get('token')
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`, {
+    const fetchReport = useCallback(async (id: string) => {
+        setIsLoading(true);
+        try {
+            const sessionString = Cookies.get("session_key");
+            if (!sessionString) return null;
+
+            const sessionKey = JSON.parse(sessionString);
+            console.log("session : ", sessionKey);
+
+            const token = Cookies.get("token");
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`,
+                {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
+                }
+            );
+
+            if (!response.ok) throw new Error("Failed to fetch report");
+
+            const { data } = await response.json();
+            console.log(data);
+
+            setReport(data);
+            setDefaultReport(data);
+            setSession(sessionKey);
+        } catch (error) {
+            console.error("Error : ", error);
+            toast.error("Error fetching report");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (id) fetchReport(String(id));
+    }, [id, fetchReport]);
+
+    useEffect(() => {
+        const fetchCoaches = async () => {
+            try {
+                const token = Cookies.get("token");
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
+                    headers: { Authorization: `Bearer ${token}` },
                 })
-                if (!response.ok) throw new Error('Failed to fetch report');
-                const { data } = await response.json();
-                console.log(data);
-                setReport(data);
+                if (!response.ok) throw new Error("Failed to fetch coaches")
+                const { data } = await response.json()
+                setCoaches(data)
             } catch (error) {
-                console.error('Error : ', error);
-                toast.error('Error fetching report')
-            } finally {
-                setIsLoading(false)
+                console.error(error)
+                toast.error("Error fetching coaches")
             }
         }
-        fetchReport()
-    }, [id])
+
+        if (session?.role === "admin") {
+            fetchCoaches()
+        }
+    }, [session])
 
     const autoSize = (el?: HTMLTextAreaElement | null) => {
-        if (!el) return
-        el.style.height = 'auto'
-        el.style.height = `${el.scrollHeight}px`
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
     }
 
     useEffect(() => {
-        if (!report) return
-        autoSize(motorikRef.current)
-        autoSize(locomotorRef.current)
-        autoSize(bodyControlRef.current)
-    }, [report])
+        if (!report) return;
+        autoSize(motorikRef.current);
+        autoSize(locomotorRef.current);
+        autoSize(bodyControlRef.current);
+    }, [report]);
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+        e.preventDefault();
         try {
-            const token = Cookies.get('token')
+            const token = Cookies.get('token');
+            console.log("SESSION_KEY : ", session)
             const payload = {
+                coach_id: session?.role === "coach" ? session.coach.id : report?.coach_id,
                 motorik: report?.motorik,
                 locomotor: report?.locomotor,
                 body_control: report?.body_control,
+                attendance: report?.attendance,
                 overall: report?.overall,
             }
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`, {
@@ -134,27 +188,41 @@ export default function AttendanceReportForm() {
                 },
                 body: JSON.stringify(payload),
             })
-            if (!response.ok) throw new Error('Failed to update report')
-            toast.success('Report updated successfully')
+            if (!response.ok) throw new Error('Failed to update report');
+
+            await fetchReport(String(id));
+            toast.success('Report updated successfully');
         } catch (error) {
             console.error('Error : ', error);
-            toast.error('Error updating report')
+            toast.error('Error updating report');
         }
+    }
+
+    const handleReset = () => {
+        setReport(defaultReport);
+        toast.info('Changes reverted to last saved state');
     }
 
     if (isLoading) return <p className="px-6 py-8">Loading...</p>
-    if (!report) return <p className="px-6 py-8">No report found</p>
+    if (!report || !defaultReport) return <p className="px-6 py-8">No report found</p>
 
     const ageOrBirth = (bd?: string) => {
-        if (!bd) return '-'
+        if (!bd) return '-';
         try {
-            const d = new Date(bd)
-            const diff = new Date().getFullYear() - d.getFullYear()
-            return `${diff} yr (${bd})`
+            const birth = new Date(bd);
+            const now = new Date();
+            let age = now.getFullYear() - birth.getFullYear();
+            const m = now.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+                age--;
+            }
+            return `${age} yrs`;
         } catch {
-            return bd
+            return bd;
         }
     }
+
+    console.log("coaches : ", coaches);
 
     return (
         <div className="px-6">
@@ -163,7 +231,6 @@ export default function AttendanceReportForm() {
                 <div className="text-sm text-muted-foreground">Schedule: <span className="font-medium">{report.schedule?.name}</span></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Left: Profile Card (sticky on desktop) */}
                 <aside className="md:col-span-1">
                     <Card className="sticky top-6">
                         <CardHeader>
@@ -207,11 +274,11 @@ export default function AttendanceReportForm() {
                                 <Separator />
                                 <div>
                                     <div className="text-sm text-muted-foreground">Coach</div>
-                                    <div className="text-sm font-medium">{report.coach ? `Coach #${report.coach.id}` : '-'}</div>
+                                    <div className="text-sm font-medium">{report.coach ? `${report.coach.user.name}` : '-'}</div>
                                 </div>
                                 <div>
                                     <div className="text-sm text-muted-foreground">Attendance</div>
-                                    <div className="text-sm font-medium">{report.attendance === 1 ? 'Present' : 'Absent'}</div>
+                                    <div className="text-sm font-medium">{defaultReport.attendance === 1 ? 'Present' : 'Absent'}</div>
                                 </div>
                             </div>
                         </CardContent>
@@ -229,6 +296,32 @@ export default function AttendanceReportForm() {
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    {session?.role === "admin" ? (
+                                        <div className="lg:col-span-2 space-y-1">
+                                            <Label htmlFor="coach">Coach</Label>
+                                            <Select
+                                                value={report.coach_id ? String(report.coach_id) : ""}
+                                                onValueChange={(val) => {
+                                                    setReport({
+                                                        ...report,
+                                                        coach_id: Number(val),
+                                                    })
+                                                }}
+                                            >
+                                                <SelectTrigger id="coach" className="w-full">
+                                                    <SelectValue placeholder="Select coach" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {coaches.map(c => (
+                                                        <SelectItem key={c.id} value={String(c.id)}>
+                                                            {c.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-xs text-muted-foreground">Choose the coach who filled this assessment.</p>
+                                        </div>
+                                    ) : null}
                                     <div className="space-y-2">
                                         <Label htmlFor="motorik">Motorik</Label>
                                         <Textarea
@@ -317,11 +410,7 @@ export default function AttendanceReportForm() {
                                 </div>
 
                                 <div className="flex items-center justify-end gap-3 mt-4">
-                                    <Button variant="ghost" type="button" onClick={() => {
-                                        // reset to latest server state (or navigate back)
-                                        setReport({ ...report })
-                                        toast('No changes reverted')
-                                    }}>Reset</Button>
+                                    <Button variant="ghost" type="button" onClick={() => { handleReset() }}>Reset</Button>
                                     <Button type="submit">Save</Button>
                                 </div>
                             </CardContent>

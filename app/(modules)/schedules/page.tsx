@@ -785,7 +785,7 @@ export default function SchedulesPage() {
                                 Manage Schedule
                             </TooltipContent>
                         </Tooltip>
-                        <Tooltip>
+                        {/* <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
@@ -811,7 +811,7 @@ export default function SchedulesPage() {
                             <TooltipContent side="top">
                                 Edit
                             </TooltipContent>
-                        </Tooltip>
+                        </Tooltip> */}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -1262,7 +1262,7 @@ export default function SchedulesPage() {
                                         />
                                     </div>
                                     
-                                    {isAttendanceEditing && (
+                                    {/* {isAttendanceEditing && (
                                         <>
                                             <div className="space-y-1">
                                                 <Label>Coach</Label>
@@ -1315,7 +1315,7 @@ export default function SchedulesPage() {
                                                 </Select>
                                             </div>
                                         </>
-                                    )}
+                                    )} */}
                                     
                                     <Button type="submit" disabled={isLoading}>
                                         {isLoading
