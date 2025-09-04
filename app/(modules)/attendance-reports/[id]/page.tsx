@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { toast } from 'sonner'
+import Image from 'next/image';
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,7 +20,7 @@ interface AttendanceReport {
     schedule_id: number
     coach_id: number
     play_kid_id: number
-    attendance: number
+    attendance: boolean
     motorik: string | null
     locomotor: string | null
     body_control: string | null
@@ -177,7 +178,7 @@ export default function AttendanceReportForm() {
                 motorik: report?.motorik,
                 locomotor: report?.locomotor,
                 body_control: report?.body_control,
-                attendance: report?.attendance,
+                attendance: Boolean(report?.attendance),
                 overall: report?.overall,
             }
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`, {
@@ -237,7 +238,13 @@ export default function AttendanceReportForm() {
                             <CardTitle className="flex items-center gap-3">
                                 <Avatar className="h-12 w-12">
                                     {report.play_kid?.photo ? (
-                                        <AvatarImage src={report.play_kid.photo} alt={report.play_kid?.name} />
+                                        <Image
+                                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${report.play_kid.photo.replace('storage/', '')}`}
+                                            alt={report.play_kid?.name}
+                                            width={48}
+                                            height={48}
+                                            className="rounded-full object-cover"
+                                        />
                                     ) : (
                                         <AvatarFallback>{(report.play_kid?.name || 'U').slice(0, 1)}</AvatarFallback>
                                     )}
@@ -278,7 +285,9 @@ export default function AttendanceReportForm() {
                                 </div>
                                 <div>
                                     <div className="text-sm text-muted-foreground">Attendance</div>
-                                    <div className="text-sm font-medium">{defaultReport.attendance === 1 ? 'Present' : 'Absent'}</div>
+                                    <div className="text-sm font-medium">
+                                        {report?.attendance ? 'Present' : 'Absent'}
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -371,9 +380,12 @@ export default function AttendanceReportForm() {
                                     <div className="space-y-1">
                                         <Label htmlFor="attendance">Attendance</Label>
                                         <Select
-                                            value={String(report.attendance ?? 0)}
-                                            onValueChange={(val) => setReport({ ...report, attendance: Number(val) })}
-                                        >
+                                            value={String(report?.attendance ? 1 : 0)} // Pastikan selalu string "1" atau "0"
+                                            onValueChange={(val) => setReport({ 
+                                                ...report, 
+                                                attendance: val === "1" // Konversi ke boolean
+                                            })}
+                                            >
                                             <SelectTrigger id="attendance" className="w-full">
                                                 <SelectValue placeholder="Select attendance" />
                                             </SelectTrigger>
@@ -381,7 +393,7 @@ export default function AttendanceReportForm() {
                                                 <SelectItem value="1">Present</SelectItem>
                                                 <SelectItem value="0">Absent</SelectItem>
                                             </SelectContent>
-                                        </Select>
+                                            </Select>
                                         <p className="text-xs text-muted-foreground">Mark whether the student was present for this session.</p>
                                     </div>
                                     {/* Overall (1-5) select (shadcn Select) */}
