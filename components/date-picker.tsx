@@ -11,9 +11,10 @@ export interface DatePickerProps {
     value: Date | undefined
     onChange: (date: Date | undefined) => void
     modal?: boolean // Optional modal property
+    defaultValue?: Date // Optional default value property
 }
 
-export function DatePicker({ value, onChange, modal }: DatePickerProps) {
+export function DatePicker({ value, onChange, modal, defaultValue }: DatePickerProps) {
     const [open, setOpen] = React.useState(false);
 
     return (
@@ -25,15 +26,15 @@ export function DatePicker({ value, onChange, modal }: DatePickerProps) {
                         id="date"
                         className="w-full justify-between font-normal"
                     >
-                        {value ? value.toLocaleDateString() : 'Select date'}
+                        {value ? value.toLocaleDateString() : defaultValue ? defaultValue.toLocaleDateString() : "Select date"}
                         <ChevronDownIcon />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-[1000]" align="start">
                     <Calendar
                         mode="single"
-                        selected={value}
-                        defaultMonth={value || new Date()} // Set to today if value is undefined
+                        selected={value? value : defaultValue}
+                        defaultMonth={value || new Date()}
                         captionLayout="dropdown"
                         onSelect={(date) => {
                             console.log("Date selected:", date);

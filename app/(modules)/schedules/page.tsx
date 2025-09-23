@@ -329,7 +329,16 @@ export default function SchedulesPage() {
             }
 
             const { data } = await response.json();
-            setPlayKids(data);
+            
+            const playKidsWithSessions = data.filter((playKid: any) => {
+                return playKid.memberships && playKid.memberships.length > 0 && 
+                    playKid.memberships.some((membership: any) => 
+                        membership.sessions && membership.sessions.length > 0 && 
+                        membership.sessions.some((session: any) => session.count > 0)
+                    );
+            });
+            
+            setPlayKids(playKidsWithSessions);
         } catch (error) {
             console.error('Fetch eligible play kids error:', error);
             toast.error('Failed to fetch eligible play kid data');
@@ -405,6 +414,13 @@ export default function SchedulesPage() {
             fetchEligiblePlayKids(activeScheduleId);
         }
     }, [isScheduleDialogOpen, activeScheduleId, fetchCoachSchedules, fetchAttendanceReports, fetchEligiblePlayKids]);
+
+    useEffect(() => {
+        setFormData((prev) => ({
+            ...prev,
+            venue_id: '', 
+        }));
+    }, [formData.class_id]);
 
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -778,7 +794,7 @@ export default function SchedulesPage() {
                                 Manage Schedule
                             </TooltipContent>
                         </Tooltip>
-                        <Tooltip>
+                        {/* <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
@@ -804,7 +820,7 @@ export default function SchedulesPage() {
                             <TooltipContent side="top">
                                 Edit
                             </TooltipContent>
-                        </Tooltip>
+                        </Tooltip> */}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -950,7 +966,7 @@ export default function SchedulesPage() {
                                             id: attendanceReport.id,
                                             schedule_id: attendanceReport.schedule_id,
                                             coach_id: attendanceReport.coach_id,
-                                            play_kid_id: Array.isArray(attendanceReport.play_kid_id) ? attendanceReport.play_kid_id : [attendanceReport.play_kid_id], 
+                                            play_kid_id: [attendanceReport.play_kid_id],
                                             attendance: attendanceReport.attendance,
                                             motorik: attendanceReport.motorik || '',
                                             locomotor: attendanceReport.locomotor || '',
@@ -1026,11 +1042,17 @@ export default function SchedulesPage() {
                                         <SelectValue placeholder="Choose class" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {classes.map((cls) => (
-                                            <SelectItem key={cls.id} value={cls.id.toString()}>
-                                                {cls.name}
+                                        {classes.length > 0 ? (
+                                            classes.map((cls) => (
+                                                <SelectItem key={cls.id} value={cls.id.toString()}>
+                                                    {cls.name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="0" disabled>
+                                                No classes available
                                             </SelectItem>
-                                        ))}
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1040,23 +1062,37 @@ export default function SchedulesPage() {
                                 <Select
                                     value={formData.venue_id}
                                     onValueChange={(value) => setFormData((prev) => ({ ...prev, venue_id: value }))}
+                                    disabled={!formData.class_id}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Choose venue" />
+                                        <SelectValue placeholder={formData.class_id ? 'Choose venue' : 'Select a class first'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {venues
-                                            .filter((venue) => {
-                                                if (!formData.class_id) return true;
-                                                const selectedClass = classes.find((cls) => cls.id === formData.class_id);
-                                                if (!selectedClass) return true;
-                                                return venue.branch.id === selectedClass.branch_id;
-                                            })
-                                            .map((venue) => (
-                                                <SelectItem key={venue.id} value={venue.id.toString()}>
-                                                    {venue.name}
+                                        {formData.class_id ? (
+                                            venues
+                                                .filter((venue) => {
+                                                    const selectedClass = classes.find((cls) => cls.id.toString() === formData.class_id);
+                                                    return selectedClass ? venue.branch.id === selectedClass.branch_id : false;
+                                                })
+                                                .map((venue) => (
+                                                    <SelectItem key={venue.id} value={venue.id.toString()}>
+                                                        {venue.name}
+                                                    </SelectItem>
+                                                ))
+                                        ) : (
+                                            <SelectItem value="0" disabled>
+                                                Please select a class first
+                                            </SelectItem>
+                                        )}
+                                        {formData.class_id &&
+                                            venues.filter((venue) => {
+                                                const selectedClass = classes.find((cls) => cls.id.toString() === formData.class_id);
+                                                return selectedClass ? venue.branch.id === selectedClass.branch_id : false;
+                                            }).length === 0 && (
+                                                <SelectItem value="0" disabled>
+                                                    No venues available for this class
                                                 </SelectItem>
-                                            ))}
+                                            )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1235,7 +1271,7 @@ export default function SchedulesPage() {
                                         />
                                     </div>
                                     
-                                    {isAttendanceEditing && (
+                                    {/* {isAttendanceEditing && (
                                         <>
                                             <div className="space-y-1">
                                                 <Label>Coach</Label>
@@ -1288,7 +1324,7 @@ export default function SchedulesPage() {
                                                 </Select>
                                             </div>
                                         </>
-                                    )}
+                                    )} */}
                                     
                                     <Button type="submit" disabled={isLoading}>
                                         {isLoading

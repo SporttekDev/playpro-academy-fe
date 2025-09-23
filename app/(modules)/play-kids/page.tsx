@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserPlus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import formatDateLocal from '@/helpers/formatDateLocal';
 
 interface PlayKid {
     id: number;
@@ -308,6 +309,8 @@ export default function PlayKidsPage() {
             setIsLoading(true);
             const token = Cookies.get("token");
 
+            const registeredDate = editId ? membershipForm.registered_date : membershipForm.registered_date || formatDateLocal(new Date());
+
             const method = isEditingMembership ? "PUT" : "POST";
             const url = isEditingMembership
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/membership/${membershipForm.id}`
@@ -321,6 +324,7 @@ export default function PlayKidsPage() {
                 },
                 body: JSON.stringify({
                     ...membershipForm,
+                    registered_date: registeredDate,
                     play_kid_id: selectedPlayKidId,
                 }),
             });
@@ -348,10 +352,27 @@ export default function PlayKidsPage() {
             setIsLoading(true);
             const token = Cookies.get("token");
 
+            if (!token) {
+                throw new Error("No authentication token found");
+            }
+
+            const purchaseDate = editId ? sessionForm.purchase_date : sessionForm.purchase_date || formatDateLocal(new Date());
+
+            if (!sessionForm.membership_id || sessionForm.count <= 0 || !purchaseDate || sessionForm.expiry_date <= 0) {
+                throw new Error("Please fill in all required fields correctly");
+            }
+
             const method = isEditingSession ? "PUT" : "POST";
             const url = isEditingSession
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/session/${sessionForm.id}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/session`;
+
+            const sessionData = {
+                membership_id: parseInt(sessionForm.membership_id),
+                count: sessionForm.count,
+                expiry_date: sessionForm.expiry_date,
+                purchase_date: purchaseDate,
+            };
 
             const response = await fetch(url, {
                 method,
@@ -359,10 +380,14 @@ export default function PlayKidsPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(sessionForm),
+                body: JSON.stringify(sessionData),
             });
 
-            if (!response.ok) throw new Error(`Failed to ${isEditingSession ? 'update' : 'create'} session`);
+            if (!response.ok) {
+                const errorResponse = await response.json().catch(() => null);
+                const errorMessage = errorResponse?.message || `Failed to ${isEditingSession ? 'update' : 'create'} session`;
+                throw new Error(errorMessage);
+            }
 
             await fetchAllSessions(selectedPlayKidId!, memberships);
             setSessionForm(defaultSessionForm);
@@ -370,7 +395,7 @@ export default function PlayKidsPage() {
             toast.success(isEditingSession ? "Session updated successfully!" : "Session created successfully!");
         } catch (error) {
             console.error(`${isEditingSession ? 'Update' : 'Create'} session error:`, error);
-            toast.error(`Failed to ${isEditingSession ? 'update' : 'create'} session`);
+            toast.error(error instanceof Error ? error.message : `Failed to ${isEditingSession ? 'update' : 'create'} session`);
         } finally {
             setIsLoading(false);
         }
@@ -538,17 +563,18 @@ export default function PlayKidsPage() {
         }
     };
 
-    const handleDateChange = (date: Date | undefined) => {
-        if (date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
+    const handleDateChange = <T extends object>(
+        date: Date | undefined,
+        field: keyof T,
+        setState: React.Dispatch<React.SetStateAction<T>>
+    ) => {
+        if (!date) return;
 
-            setFormData((prev) => ({
-                ...prev,
-                birth_date: `${year}-${month}-${day}`,
-            }));
-        }
+        const formatedDate = formatDateLocal(date);
+        setState((prev) => ({
+            ...prev,
+            [field]: formatedDate,
+        }));
     };
 
     const columns: ColumnDef<PlayKid>[] = [
@@ -748,6 +774,8 @@ export default function PlayKidsPage() {
         },
     ];
 
+    // console.log(sessionForm)
+
     const sessionColumns: ColumnDef<Session>[] = [
         {
             accessorKey: 'membership_id',
@@ -755,12 +783,12 @@ export default function PlayKidsPage() {
             cell: ({ row }) => {
                 const membershipId = row.original.membership_id;
                 const membership = memberships.find(m => m.id === membershipId);
-                
+
                 if (membership) {
                     const branch = branches.find(b => b.id === membership.branch_id);
                     return branch ? branch.name : "N/A";
                 }
-                
+
                 return "N/A";
             }
         },
@@ -781,6 +809,7 @@ export default function PlayKidsPage() {
             header: 'Actions',
             cell: ({ row }) => {
                 const session = row.original;
+                // console.log(session)
                 return (
                     <div className="flex gap-2">
                         <Tooltip>
@@ -789,15 +818,20 @@ export default function PlayKidsPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
+                                        const purchaseDate = session.purchase_date ? new Date(session.purchase_date) : new Date();
+                                        const expiryDate = new Date(session.expiry_date);
+                                        const monthsDiff = Math.round(
+                                            (expiryDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+                                        );
+
                                         setSessionForm({
                                             id: session.id,
                                             membership_id: session.membership_id.toString(),
                                             count: session.count,
-                                            expiry_date: Math.round(
-                                                (new Date(session.expiry_date).getTime() - new Date(session.purchase_date || session.expiry_date).getTime()) /
-                                                (1000 * 60 * 60 * 24 * 30)
-                                            ),
-                                            purchase_date: session.purchase_date,
+                                            expiry_date: monthsDiff,
+                                            purchase_date: session.purchase_date
+                                                ? new Date(session.purchase_date).toISOString().split('T')[0]
+                                                : new Date().toISOString().split('T')[0],
                                         });
                                         setIsEditingSession(true);
                                     }}
@@ -906,7 +940,7 @@ export default function PlayKidsPage() {
                                 <Label>Birth Date</Label>
                                 <DatePicker
                                     value={formData.birth_date ? new Date(formData.birth_date) : undefined}
-                                    onChange={handleDateChange}
+                                    onChange={(date) => handleDateChange(date, "birth_date", setFormData)}
                                     modal={true}
                                 />
                             </div>
@@ -1030,15 +1064,8 @@ export default function PlayKidsPage() {
                                     <div className="space-y-1">
                                         <Label>Registered Date</Label>
                                         <DatePicker
-                                            value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : undefined}
-                                            onChange={(date) => {
-                                                if (date) {
-                                                    setMembershipForm(prev => ({
-                                                        ...prev,
-                                                        registered_date: date.toISOString().split('T')[0],
-                                                    }));
-                                                }
-                                            }}
+                                            value={membershipForm.registered_date ? new Date(membershipForm.registered_date) : new Date()}
+                                            onChange={(date) => { handleDateChange(date, "registered_date", setMembershipForm) }}
                                             modal={true}
                                         />
                                     </div>
@@ -1117,19 +1144,14 @@ export default function PlayKidsPage() {
                         <TabsContent value="sessions" className="space-y-4">
                             {sessions.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500">
-                                    {memberships.length === 0 ?
-                                        "No memberships found. Please add a membership first." :
-                                        "No sessions found for this student"}
+                                    {memberships.length === 0
+                                        ? "No memberships found. Please add a membership first."
+                                        : "No sessions found for this student"}
                                 </div>
                             ) : (
-                                /* Sessions Table */
-                                <DataTable
-                                    columns={sessionColumns}
-                                    data={sessions}
-                                />
+                                <DataTable columns={sessionColumns} data={sessions} />
                             )}
 
-                            {/* Add/Edit Session Form */}
                             {memberships.length > 0 ? (
                                 <form onSubmit={handleSessionSubmit} className="space-y-4 border-t pt-4">
                                     <h4 className="font-medium">{isEditingSession ? 'Edit Session' : 'Add New Session'}</h4>
@@ -1139,16 +1161,17 @@ export default function PlayKidsPage() {
                                             <Select
                                                 value={sessionForm.membership_id}
                                                 onValueChange={(value) =>
-                                                    setSessionForm(prev => ({ ...prev, membership_id: value }))}
+                                                    setSessionForm((prev) => ({ ...prev, membership_id: value }))
+                                                }
+                                                disabled={isEditingSession} // Disable membership selection when editing
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select membership" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {memberships.map(membership => {
-                                                        const branch = branches.find(b => b.id === membership.branch_id);
+                                                    {memberships.map((membership) => {
+                                                        const branch = branches.find((b) => b.id === membership.branch_id);
                                                         const branchName = branch ? branch.name : "Unknown Branch";
-                                                        
                                                         return (
                                                             <SelectItem key={membership.id} value={membership.id.toString()}>
                                                                 {branchName} - {membership.status}
@@ -1161,15 +1184,8 @@ export default function PlayKidsPage() {
                                         <div className="space-y-1">
                                             <Label>Purchase Date</Label>
                                             <DatePicker
-                                                value={sessionForm.purchase_date ? new Date(sessionForm.purchase_date) : undefined}
-                                                onChange={(date) => {
-                                                    if (date) {
-                                                        setSessionForm(prev => ({
-                                                            ...prev,
-                                                            purchase_date: date.toISOString().split('T')[0],
-                                                        }));
-                                                    }
-                                                }}
+                                                value={sessionForm.purchase_date ? new Date(sessionForm.purchase_date) : new Date()}
+                                                onChange={(date) => { handleDateChange(date, "purchase_date", setSessionForm) }}
                                                 modal={true}
                                             />
                                         </div>
@@ -1179,7 +1195,8 @@ export default function PlayKidsPage() {
                                                 type="number"
                                                 value={sessionForm.count}
                                                 onChange={(e) =>
-                                                    setSessionForm(prev => ({ ...prev, count: parseInt(e.target.value) || 0 }))}
+                                                    setSessionForm((prev) => ({ ...prev, count: parseInt(e.target.value) || 0 }))
+                                                }
                                                 min="1"
                                                 required
                                             />
@@ -1189,20 +1206,21 @@ export default function PlayKidsPage() {
                                             <Input
                                                 id="expiry_date"
                                                 type="number"
-                                                min="0"
+                                                min="1"
                                                 value={sessionForm.expiry_date}
                                                 onChange={(e) => {
                                                     const months = parseInt(e.target.value, 10) || 0;
-                                                    setSessionForm(prev => ({
+                                                    setSessionForm((prev) => ({
                                                         ...prev,
                                                         expiry_date: isNaN(months) ? 0 : months,
                                                     }));
                                                 }}
+                                                required
                                             />
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button type="submit" disabled={isLoading || !sessionForm.membership_id}>
+                                        <Button type="submit" disabled={isLoading || !sessionForm.membership_id || sessionForm.count <= 0 || sessionForm.expiry_date <= 0}>
                                             {isLoading ? "Loading..." : isEditingSession ? "Save Changes" : "Add Session"}
                                         </Button>
                                         {isEditingSession && (
