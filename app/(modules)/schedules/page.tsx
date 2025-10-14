@@ -330,7 +330,7 @@ export default function SchedulesPage() {
 
             const { data } = await response.json();
             
-            const playKidsWithSessions = data.filter((playKid: any) => {
+            const playKidsWithValidSessions = data.filter((playKid: any) => {
                 return playKid.memberships && playKid.memberships.length > 0 && 
                     playKid.memberships.some((membership: any) => 
                         membership.sessions && membership.sessions.length > 0 && 
@@ -338,7 +338,7 @@ export default function SchedulesPage() {
                     );
             });
             
-            setPlayKids(playKidsWithSessions);
+            setPlayKids(playKidsWithValidSessions);
         } catch (error) {
             console.error('Fetch eligible play kids error:', error);
             toast.error('Failed to fetch eligible play kid data');

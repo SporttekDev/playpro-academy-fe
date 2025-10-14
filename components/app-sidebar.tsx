@@ -9,6 +9,7 @@ import {
   IconCamera,
   IconCategory,
   IconChartBar,
+  IconClipboardText,
   IconDashboard,
   IconDatabase,
   IconFileAi,
@@ -70,6 +71,11 @@ const data = {
       title: "Attendance Report",
       url: "/attendance-reports",
       icon: IconReport,
+    },
+    {
+      title: "Monthly Report",
+      url: "/monthly-reports",
+      icon: IconClipboardText,
     },
   ],
   navClouds: [
