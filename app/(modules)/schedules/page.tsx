@@ -680,6 +680,8 @@ export default function SchedulesPage() {
                 body: JSON.stringify(submitData),
             });
 
+            console.log("Response : ", response);
+
             if (!response.ok) {
                 const errorResponse = await response.json();
                 toast.error(errorResponse.message || 'Failed to save attendance report');
@@ -1355,9 +1357,9 @@ export default function SchedulesPage() {
                 isOpen={isDeleteDialogOpen}
                 setIsOpen={setIsDeleteDialogOpen}
                 onConfirm={() => {
-                    if (activeTab === 'coach_schedule') {
+                    if (activeTab === 'coach_schedule' && isScheduleDialogOpen) {
                         handleDeleteCoachSchedule();
-                    } else if (activeTab === 'attendance_report') {
+                    } else if (activeTab === 'attendance_report' && isScheduleDialogOpen) {
                         handleDeleteAttendanceReport();
                     } else {
                         handleDeleteSchedule();
