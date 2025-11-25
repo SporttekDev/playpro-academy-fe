@@ -89,12 +89,12 @@ export default function RaportPage() {
 
     const reportRef = useRef<HTMLDivElement | null>(null);
 
-    function formatMonthFromDate(dateStr?: string | null) {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return dateStr;
-        return d.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-    }
+    // function formatMonthFromDate(dateStr?: string | null) {
+    //     if (!dateStr) return '-';
+    //     const d = new Date(dateStr);
+    //     if (isNaN(d.getTime())) return dateStr;
+    //     return d.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+    // }
 
     const fetchReports = useCallback(async () => {
         try {
@@ -214,7 +214,7 @@ export default function RaportPage() {
                 
                 return (
                     <div className="max-w-xs">
-                        {classes.map((cls, index) => (
+                        {classes.map((cls) => (
                             <div key={cls.id} className="text-sm">
                                 {cls.name}
                             </div>

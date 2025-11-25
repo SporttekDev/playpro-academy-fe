@@ -330,11 +330,11 @@ export default function SchedulesPage() {
 
             const { data } = await response.json();
             
-            const playKidsWithValidSessions = data.filter((playKid: any) => {
+            const playKidsWithValidSessions = data.filter((playKid: PlayKid & { memberships?: { sessions?: { count: number }[] }[] }) => {
                 return playKid.memberships && playKid.memberships.length > 0 && 
-                    playKid.memberships.some((membership: any) => 
+                    playKid.memberships.some((membership) => 
                         membership.sessions && membership.sessions.length > 0 && 
-                        membership.sessions.some((session: any) => session.count > 0)
+                        membership.sessions.some((session: { count: number }) => session.count > 0)
                     );
             });
             
@@ -494,6 +494,7 @@ export default function SchedulesPage() {
             await fetchSchedules();
             setIsDialogOpen(false);
             setIsEditing(false);
+            setEditId(null);
             setFormData(defaultForm);
             toast.success(isEditing ? 'Schedule updated successfully!' : 'Schedule created successfully!');
         } catch (error) {

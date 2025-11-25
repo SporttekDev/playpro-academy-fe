@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 
 export function RegisterForm({
@@ -71,6 +72,12 @@ export function RegisterForm({
             <form onSubmit={handleRegister}>
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-col items-center gap-2">
+                        <Image
+                            src="/images/ppa-logo-square.png"
+                            alt="Logo PPA"
+                            width={180}
+                            height={180}
+                        />
                         <h1 className="text-xl font-bold">Welcome to Playpro Academy</h1>
                         <div className="text-center text-sm">
                             Already have an account?{" "}

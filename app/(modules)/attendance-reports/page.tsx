@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
-import { 
-    IconFilePencil, 
-    IconDownload, 
+import {
+    IconFilePencil,
+    IconDownload,
     IconUpload,
     IconReload,
 } from '@tabler/icons-react';
@@ -78,26 +78,26 @@ interface ImportResult {
     warnings: string[];
 }
 
-interface ValidationResult {
-    valid_count: number;
-    total_rows: number;
-    errors: string[];
-    warnings: string[];
-    imported_count: number;
-    updated_count: number;
-    skipped_count: number;
-}
+// interface ValidationResult {
+//     valid_count: number;
+//     total_rows: number;
+//     errors: string[];
+//     warnings: string[];
+//     imported_count: number;
+//     updated_count: number;
+//     skipped_count: number;
+// }
 
 export default function AttendanceReportsPage() {
     const [attendanceReports, setAttendanceReports] = useState<AttendanceReport[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [importLoading, setImportLoading] = useState(false);
-    const [validateLoading, setValidateLoading] = useState(false);
+    // const [validateLoading, setValidateLoading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
-    const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+    // const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-    const [isValidateDialogOpen, setIsValidateDialogOpen] = useState(false);
+    // const [isValidateDialogOpen, setIsValidateDialogOpen] = useState(false);
 
     const fetchAttendanceReports = useCallback(async () => {
         setIsLoading(true);
@@ -132,7 +132,7 @@ export default function AttendanceReportsPage() {
         if (file) {
             const validTypes = ['.xlsx', '.xls', '.csv'];
             const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-            
+
             if (!validTypes.includes(fileExtension || '')) {
                 toast.error('File harus dalam format Excel (.xlsx, .xls) atau CSV');
                 return;
@@ -145,7 +145,7 @@ export default function AttendanceReportsPage() {
 
             setSelectedFile(file);
             setImportResult(null);
-            setValidationResult(null);
+            // setValidationResult(null);
         }
     };
 
@@ -225,7 +225,7 @@ export default function AttendanceReportsPage() {
     const resetImport = () => {
         setSelectedFile(null);
         setImportResult(null);
-        setValidationResult(null);
+        // setValidationResult(null);
     };
 
     const columns: ColumnDef<AttendanceReport>[] = [
@@ -261,7 +261,7 @@ export default function AttendanceReportsPage() {
         {
             accessorKey: 'overall',
             header: 'Overall',
-            cell: ({ row }) => (row.original.overall? row.original.overall : '-'),
+            cell: ({ row }) => (row.original.overall ? row.original.overall : '-'),
         },
         {
             id: 'actions',
@@ -286,14 +286,14 @@ export default function AttendanceReportsPage() {
     return (
         <div className='px-6 space-y-4'>
             {/* Header dengan Actions */}
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">Attendance Reports</h1>
+            <div className="flex justify-end items-center">
+                {/* <h1 className="text-2xl font-bold">Attendance Reports</h1> */}
                 <div className="flex gap-2">
                     {/* Refresh Button */}
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 onClick={fetchAttendanceReports}
                                 disabled={isLoading}
                             >
@@ -316,12 +316,17 @@ export default function AttendanceReportsPage() {
 
                     {/* Import Button */}
                     <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <IconUpload size={16} />
-                                <span className="ml-2">Import Data</span>
-                            </Button>
-                        </DialogTrigger>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <IconUpload size={16} />
+                                        <span className="ml-2">Import Data</span>
+                                    </Button>
+                                </DialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Import Data</TooltipContent>
+                        </Tooltip>
                         <DialogContent className="max-w-2xl">
                             <DialogHeader>
                                 <DialogTitle>Import Data Reports</DialogTitle>
@@ -329,11 +334,11 @@ export default function AttendanceReportsPage() {
                                     Upload file Excel untuk import data attendance reports
                                 </DialogDescription>
                             </DialogHeader>
-                            
+
                             <div className="space-y-4">
                                 <div>
-                                    <Input 
-                                        type="file" 
+                                    <Input
+                                        type="file"
                                         accept=".xlsx,.xls,.csv"
                                         onChange={handleFileSelect}
                                     />
@@ -401,7 +406,7 @@ export default function AttendanceReportsPage() {
                                     <Button variant="outline" onClick={resetImport}>
                                         Reset
                                     </Button>
-                                    <Button 
+                                    <Button
                                         onClick={handleImport}
                                         disabled={!selectedFile || importLoading}
                                     >
@@ -415,9 +420,9 @@ export default function AttendanceReportsPage() {
             </div>
 
             {/* Data Table */}
-            <DataTable 
-                columns={columns} 
-                data={attendanceReports} 
+            <DataTable
+                columns={columns}
+                data={attendanceReports}
             />
         </div>
     )
