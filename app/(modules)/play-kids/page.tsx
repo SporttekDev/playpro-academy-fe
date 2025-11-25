@@ -11,9 +11,10 @@ import {
     DialogTitle,
     DialogDescription,
     DialogFooter,
+    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconPencil, IconTrash, IconReload, IconDownload, IconUpload } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/date-picker';
@@ -121,11 +122,20 @@ const defaultSessionForm: SessionForm = {
     purchase_date: "",
 };
 
+interface ImportResult {
+    imported_count: number;
+    updated_count: number;
+    skipped_count: number;
+    errors: string[];
+    warnings: string[];
+}
+
 export default function PlayKidsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
     const [playKids, setPlayKids] = useState<PlayKid[]>([]);
     const [formData, setFormData] = useState<PlayKidForm>(defaultForm);
@@ -144,8 +154,13 @@ export default function PlayKidsPage() {
     const [activeTab, setActiveTab] = useState("memberships");
     const [isEditingMembership, setIsEditingMembership] = useState(false);
     const [isEditingSession, setIsEditingSession] = useState(false);
+    
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [importResult, setImportResult] = useState<ImportResult | null>(null);
+    const [importLoading, setImportLoading] = useState(false);
 
     const fetchPlayKids = useCallback(async () => {
+        setIsLoading(true);
         try {
             const token = Cookies.get("token");
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`, {
@@ -164,6 +179,8 @@ export default function PlayKidsPage() {
         } catch (error) {
             console.error("Fetch play kids failed:", error);
             toast.error("Failed to fetch play kid data");
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -208,6 +225,105 @@ export default function PlayKidsPage() {
             toast.error("Failed to fetch branches data");
         }
     }, []);
+
+    const downloadTemplate = async () => {
+        try {
+            const token = Cookies.get('token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/download-template`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to download template');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'playkid_import_template.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Template berhasil didownload');
+        } catch (error) {
+            console.error(error);
+            toast.error('Gagal download template');
+        }
+    };
+
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const validTypes = ['.xlsx', '.xls', '.csv'];
+            const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+            if (!validTypes.includes(fileExtension || '')) {
+                toast.error('File harus dalam format Excel (.xlsx, .xls) atau CSV');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                toast.error('File terlalu besar. Maksimal 10MB');
+                return;
+            }
+
+            setSelectedFile(file);
+            setImportResult(null);
+        }
+    };
+
+    const handleImport = async () => {
+        if (!selectedFile) {
+            toast.error('Pilih file terlebih dahulu');
+            return;
+        }
+
+        setImportLoading(true);
+        try {
+            const token = Cookies.get('token');
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/import`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setImportResult(result.data);
+                toast.success(`Import berhasil: ${result.data.imported_count} data baru, ${result.data.updated_count} data diperbarui`);
+
+                fetchPlayKids();
+
+                setTimeout(() => {
+                    setSelectedFile(null);
+                    setImportResult(null);
+                    setIsImportDialogOpen(false);
+                }, 3000);
+            } else {
+                toast.error(result.message || 'Import gagal');
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('Error saat import file');
+        }
+        setImportLoading(false);
+    };
+
+    const resetImport = () => {
+        setSelectedFile(null);
+        setImportResult(null);
+    };
 
     const fetchMemberships = useCallback(async (playKidId: number) => {
         try {
@@ -774,8 +890,6 @@ export default function PlayKidsPage() {
         },
     ];
 
-    // console.log(sessionForm)
-
     const sessionColumns: ColumnDef<Session>[] = [
         {
             accessorKey: 'membership_id',
@@ -809,7 +923,6 @@ export default function PlayKidsPage() {
             header: 'Actions',
             cell: ({ row }) => {
                 const session = row.original;
-                // console.log(session)
                 return (
                     <div className="flex gap-2">
                         <Tooltip>
@@ -867,8 +980,140 @@ export default function PlayKidsPage() {
 
     return (
         <>
-            {/* DataTable */}
-            <div className="px-6">
+            {/* Header dengan Actions */}
+            <div className='px-6 space-y-4'>
+                <div className="flex justify-end items-center">
+                    <div className="flex gap-2">
+                        {/* Refresh Button */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    onClick={fetchPlayKids}
+                                    disabled={isLoading}
+                                >
+                                    <IconReload size={16} className={isLoading ? 'animate-spin' : ''} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Refresh Data</TooltipContent>
+                        </Tooltip>
+
+                        {/* Download Template Button */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="outline" onClick={downloadTemplate}>
+                                    <IconDownload size={16} />
+                                    <span className="ml-2">Template</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Download Template Excel</TooltipContent>
+                        </Tooltip>
+
+                        {/* Import Button */}
+                        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DialogTrigger asChild>
+                                        <Button>
+                                            <IconUpload size={16} />
+                                            <span className="ml-2">Import Data</span>
+                                        </Button>
+                                    </DialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Import Data</TooltipContent>
+                            </Tooltip>
+                            <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Import Data Play Kids</DialogTitle>
+                                    <DialogDescription>
+                                        Upload file Excel untuk import data play kids
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <Input
+                                            type="file"
+                                            accept=".xlsx,.xls,.csv"
+                                            onChange={handleFileSelect}
+                                        />
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Format: .xlsx, .xls, .csv (maks. 10MB)
+                                        </p>
+                                    </div>
+
+                                    {selectedFile && (
+                                        <div className="p-3 border rounded-md bg-muted/50">
+                                            <p className="text-sm font-medium">File terpilih:</p>
+                                            <p className="text-sm">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</p>
+                                        </div>
+                                    )}
+
+                                    {importLoading && (
+                                        <div className="space-y-2">
+                                            <p className="text-sm text-center">Sedang mengimport data...</p>
+                                        </div>
+                                    )}
+
+                                    {importResult && (
+                                        <div className="space-y-3">
+                                            <div className="grid grid-cols-3 gap-2 text-sm">
+                                                <div className="text-center p-2 bg-green-50 rounded">
+                                                    <p className="font-bold text-green-600">{importResult.imported_count}</p>
+                                                    <p>Data Baru</p>
+                                                </div>
+                                                <div className="text-center p-2 bg-blue-50 rounded">
+                                                    <p className="font-bold text-blue-600">{importResult.updated_count}</p>
+                                                    <p>Data Diupdate</p>
+                                                </div>
+                                                <div className="text-center p-2 bg-red-50 rounded">
+                                                    <p className="font-bold text-red-600">{importResult.skipped_count}</p>
+                                                    <p>Data Dilewati</p>
+                                                </div>
+                                            </div>
+
+                                            {importResult.errors.length > 0 && (
+                                                <div>
+                                                    <p className="text-sm font-medium text-red-600 mb-2">Error saat import:</p>
+                                                    <div className="max-h-32 overflow-y-auto text-sm">
+                                                        {importResult.errors.map((error, index) => (
+                                                            <p key={index} className="text-red-600 py-1">• {error}</p>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {importResult.warnings.length > 0 && (
+                                                <div>
+                                                    <p className="text-sm font-medium text-yellow-600 mb-2">Peringatan:</p>
+                                                    <div className="max-h-32 overflow-y-auto text-sm">
+                                                        {importResult.warnings.map((warning, index) => (
+                                                            <p key={index} className="text-yellow-600 py-1">• {warning}</p>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-2 justify-end">
+                                        <Button variant="outline" onClick={resetImport}>
+                                            Reset
+                                        </Button>
+                                        <Button
+                                            onClick={handleImport}
+                                            disabled={!selectedFile || importLoading}
+                                        >
+                                            {importLoading ? 'Importing...' : 'Import Data'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                </div>
+
+                {/* DataTable */}
                 <DataTable columns={columns} data={playKids} />
             </div>
 
