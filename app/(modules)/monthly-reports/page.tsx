@@ -158,7 +158,7 @@ export default function RaportPage() {
                 },
             });
 
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/jpeg');
             const pxToMm = (px: number) => px * 0.264583;
             const canvasWidthMm = pxToMm(canvas.width);
             const canvasHeightMm = pxToMm(canvas.height);
