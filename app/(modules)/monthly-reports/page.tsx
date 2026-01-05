@@ -132,6 +132,8 @@ export default function RaportPage() {
             return;
         }
 
+        console.log("Report PDF yang di download: ", reportPdf);
+
         try {
             setExporting(true);
             toast('Mempersiapkan PDF...', { duration: 2000 });
@@ -171,7 +173,7 @@ export default function RaportPage() {
 
             pdf.addImage(imgData, 'PNG', 0, 0, canvasWidthMm, canvasHeightMm);
 
-            const fileName = `report-${new Date().toISOString().slice(0, 10)}.pdf`;
+            const fileName = `${reportPdf?.play_kid.name} - ${reportPdf?.months_display}.pdf`;
             pdf.save(fileName);
 
             toast.success('PDF berhasil di-download ✅');
@@ -181,7 +183,7 @@ export default function RaportPage() {
         } finally {
             setExporting(false);
         }
-    }, [reportRef]);
+    }, [reportRef, reportPdf]);
 
     const columns: ColumnDef<ReportResponse>[] = [
         {
@@ -211,7 +213,7 @@ export default function RaportPage() {
             cell: ({ row }) => {
                 const classes = row.original.classes;
                 if (!classes || classes.length === 0) return '-';
-                
+
                 return (
                     <div className="max-w-xs">
                         {classes.map((cls) => (
