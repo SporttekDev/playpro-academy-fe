@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 import Link from 'next/link'
 import Cookies from 'js-cookie'
+import Image from 'next/image';
+import { toast } from "sonner"
 
 export function LoginForm({
   className,
@@ -54,7 +56,7 @@ export function LoginForm({
         sameSite: "Strict",
       });
 
-      alert("Login berhasil!");
+      toast.success("Login berhasil!");
       router.push("/dashboard");
 
     } catch (err) {
@@ -71,6 +73,12 @@ export function LoginForm({
       <form onSubmit={handleLogin}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center gap-2">
+            <Image
+              src="/images/ppa-logo-square.png"
+              alt="Logo PPA"
+              width={180}
+              height={180}
+            />
             <h1 className="text-xl font-bold">Welcome to Playpro Academy</h1>
             <div className="text-center text-sm">
               Don&apos;t have an account?{" "}

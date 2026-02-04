@@ -6,7 +6,6 @@ import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-// import Link from 'next/link';
 import Cookies from 'js-cookie';
 import { IconFileExport } from '@tabler/icons-react';
 import { ReportPDF } from '@/components/ui/report-pdf';
@@ -15,9 +14,12 @@ import html2canvas from 'html2canvas-pro';
 
 export interface ReportResponse {
     play_kid: PlayKid;
-    class: ClassWithBranch;
+    branch: Branch;
+    classes: ClassWithCategory[];
     attendance_reports: AttendanceReport[];
-    month: string;
+    attendance_count: number;
+    months: string[];
+    months_display: string;
 }
 
 export interface PlayKid {
@@ -31,22 +33,36 @@ export interface PlayKid {
     medical_history?: string | null;
 }
 
-export interface ClassWithBranch {
-    id: number;
-    name: string;
-    sport_id: number;
-    category_id: number;
-    branch: Branch;
-}
-
 export interface Branch {
     id: number;
     name: string;
     description: string | null;
 }
 
+export interface ClassWithCategory {
+    id: number;
+    name: string;
+    sport_id: number;
+    category_id: number;
+    category: Category | null;
+    sport: Sport | null;
+}
+
+export interface Category {
+    id: number;
+    name: string;
+    description: string | null;
+}
+
+export interface Sport {
+    id: number;
+    name: string;
+}
+
 export interface AttendanceReport {
     id: number;
+    class_id: number;
+    class_name: string;
     date: string;
     start_time: string;
     end_time: string;
@@ -56,30 +72,29 @@ export interface AttendanceReport {
     body_control: string | null;
     overall: number | null;
     coach: CoachSummary;
+    month_year: string;
 }
 
 export interface CoachSummary {
     id: number;
     user_id: number;
     name: string;
+    photo?: string | null;
 }
 
 export default function RaportPage() {
     const [reports, setReports] = useState<ReportResponse[]>([]);
     const [reportPdf, setReportPdf] = useState<ReportResponse | null>(null);
-
-    // const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
 
     const reportRef = useRef<HTMLDivElement | null>(null);
 
-    function formatMonthFromDate(dateStr?: string | null) {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return dateStr;
-        // tampilkan dalam bahasa Indonesia (contoh: "Agustus 2025")
-        return d.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-    }
+    // function formatMonthFromDate(dateStr?: string | null) {
+    //     if (!dateStr) return '-';
+    //     const d = new Date(dateStr);
+    //     if (isNaN(d.getTime())) return dateStr;
+    //     return d.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+    // }
 
     const fetchReports = useCallback(async () => {
         try {
@@ -94,15 +109,15 @@ export default function RaportPage() {
             if (!response.ok) {
                 const error = await response.text();
                 console.error(error);
-                throw new Error('Failed to fetch schedules');
+                throw new Error('Failed to fetch reports');
             }
 
             const { data } = await response.json();
             console.log("Data : ", data);
             setReports(data);
         } catch (error) {
-            console.error('Fetch schedules error:', error);
-            toast.error('Failed to fetch schedule data');
+            console.error('Fetch reports error:', error);
+            toast.error('Failed to fetch report data');
         }
     }, []);
 
@@ -121,7 +136,6 @@ export default function RaportPage() {
             setExporting(true);
             toast('Mempersiapkan PDF...', { duration: 2000 });
 
-            // --- Render elemen menjadi canvas ---
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
@@ -139,29 +153,24 @@ export default function RaportPage() {
               `;
                     clonedDoc.head.appendChild(style);
 
-                    // pastikan gambar tidak kena CORS
                     clonedDoc.querySelectorAll('#report-to-export img')
                         .forEach((img) => (img as HTMLImageElement).crossOrigin = 'anonymous');
                 },
             });
 
-            // --- Konversi ukuran canvas ke mm ---
             const imgData = canvas.toDataURL('image/png');
-            const pxToMm = (px: number) => px * 0.264583; // 1px ≈ 0.264583mm
+            const pxToMm = (px: number) => px * 0.264583;
             const canvasWidthMm = pxToMm(canvas.width);
             const canvasHeightMm = pxToMm(canvas.height);
 
-            // --- Buat PDF dengan ukuran sesuai gambar ---
             const pdf = new jsPDF({
                 orientation: canvasWidthMm > canvasHeightMm ? 'landscape' : 'portrait',
                 unit: 'mm',
                 format: [canvasWidthMm, canvasHeightMm],
             });
 
-            // Tambahkan gambar pas satu halaman penuh
             pdf.addImage(imgData, 'PNG', 0, 0, canvasWidthMm, canvasHeightMm);
 
-            // --- Simpan file ---
             const fileName = `report-${new Date().toISOString().slice(0, 10)}.pdf`;
             pdf.save(fileName);
 
@@ -173,8 +182,6 @@ export default function RaportPage() {
             setExporting(false);
         }
     }, [reportRef]);
-
-
 
     const columns: ColumnDef<ReportResponse>[] = [
         {
@@ -189,39 +196,49 @@ export default function RaportPage() {
             },
         },
         {
-            id: 'class_branch',
-            header: 'Class / Branch',
-            accessorFn: (row) =>
-                `${row.class?.name ?? 'N/A'}${row.class?.branch ? ` — ${row.class.branch.name}` : ''}`,
+            id: 'branch',
+            header: 'Branch',
+            accessorFn: (row) => row.branch?.name ?? 'N/A',
             cell: ({ row }) => {
-                const cls = row.original.class;
-                const branch = cls?.branch;
-                const className = cls?.name ?? `#${cls?.id ?? '-'}`;
-                return branch ? `${className} — ${branch.name}` : className;
+                const branch = row.original.branch;
+                return branch ? branch.name : '-';
             },
         },
         {
-            id: 'month',
-            header: 'Month',
-            accessorFn: (row) => {
-                // derive from first attendance report date (fallback '-')
-                const date = row.attendance_reports?.[0]?.date ?? null;
-                return date;
-            },
+            id: 'classes',
+            header: 'Classes',
+            accessorFn: (row) => row.classes?.map(cls => cls.name).join(', ') ?? 'N/A',
             cell: ({ row }) => {
-                const r = row.original;
-                const date = r.attendance_reports?.[0]?.date ?? null;
-                // Format user-friendly month (e.g. "Agustus 2025"); kalau gagal tampilkan raw date
-                return date ? formatMonthFromDate(date) : '-';
+                const classes = row.original.classes;
+                if (!classes || classes.length === 0) return '-';
+                
+                return (
+                    <div className="max-w-xs">
+                        {classes.map((cls) => (
+                            <div key={cls.id} className="text-sm">
+                                {cls.name}
+                            </div>
+                        ))}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'months',
+            header: 'Months',
+            accessorFn: (row) => row.months_display,
+            cell: ({ row }) => {
+                const months = row.original.months;
+                return months && months.length > 0 ? months.join(', ') : '-';
             },
         },
         {
             id: 'attendance_count',
-            header: 'Attendance Count',
-            accessorFn: (row) => row.attendance_reports?.length ?? 0,
+            header: 'Total Attendance',
+            accessorFn: (row) => row.attendance_count ?? 0,
             cell: ({ row }) => {
-                const count = row.original.attendance_reports?.length ?? 0;
-                return <span>{count}</span>;
+                const count = row.original.attendance_count ?? 0;
+                return <span className="font-medium">{count}</span>;
             },
         },
         {
@@ -241,7 +258,7 @@ export default function RaportPage() {
                                     <IconFileExport />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Export</TooltipContent>
+                            <TooltipContent>Export Report</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -259,7 +276,7 @@ export default function RaportPage() {
 
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                Preview Laporan
+                                Preview Laporan - {reportPdf.play_kid.name} - {reportPdf.branch.name}
                             </h2>
                             <button
                                 onClick={() => setReportPdf(null)}
@@ -269,7 +286,6 @@ export default function RaportPage() {
                             </button>
                         </div>
 
-                        {/* Isi / konten modal */}
                         <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-800 rounded-b-2xl">
                             <div className="w-full h-full flex justify-center">
                                 <div className="w-full max-w-5xl" ref={reportRef} id="report-to-export">
@@ -278,7 +294,6 @@ export default function RaportPage() {
                             </div>
                         </div>
 
-                        {/* Footer */}
                         <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-white dark:bg-gray-900 rounded-b-2xl space-x-2">
                             <Button
                                 onClick={() => setReportPdf(null)}
@@ -288,7 +303,7 @@ export default function RaportPage() {
                             </Button>
 
                             <Button onClick={handleDownloadPdf} disabled={exporting} variant="default">
-                                {exporting ? 'Mengekspor...' : 'Download'}
+                                {exporting ? 'Mengekspor...' : 'Download PDF'}
                             </Button>
                         </div>
                     </div>

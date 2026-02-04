@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +84,10 @@ interface Session {
     role: string;
 }
 
+const MIN_CHARS = 50;
+const MAX_CHARS = 200;
+
+
 export default function AttendanceReportForm() {
     const { id } = useParams()
     const [report, setReport] = useState<AttendanceReport | null>(null);
@@ -94,6 +98,28 @@ export default function AttendanceReportForm() {
     const motorikRef = useRef<HTMLTextAreaElement | null>(null);
     const locomotorRef = useRef<HTMLTextAreaElement | null>(null);
     const bodyControlRef = useRef<HTMLTextAreaElement | null>(null);
+
+    const [errors, setErrors] = useState({
+        motorik: "" as string,
+        locomotor: "" as string,
+        body_control: "" as string,
+    });
+
+    const len = (s?: string | null) => (s ?? "").length;
+
+    const validateField = (key: "motorik" | "locomotor" | "body_control", value: string) => {
+        if (!value || value.trim().length === 0) {
+            return `${key === "motorik" ? "Motorik" : key === "locomotor" ? "Locomotor" : "Body Control"} wajib diisi.`;
+        }
+        if (value.length < MIN_CHARS) {
+            return `Minimal ${MIN_CHARS} karakter. Saat ini ${value.length}.`;
+        }
+        if (value.length > MAX_CHARS) {
+            return `Maksimal ${MAX_CHARS} karakter. Saat ini ${value.length}.`;
+        }
+        return ""; // valid
+    };
+
 
     const fetchReport = useCallback(async (id: string) => {
         setIsLoading(true);
@@ -168,8 +194,33 @@ export default function AttendanceReportForm() {
         autoSize(bodyControlRef.current);
     }, [report]);
 
+    useEffect(() => {
+        setErrors({
+            motorik: validateField("motorik", report?.motorik ?? ""),
+            locomotor: validateField("locomotor", report?.locomotor ?? ""),
+            body_control: validateField("body_control", report?.body_control ?? ""),
+        });
+    }, [report?.motorik, report?.locomotor, report?.body_control]);
+
+    const fieldClass = (errorMsg: string) =>
+        `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${errorMsg ? "border-red-500 ring-red-200" : "border-gray-200 ring-emerald-300"
+        }`;
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const vMotorik = validateField("motorik", report?.motorik ?? "");
+        const vLocomotor = validateField("locomotor", report?.locomotor ?? "");
+        const vBody = validateField("body_control", report?.body_control ?? "");
+
+        setErrors({ motorik: vMotorik, locomotor: vLocomotor, body_control: vBody });
+
+        if (vMotorik || vLocomotor || vBody) {
+            toast.error("Perbaiki form terlebih dahulu (minimal 30 karakter / maksimal 200).");
+            return;
+        }
+
         try {
             const token = Cookies.get('token');
             console.log("SESSION_KEY : ", session)
@@ -336,56 +387,108 @@ export default function AttendanceReportForm() {
                                         <Textarea
                                             id="motorik"
                                             ref={motorikRef}
-                                            value={report.motorik ?? ''}
+                                            value={report.motorik ?? ""}
+                                            maxLength={MAX_CHARS}
                                             onChange={(e) => {
-                                                setReport({ ...report, motorik: e.target.value })
-                                                autoSize(e.target)
+                                                setReport({ ...report, motorik: e.target.value });
+                                                autoSize(e.target);
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
                                             placeholder="Write motorik notes..."
-                                            className="min-h-[80px] resize-none"
+                                            className={fieldClass(errors.motorik)}
+                                            aria-invalid={!!errors.motorik}
+                                            aria-describedby="motorik-help motorik-error"
                                         />
+                                        <div className="flex justify-end text-sm">
+                                            {/* <div id="motorik-help" className="text-gray-500">
+                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
+                                            </div> */}
+                                            <div className={`text-xs ${errors.motorik ? "text-red-600" : "text-gray-500"}`}>
+                                                {len(report.motorik)}/{MAX_CHARS}
+                                            </div>
+                                        </div>
+                                        {/* {errors.motorik && (
+                                            <p id="motorik-error" role="alert" className="mt-1 text-sm text-red-600">
+                                                {errors.motorik}
+                                            </p>
+                                        )} */}
                                     </div>
+
+                                    {/* Locomotor */}
                                     <div className="space-y-2">
                                         <Label htmlFor="locomotor">Locomotor</Label>
                                         <Textarea
                                             id="locomotor"
                                             ref={locomotorRef}
-                                            value={report.locomotor ?? ''}
+                                            value={report.locomotor ?? ""}
+                                            maxLength={MAX_CHARS}
                                             onChange={(e) => {
-                                                setReport({ ...report, locomotor: e.target.value })
-                                                autoSize(e.target)
+                                                setReport({ ...report, locomotor: e.target.value });
+                                                autoSize(e.target);
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
                                             placeholder="Write locomotor notes..."
-                                            className="min-h-[80px] resize-none"
+                                            className={fieldClass(errors.locomotor)}
+                                            aria-invalid={!!errors.locomotor}
+                                            aria-describedby="locomotor-help locomotor-error"
                                         />
+                                        <div className="flex justify-end text-sm">
+                                            {/* <div id="locomotor-help" className="text-gray-500">
+                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
+                                            </div> */}
+                                            <div className={`text-xs ${errors.locomotor ? "text-red-600" : "text-gray-500"}`}>
+                                                {len(report.locomotor)}/{MAX_CHARS}
+                                            </div>
+                                        </div>
+                                        {/* {errors.locomotor && (
+                                            <p id="locomotor-error" role="alert" className="mt-1 text-sm text-red-600">
+                                                {errors.locomotor}
+                                            </p>
+                                        )} */}
                                     </div>
+
+                                    {/* Body Control */}
                                     <div className="space-y-2 lg:col-span-2">
                                         <Label htmlFor="body_control">Body Control</Label>
                                         <Textarea
                                             id="body_control"
                                             ref={bodyControlRef}
-                                            value={report.body_control ?? ''}
+                                            value={report.body_control ?? ""}
+                                            maxLength={MAX_CHARS}
                                             onChange={(e) => {
-                                                setReport({ ...report, body_control: e.target.value })
-                                                autoSize(e.target)
+                                                setReport({ ...report, body_control: e.target.value });
+                                                autoSize(e.target);
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
                                             placeholder="Write body control notes..."
-                                            className="min-h-[100px] resize-none"
+                                            className={`min-h-[100px] resize-none ${fieldClass(errors.body_control)}`}
+                                            aria-invalid={!!errors.body_control}
+                                            aria-describedby="body-control-help body-control-error"
                                         />
+                                        <div className="flex justify-end text-sm">
+                                            {/* <div id="body-control-help" className="text-gray-500">
+                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
+                                            </div> */}
+                                            <div className={`text-xs ${errors.body_control ? "text-red-600" : "text-gray-500"}`}>
+                                                {len(report.body_control)}/{MAX_CHARS}
+                                            </div>
+                                        </div>
+                                        {/* {errors.body_control && (
+                                            <p id="body-control-error" role="alert" className="mt-1 text-sm text-red-600">
+                                                {errors.body_control}
+                                            </p>
+                                        )} */}
                                     </div>
                                     {/* Attendance select (shadcn Select) */}
                                     <div className="space-y-1">
                                         <Label htmlFor="attendance">Attendance</Label>
                                         <Select
                                             value={String(report?.attendance ? 1 : 0)} // Pastikan selalu string "1" atau "0"
-                                            onValueChange={(val) => setReport({ 
-                                                ...report, 
+                                            onValueChange={(val) => setReport({
+                                                ...report,
                                                 attendance: val === "1" // Konversi ke boolean
                                             })}
-                                            >
+                                        >
                                             <SelectTrigger id="attendance" className="w-full">
                                                 <SelectValue placeholder="Select attendance" />
                                             </SelectTrigger>
@@ -393,7 +496,7 @@ export default function AttendanceReportForm() {
                                                 <SelectItem value="1">Present</SelectItem>
                                                 <SelectItem value="0">Absent</SelectItem>
                                             </SelectContent>
-                                            </Select>
+                                        </Select>
                                         <p className="text-xs text-muted-foreground">Mark whether the student was present for this session.</p>
                                     </div>
                                     {/* Overall (1-5) select (shadcn Select) */}

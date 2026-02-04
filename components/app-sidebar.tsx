@@ -1,26 +1,18 @@
-"use client"
 
 import * as React from "react"
 import {
   IconBallBasketball,
   IconBook,
-  IconCalendarCog,
   IconCalendarEvent,
   IconCamera,
   IconCategory,
-  IconChartBar,
   IconClipboardText,
   IconDashboard,
-  IconDatabase,
   IconFileAi,
   IconFileDescription,
-  IconFileWord,
-  IconFolder,
   IconHelp,
   IconInnerShadowTop,
-  IconListDetails,
   IconMapPin,
-  IconPackage,
   IconReport,
   IconSearch,
   IconSettings,
@@ -32,7 +24,7 @@ import {
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
+// import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -43,13 +35,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import Cookies from 'js-cookie'
+import { useEffect, useState } from "react"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -193,6 +182,29 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [user, setUser] = useState<{ name: string; email: string; avatar: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const sessionString = Cookies.get("session_key");
+    if (!sessionString) {
+      setUser(null);
+      return;
+    }
+    try {
+      const session = JSON.parse(sessionString);
+      setUser({
+        name: session?.name ?? "Guest User",
+        email: session?.email ?? "guest@gmail.com",
+        avatar: session?.avatar ?? "/avatars/default.jpg",
+      });
+    } catch (err) {
+      console.error("JSON parse error:", err);
+      setUser(null);
+    }
+  }, []);
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -216,7 +228,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} mounted={mounted} />
       </SidebarFooter>
     </Sidebar>
   )
