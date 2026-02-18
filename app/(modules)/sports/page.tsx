@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface Sport {
     id: number;
@@ -37,6 +38,12 @@ const defaultForm: SportForm = {
 };
 
 export default function SportsPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -213,6 +220,10 @@ export default function SportsPage() {
             },
         },
     ];
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <>

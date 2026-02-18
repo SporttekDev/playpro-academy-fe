@@ -21,6 +21,7 @@ import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getNameById } from '@/helpers/getNameById';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface ClassData {
     id: number;
@@ -60,6 +61,12 @@ const defaultForm: ClassForm = {
 };
 
 export default function ClassesPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -338,6 +345,10 @@ export default function ClassesPage() {
             },
         },
     ];
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <>

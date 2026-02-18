@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface Coach {
     id: number;
@@ -43,6 +44,12 @@ const defaultForm: CoachForm = {
 };
 
 export default function CoachesPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [coaches, setCoaches] = useState<Coach[]>([]);
@@ -275,6 +282,10 @@ export default function CoachesPage() {
             },
         },
     ];
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <div className="px-6">

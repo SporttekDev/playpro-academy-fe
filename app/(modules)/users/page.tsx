@@ -20,6 +20,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface User {
     id: number;
@@ -50,6 +51,12 @@ const defaultForm: UserForm = {
 };
 
 export default function UsersPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -215,6 +222,10 @@ export default function UsersPage() {
             },
         },
     ];
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <>
