@@ -205,6 +205,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, []);
 
+  const sessionRaw = Cookies.get("session_key");
+  const session = sessionRaw ? JSON.parse(sessionRaw) : null;
+  const role = session?.role ?? null;
+
+  const filteredNavMain =
+    role === "admin"
+      ? data.navMain
+      : data.navMain.filter(
+        (item) =>
+          item.url === "/dashboard" ||
+          item.url === "/attendance-reports"
+      );
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -223,8 +236,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        <NavMain items={filteredNavMain} />
+        {role === "admin" && (
+          <NavDocuments items={data.documents} />
+        )}
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>

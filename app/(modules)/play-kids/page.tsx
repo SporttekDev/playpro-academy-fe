@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UserPlus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import formatDateLocal from '@/helpers/formatDateLocal';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface PlayKid {
     id: number;
@@ -131,6 +132,12 @@ interface ImportResult {
 }
 
 export default function PlayKidsPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -154,7 +161,7 @@ export default function PlayKidsPage() {
     const [activeTab, setActiveTab] = useState("memberships");
     const [isEditingMembership, setIsEditingMembership] = useState(false);
     const [isEditingSession, setIsEditingSession] = useState(false);
-    
+
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [importLoading, setImportLoading] = useState(false);
@@ -578,13 +585,14 @@ export default function PlayKidsPage() {
             }
 
             const method = isEditing ? "PUT" : "POST";
+            const fetchMethod = "POST";
             const url = isEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${editId}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`;
 
             const formDataToSend = new FormData();
 
-            formDataToSend.append('_method', method === 'PUT' ? 'PUT' : 'POST');
+            formDataToSend.append('_method', method);
             formDataToSend.append('parent_id', formData.parent_id);
             formDataToSend.append('name', formData.name);
             formDataToSend.append('nick_name', formData.nick_name || '');
@@ -592,6 +600,10 @@ export default function PlayKidsPage() {
             formDataToSend.append('gender', formData.gender);
             formDataToSend.append('medical_history', formData.medical_history || '');
             formDataToSend.append('school_origin', formData.school_origin || '');
+
+            for (const [key, value] of formDataToSend.entries()) {
+                console.log(key, value);
+            }
 
             const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
             if (photoInput?.files?.[0]) {
@@ -601,7 +613,7 @@ export default function PlayKidsPage() {
             }
 
             const res = await fetch(url, {
-                method: method === 'PUT' ? 'POST' : 'POST',
+                method: fetchMethod,
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -977,6 +989,10 @@ export default function PlayKidsPage() {
             },
         },
     ];
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <>

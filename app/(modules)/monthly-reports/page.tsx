@@ -11,6 +11,7 @@ import { IconFileExport } from '@tabler/icons-react';
 import { ReportPDF } from '@/components/ui/report-pdf';
 import jsPDF from "jspdf"
 import html2canvas from 'html2canvas-pro';
+import { useRequireAdmin } from '@/lib/auth';
 
 export interface ReportResponse {
     play_kid: PlayKid;
@@ -83,6 +84,12 @@ export interface CoachSummary {
 }
 
 export default function RaportPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [reports, setReports] = useState<ReportResponse[]>([]);
     const [reportPdf, setReportPdf] = useState<ReportResponse | null>(null);
     const [exporting, setExporting] = useState(false);
@@ -132,6 +139,8 @@ export default function RaportPage() {
             return;
         }
 
+        console.log("Report PDF yang di download: ", reportPdf);
+
         try {
             setExporting(true);
             toast('Mempersiapkan PDF...', { duration: 2000 });
@@ -158,7 +167,7 @@ export default function RaportPage() {
                 },
             });
 
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/jpeg');
             const pxToMm = (px: number) => px * 0.264583;
             const canvasWidthMm = pxToMm(canvas.width);
             const canvasHeightMm = pxToMm(canvas.height);
@@ -171,7 +180,7 @@ export default function RaportPage() {
 
             pdf.addImage(imgData, 'PNG', 0, 0, canvasWidthMm, canvasHeightMm);
 
-            const fileName = `report-${new Date().toISOString().slice(0, 10)}.pdf`;
+            const fileName = `${reportPdf?.play_kid.name} - ${reportPdf?.months_display}.pdf`;
             pdf.save(fileName);
 
             toast.success('PDF berhasil di-download ✅');
@@ -181,7 +190,7 @@ export default function RaportPage() {
         } finally {
             setExporting(false);
         }
-    }, [reportRef]);
+    }, [reportRef, reportPdf]);
 
     const columns: ColumnDef<ReportResponse>[] = [
         {
@@ -211,7 +220,7 @@ export default function RaportPage() {
             cell: ({ row }) => {
                 const classes = row.original.classes;
                 if (!classes || classes.length === 0) return '-';
-                
+
                 return (
                     <div className="max-w-xs">
                         {classes.map((cls) => (
@@ -265,6 +274,10 @@ export default function RaportPage() {
             },
         },
     ];
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <div className="px-6">

@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface Schedule {
     id: number;
@@ -189,6 +190,12 @@ const formatTimeForAPI = (timeString: string): string => {
 };
 
 export default function SchedulesPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -329,15 +336,15 @@ export default function SchedulesPage() {
             }
 
             const { data } = await response.json();
-            
+
             const playKidsWithValidSessions = data.filter((playKid: PlayKid & { memberships?: { sessions?: { count: number }[] }[] }) => {
-                return playKid.memberships && playKid.memberships.length > 0 && 
-                    playKid.memberships.some((membership) => 
-                        membership.sessions && membership.sessions.length > 0 && 
+                return playKid.memberships && playKid.memberships.length > 0 &&
+                    playKid.memberships.some((membership) =>
+                        membership.sessions && membership.sessions.length > 0 &&
                         membership.sessions.some((session: { count: number }) => session.count > 0)
                     );
             });
-            
+
             setPlayKids(playKidsWithValidSessions);
         } catch (error) {
             console.error('Fetch eligible play kids error:', error);
@@ -418,7 +425,7 @@ export default function SchedulesPage() {
     useEffect(() => {
         setFormData((prev) => ({
             ...prev,
-            venue_id: '', 
+            venue_id: '',
         }));
     }, [formData.class_id]);
 
@@ -733,7 +740,7 @@ export default function SchedulesPage() {
             await fetchAttendanceReports(scheduleId);
             await fetchEligiblePlayKids(scheduleId);
             await fetchSchedules();
-            
+
             toast.success('Attendance report deleted successfully!');
         } catch (error) {
             console.error('Delete attendance report error:', error);
@@ -1008,6 +1015,10 @@ export default function SchedulesPage() {
         },
     ];
 
+    if (!isAdmin) {
+        return null;
+    }
+
     return (
         <>
             <div className="px-6">
@@ -1249,9 +1260,9 @@ export default function SchedulesPage() {
                                     Available Quota: {schedules.find(s => s.id === activeScheduleId)?.quota || 0}
                                 </div>
                             </div>
-                            
+
                             <DataTable columns={attendanceColumns} data={attendanceReport} />
-                            
+
                             <form onSubmit={handleSaveAttendanceReport}>
                                 <div className="grid gap-4">
                                     <div className="space-y-1">
@@ -1259,8 +1270,8 @@ export default function SchedulesPage() {
                                         <MultiSelect
                                             value={attendanceFormData.play_kid_id.map(String)}
                                             onValueChange={(value) =>
-                                                setAttendanceFormData((prev) => ({ 
-                                                    ...prev, 
+                                                setAttendanceFormData((prev) => ({
+                                                    ...prev,
                                                     play_kid_id: value.map(Number)
                                                 }))
                                             }
@@ -1270,10 +1281,10 @@ export default function SchedulesPage() {
                                             }))}
                                             placeholder="Select play kids"
                                             modalPopover={true}
-                                            disabled={isAttendanceEditing} 
+                                            disabled={isAttendanceEditing}
                                         />
                                     </div>
-                                    
+
                                     {/* {isAttendanceEditing && (
                                         <>
                                             <div className="space-y-1">
@@ -1328,7 +1339,7 @@ export default function SchedulesPage() {
                                             </div>
                                         </>
                                     )} */}
-                                    
+
                                     <Button type="submit" disabled={isLoading}>
                                         {isLoading
                                             ? 'Loading...'
@@ -1340,7 +1351,7 @@ export default function SchedulesPage() {
                             </form>
                         </TabsContent>
                     </Tabs>
-                    
+
                     <DialogFooter>
                         <Button
                             type="button"
