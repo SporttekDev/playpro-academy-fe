@@ -164,22 +164,30 @@ export default function AttendanceReportForm() {
         const fetchCoaches = async () => {
             try {
                 const token = Cookies.get("token");
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                })
-                if (!response.ok) throw new Error("Failed to fetch coaches")
-                const { data } = await response.json()
-                setCoaches(data)
-            } catch (error) {
-                console.error(error)
-                toast.error("Error fetching coaches")
-            }
-        }
+                const response = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${report?.schedule_id}/coaches`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }
+                );
+                if (!response.ok) throw new Error("Failed to fetch coaches");
+                const { data } = await response.json();
 
-        if (session?.role === "admin") {
-            fetchCoaches()
+                const coachList = data.map((cs: { coach: { id: number; name: string } }) => ({
+                    id: cs.coach.id,
+                    name: cs.coach.name,
+                }));
+                setCoaches(coachList);
+            } catch (error) {
+                console.error(error);
+                toast.error("Error fetching coaches");
+            }
+        };
+
+        if (session?.role === "admin" && report?.schedule_id) {
+            fetchCoaches();
         }
-    }, [session])
+    }, [session, report?.schedule_id]);
 
     const autoSize = (el?: HTMLTextAreaElement | null) => {
         if (!el) return;
