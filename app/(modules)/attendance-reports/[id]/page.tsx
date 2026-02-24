@@ -303,6 +303,7 @@ export default function AttendanceReportForm() {
                                             width={48}
                                             height={48}
                                             className="rounded-full object-cover"
+                                            unoptimized={true}
                                         />
                                     ) : (
                                         <AvatarFallback>{(report.play_kid?.name || 'U').slice(0, 1)}</AvatarFallback>

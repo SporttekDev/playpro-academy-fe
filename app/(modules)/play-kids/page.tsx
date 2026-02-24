@@ -719,6 +719,7 @@ export default function PlayKidsPage() {
                             width={48}
                             height={48}
                             className="w-full h-full object-cover"
+                            unoptimized={true}
                         />
                     </div>
                 ) : (
@@ -1262,6 +1263,7 @@ export default function PlayKidsPage() {
                                                 width={80}
                                                 height={80}
                                                 className="object-cover rounded border"
+                                                unoptimized={true}
                                             />
                                         </div>
                                     ) : formData.photo ? (
@@ -1272,6 +1274,7 @@ export default function PlayKidsPage() {
                                                 width={80}
                                                 height={80}
                                                 className="object-cover rounded border"
+                                                unoptimized={true}
                                             />
                                             <span className="text-xs text-gray-500">Current photo</span>
                                         </div>

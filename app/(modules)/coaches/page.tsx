@@ -217,6 +217,7 @@ export default function CoachesPage() {
                             width={48}
                             height={48}
                             className="w-full h-full object-cover"
+                            unoptimized={true}
                         />
                     </div>
                 ) : (
@@ -345,6 +346,7 @@ export default function CoachesPage() {
                                                 width={80}
                                                 height={80}
                                                 className="object-cover rounded border"
+                                                unoptimized={true}
                                             />
                                         </div>
                                     ) : currentPhoto ? (
@@ -355,6 +357,7 @@ export default function CoachesPage() {
                                                 width={80}
                                                 height={80}
                                                 className="object-cover rounded border"
+                                                unoptimized={true}
                                             />
                                         </div>
                                     ) : (
