@@ -138,6 +138,7 @@ export function ReportPDF({ report }: ReportPDFProps) {
                             width={400}
                             height={400}
                             className="w-full h-full object-cover rounded-full border-4 border-white/30"
+                            unoptimized={true}
                         />
                     </div>
 
@@ -196,6 +197,7 @@ export function ReportPDF({ report }: ReportPDFProps) {
                                                         width={500}
                                                         height={500}
                                                         className="w-full h-full object-cover rounded-lg border-2 border-white/20"
+                                                        unoptimized={true}
                                                     />
                                                 </div>
 
