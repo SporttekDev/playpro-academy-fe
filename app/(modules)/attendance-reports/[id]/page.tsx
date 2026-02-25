@@ -84,8 +84,8 @@ interface Session {
     role: string;
 }
 
-const MIN_CHARS = 50;
-const MAX_CHARS = 200;
+const MIN_CHARS = 200;
+const MAX_CHARS = 500;
 
 
 export default function AttendanceReportForm() {
