@@ -148,7 +148,7 @@ export default function RaportPage() {
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
-                allowTaint: false,
+                allowTaint: true,
                 onclone: (clonedDoc) => {
                     const style = clonedDoc.createElement('style');
                     style.innerHTML = `
