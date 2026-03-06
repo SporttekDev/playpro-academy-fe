@@ -145,10 +145,32 @@ export default function RaportPage() {
             setExporting(true);
             toast('Mempersiapkan PDF...', { duration: 2000 });
 
+            // 1. Target all images in your report
+            // Use HTMLImageElement in querySelectorAll to help TypeScript
+            const images = document.querySelectorAll<HTMLImageElement>('#report-to-export img');
+
+            images.forEach((img) => {
+                // Now TypeScript knows 'img' has a 'src' property
+                const url = new URL(img.src);
+                url.searchParams.set('cache_bust', new Date().getTime().toString());
+                img.src = url.toString();
+                
+                // Also ensure the crossOrigin attribute is set BEFORE the reload
+                img.crossOrigin = "anonymous";
+            });
+
+            // 3. (Important) Ensure the images are fully loaded with the new URL 
+            // before starting html2canvas
+            await Promise.all(
+                Array.from(images).map(img => 
+                    img.complete ? Promise.resolve() : new Promise(res => img.onload = res)
+                )
+            );
+
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
-                allowTaint: false,
+                logging: true, // Add this to check console for image loading errors
                 onclone: (clonedDoc) => {
                     const style = clonedDoc.createElement('style');
                     style.innerHTML = `
