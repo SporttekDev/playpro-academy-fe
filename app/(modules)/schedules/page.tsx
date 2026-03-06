@@ -25,6 +25,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
 
+interface Branch {
+    id: string;
+    name: string;
+}
+
 interface Schedule {
     id: number;
     name: string;
@@ -37,6 +42,7 @@ interface Schedule {
     class_model?: {
         id: string;
         name: string;
+        branch?: Branch;
     };
     venue?: {
         id: string;
@@ -112,16 +118,6 @@ interface PlayKid {
     gender: string;
 }
 
-const defaultForm: ScheduleForm = {
-    name: '',
-    class_id: '',
-    start_time: '',
-    end_time: '',
-    date: '',
-    quota: 0,
-    venue_id: '',
-};
-
 interface CoachScheduleForm {
     id?: number;
     schedule_id: number;
@@ -129,13 +125,6 @@ interface CoachScheduleForm {
     is_head_coach: boolean;
     attendance?: string;
 }
-
-const defaultCoachScheduleForm: CoachScheduleForm = {
-    schedule_id: 0,
-    coach_id: "",
-    is_head_coach: false,
-    attendance: '',
-};
 
 interface AttendanceReportForm {
     id?: number;
@@ -148,6 +137,44 @@ interface AttendanceReportForm {
     body_control?: string;
     overall?: number;
 }
+
+const MONTHS = [
+    { value: '1', label: 'Januari' },   
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },     
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },       
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },      
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' }, 
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' }, 
+    { value: '12', label: 'Desember' },
+];
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, i) => ({
+    value: String(currentYear - i),
+    label: String(currentYear - i),
+}));
+
+const defaultForm: ScheduleForm = {
+    name: '',
+    class_id: '',
+    start_time: '',
+    end_time: '',
+    date: '',
+    quota: 0,
+    venue_id: '',
+};
+
+const defaultCoachScheduleForm: CoachScheduleForm = {
+    schedule_id: 0,
+    coach_id: '',
+    is_head_coach: false,
+    attendance: '',
+};
 
 const defaultAttendanceReportForm: AttendanceReportForm = {
     schedule_id: 0,
@@ -162,29 +189,15 @@ const defaultAttendanceReportForm: AttendanceReportForm = {
 
 const formatTimeForInput = (timeString: string): string => {
     if (!timeString) return '';
-
-    if (/^\d{2}:\d{2}$/.test(timeString)) {
-        return timeString;
-    }
-
-    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
-        return timeString.substring(0, 5);
-    }
-
+    if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) return timeString.substring(0, 5);
     return timeString;
 };
 
 const formatTimeForAPI = (timeString: string): string => {
     if (!timeString) return '';
-
-    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) {
-        return timeString.substring(0, 5);
-    }
-
-    if (/^\d{2}:\d{2}$/.test(timeString)) {
-        return timeString;
-    }
-
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) return timeString.substring(0, 5);
+    if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
     return timeString;
 };
 
@@ -195,6 +208,7 @@ export default function SchedulesPage() {
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [classes, setClasses] = useState<ClassData[]>([]);
     const [venues, setVenues] = useState<Venue[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
@@ -209,35 +223,58 @@ export default function SchedulesPage() {
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [activeScheduleId, setActiveScheduleId] = useState<number | null>(null);
-    const [activeTab, setActiveTab] = useState("coach_schedule");
+    const [activeTab, setActiveTab] = useState('coach_schedule');
     const [isCoachEditing, setIsCoachEditing] = useState(false);
     const [isAttendanceEditing, setIsAttendanceEditing] = useState(false);
-
     const [isLoading, setIsLoading] = useState(false);
 
-    const fetchSchedules = useCallback(async () => {
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
+    const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+    const [selectedBranch, setSelectedBranch] = useState<string>('all');
+
+    const fetchBranches = useCallback(async () => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
                 },
             });
+            if (!response.ok) return;
+            const result = await response.json();
+            setBranches(result.data ?? result);
+        } catch (error) {
+            console.error('Fetch branches error:', error);
+        }
+    }, []);
 
-            if (!response.ok) {
-                const error = await response.text();
-                console.error(error);
-                throw new Error('Failed to fetch schedules');
-            }
+    const fetchSchedules = useCallback(async () => {
+        try {
+            const token = Cookies.get('token');
+            const params = new URLSearchParams();
+            if (selectedMonth) params.append('month', selectedMonth);
+            if (selectedYear) params.append('year', selectedYear);
+            if (selectedBranch && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
 
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule?${params.toString()}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) throw new Error('Failed to fetch schedules');
             const { data } = await response.json();
             setSchedules(data);
         } catch (error) {
             console.error('Fetch schedules error:', error);
             toast.error('Failed to fetch schedule data');
         }
-    }, []);
+    }, [selectedMonth, selectedYear, selectedBranch]);
 
     const fetchClasses = useCallback(async () => {
         try {
@@ -248,13 +285,7 @@ export default function SchedulesPage() {
                     Accept: 'application/json',
                 },
             });
-
-            if (!response.ok) {
-                const error = await response.text();
-                console.error("error : ", error);
-                throw new Error('Failed to fetch classes');
-            }
-
+            if (!response.ok) throw new Error('Failed to fetch classes');
             const { data } = await response.json();
             setClasses(data);
         } catch (error) {
@@ -272,13 +303,7 @@ export default function SchedulesPage() {
                     Accept: 'application/json',
                 },
             });
-
-            if (!response.ok) {
-                const error = await response.text();
-                console.error(error);
-                throw new Error('Failed to fetch venues');
-            }
-
+            if (!response.ok) throw new Error('Failed to fetch venues');
             const { data } = await response.json();
             setVenues(data);
         } catch (error) {
@@ -296,15 +321,8 @@ export default function SchedulesPage() {
                     Accept: 'application/json',
                 },
             });
-
-            if (!response.ok) {
-                const error = await response.text();
-                console.error('Fetch coaches error:', error);
-                throw new Error('Failed to fetch coaches');
-            }
-
+            if (!response.ok) throw new Error('Failed to fetch coaches');
             const { data } = await response.json();
-            console.log('Fetched coaches:', data);
             setCoaches(data);
         } catch (error) {
             console.error('Fetch coaches error:', error);
@@ -315,29 +333,28 @@ export default function SchedulesPage() {
     const fetchEligiblePlayKids = useCallback(async (scheduleId: number) => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/eligible-playkids`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                console.error(error);
-                throw new Error('Failed to fetch eligible play kids');
-            }
-
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/eligible-playkids`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
+            if (!response.ok) throw new Error('Failed to fetch eligible play kids');
             const { data } = await response.json();
-            
-            const playKidsWithValidSessions = data.filter((playKid: PlayKid & { memberships?: { sessions?: { count: number }[] }[] }) => {
-                return playKid.memberships && playKid.memberships.length > 0 && 
-                    playKid.memberships.some((membership) => 
-                        membership.sessions && membership.sessions.length > 0 && 
-                        membership.sessions.some((session: { count: number }) => session.count > 0)
-                    );
-            });
-            
+            const playKidsWithValidSessions = data.filter(
+                (playKid: PlayKid & { memberships?: { sessions?: { count: number }[] }[] }) =>
+                    playKid.memberships &&
+                    playKid.memberships.length > 0 &&
+                    playKid.memberships.some(
+                        (membership) =>
+                            membership.sessions &&
+                            membership.sessions.length > 0 &&
+                            membership.sessions.some((session: { count: number }) => session.count > 0)
+                    )
+            );
             setPlayKids(playKidsWithValidSessions);
         } catch (error) {
             console.error('Fetch eligible play kids error:', error);
@@ -348,19 +365,16 @@ export default function SchedulesPage() {
     const fetchCoachSchedules = useCallback(async (scheduleId: number) => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                console.error(error);
-                throw new Error('Failed to fetch coach schedules');
-            }
-
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
+            if (!response.ok) throw new Error('Failed to fetch coach schedules');
             const { data } = await response.json();
             setCoachSchedule(data);
         } catch (error) {
@@ -372,19 +386,16 @@ export default function SchedulesPage() {
     const fetchAttendanceReports = useCallback(async (scheduleId: number) => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                console.error(error);
-                throw new Error('Failed to fetch attendance reports');
-            }
-
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
+            if (!response.ok) throw new Error('Failed to fetch attendance reports');
             const { data } = await response.json();
             setAttendanceReport(data);
         } catch (error) {
@@ -394,11 +405,15 @@ export default function SchedulesPage() {
     }, []);
 
     useEffect(() => {
-        fetchSchedules();
+        fetchBranches();
         fetchClasses();
         fetchVenues();
         fetchCoaches();
-    }, [fetchSchedules, fetchClasses, fetchVenues, fetchCoaches]);
+    }, [fetchBranches, fetchClasses, fetchVenues, fetchCoaches]);
+
+    useEffect(() => {
+        fetchSchedules();
+    }, [fetchSchedules]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -416,10 +431,7 @@ export default function SchedulesPage() {
     }, [isScheduleDialogOpen, activeScheduleId, fetchCoachSchedules, fetchAttendanceReports, fetchEligiblePlayKids]);
 
     useEffect(() => {
-        setFormData((prev) => ({
-            ...prev,
-            venue_id: '', 
-        }));
+        setFormData((prev) => ({ ...prev, venue_id: '' }));
     }, [formData.class_id]);
 
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -459,8 +471,8 @@ export default function SchedulesPage() {
             };
 
             if (!isEditing) {
-                const selectedClass = classes.find(cls => cls.id.toString() === formData.class_id);
-                const selectedVenue = venues.find(venue => venue.id.toString() === formData.venue_id);
+                const selectedClass = classes.find((cls) => cls.id.toString() === formData.class_id);
+                const selectedVenue = venues.find((venue) => venue.id.toString() === formData.venue_id);
                 if (selectedClass && selectedVenue) {
                     const generatedName = `${selectedClass.name}, ${selectedVenue.name}, ${formData.date}, ${startTime}-${endTime}`;
                     submitData = { ...submitData, name: generatedName };
@@ -479,16 +491,12 @@ export default function SchedulesPage() {
 
             if (!response.ok) {
                 const errorResponse = await response.json().catch(() => null);
-                console.error('Server error response:', errorResponse);
-
                 if (response.status === 422 && errorResponse?.errors) {
                     const errors = Object.values(errorResponse.errors).flat();
-                    toast.error(errors.join(', '));
+                    toast.error((errors as string[]).join(', '));
                     return;
                 }
-
-                const errorMessage = errorResponse?.message || 'Failed to save schedule';
-                throw new Error(errorMessage);
+                throw new Error(errorResponse?.message || 'Failed to save schedule');
             }
 
             await fetchSchedules();
@@ -515,11 +523,7 @@ export default function SchedulesPage() {
                     Accept: 'application/json',
                 },
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete schedule');
-            }
-
+            if (!response.ok) throw new Error('Failed to delete schedule');
             await fetchSchedules();
             toast.success('Schedule deleted successfully!');
         } catch (error) {
@@ -543,19 +547,12 @@ export default function SchedulesPage() {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
-
-            setFormData((prev) => ({
-                ...prev,
-                date: `${year}-${month}-${day}`,
-            }));
+            setFormData((prev) => ({ ...prev, date: `${year}-${month}-${day}` }));
         }
     };
 
     const handleTimeChange = (time: string, field: 'start_time' | 'end_time') => {
-        setFormData((prev) => ({
-            ...prev,
-            [field]: time,
-        }));
+        setFormData((prev) => ({ ...prev, [field]: time }));
     };
 
     const handleSaveCoachSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -568,30 +565,21 @@ export default function SchedulesPage() {
             setIsLoading(true);
             const token = Cookies.get('token');
             const scheduleId = activeScheduleId;
-            if (!scheduleId) {
-                toast.error('No schedule selected');
-                return;
-            }
+            if (!scheduleId) { toast.error('No schedule selected'); return; }
 
             const method = isCoachEditing ? 'PUT' : 'POST';
             const url = isCoachEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches/${coachScheduleFormData.id}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches`;
 
-            const submitData = {
-                coach_id: coachScheduleFormData.coach_id,
-                is_head_coach: coachScheduleFormData.is_head_coach,
-                attendance: coachScheduleFormData.attendance || null,
-            };
-
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify(submitData),
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Accept: 'application/json' },
+                body: JSON.stringify({
+                    coach_id: coachScheduleFormData.coach_id,
+                    is_head_coach: coachScheduleFormData.is_head_coach,
+                    attendance: coachScheduleFormData.attendance || null,
+                }),
             });
 
             if (!response.ok) {
@@ -618,18 +606,11 @@ export default function SchedulesPage() {
             const scheduleId = activeScheduleId;
             if (!scheduleId || !deleteId) return;
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches/${deleteId}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete coach schedule');
-            }
-
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches/${deleteId}`,
+                { method: 'DELETE', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
+            );
+            if (!response.ok) throw new Error('Failed to delete coach schedule');
             await fetchCoachSchedules(scheduleId);
             toast.success('Coach schedule deleted successfully!');
         } catch (error) {
@@ -647,50 +628,42 @@ export default function SchedulesPage() {
             toast.error('Play Kids are required');
             return;
         }
-
         try {
             setIsLoading(true);
             const token = Cookies.get('token');
             const scheduleId = activeScheduleId;
-            if (!scheduleId) {
-                toast.error('No schedule selected');
-                return;
-            }
+            if (!scheduleId) { toast.error('No schedule selected'); return; }
 
             const method = isAttendanceEditing ? 'PUT' : 'POST';
             const url = isAttendanceEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance/${attendanceFormData.id}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`;
 
-            const submitData = isAttendanceEditing ? {
-                coach_id: attendanceFormData.coach_id || null,
-                play_kid_id: attendanceFormData.play_kid_id[0],
-                attendance: attendanceFormData.attendance || false,
-                motorik: attendanceFormData.motorik || null,
-                locomotor: attendanceFormData.locomotor || null,
-                body_control: attendanceFormData.body_control || null,
-                overall: attendanceFormData.overall || null,
-            } : {
-                coach_id: attendanceFormData.coach_id || null,
-                play_kid_id: attendanceFormData.play_kid_id,
-                attendance: attendanceFormData.attendance || false,
-                motorik: attendanceFormData.motorik || null,
-                locomotor: attendanceFormData.locomotor || null,
-                body_control: attendanceFormData.body_control || null,
-                overall: attendanceFormData.overall || null,
-            };
+            const submitData = isAttendanceEditing
+                ? {
+                    coach_id: attendanceFormData.coach_id || null,
+                    play_kid_id: attendanceFormData.play_kid_id[0],
+                    attendance: attendanceFormData.attendance || false,
+                    motorik: attendanceFormData.motorik || null,
+                    locomotor: attendanceFormData.locomotor || null,
+                    body_control: attendanceFormData.body_control || null,
+                    overall: attendanceFormData.overall || null,
+                }
+                : {
+                    coach_id: attendanceFormData.coach_id || null,
+                    play_kid_id: attendanceFormData.play_kid_id,
+                    attendance: attendanceFormData.attendance || false,
+                    motorik: attendanceFormData.motorik || null,
+                    locomotor: attendanceFormData.locomotor || null,
+                    body_control: attendanceFormData.body_control || null,
+                    overall: attendanceFormData.overall || null,
+                };
 
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Accept: 'application/json' },
                 body: JSON.stringify(submitData),
             });
-
-            console.log("Response : ", response);
 
             if (!response.ok) {
                 const errorResponse = await response.json();
@@ -718,22 +691,14 @@ export default function SchedulesPage() {
             const scheduleId = activeScheduleId;
             if (!scheduleId || !deleteId) return;
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance/${deleteId}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete attendance report');
-            }
-
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance/${deleteId}`,
+                { method: 'DELETE', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
+            );
+            if (!response.ok) throw new Error('Failed to delete attendance report');
             await fetchAttendanceReports(scheduleId);
             await fetchEligiblePlayKids(scheduleId);
             await fetchSchedules();
-            
             toast.success('Attendance report deleted successfully!');
         } catch (error) {
             console.error('Delete attendance report error:', error);
@@ -748,18 +713,12 @@ export default function SchedulesPage() {
         {
             accessorKey: 'class_id',
             header: 'Class',
-            cell: ({ row }) => {
-                const schedule = row.original;
-                return schedule.class_model?.name || schedule.class_id;
-            },
+            cell: ({ row }) => row.original.class_model?.name || row.original.class_id,
         },
         {
             accessorKey: 'venue_id',
             header: 'Venue',
-            cell: ({ row }) => {
-                const schedule = row.original;
-                return schedule.venue?.name || schedule.venue_id;
-            },
+            cell: ({ row }) => row.original.venue?.name || row.original.venue_id,
         },
         { accessorKey: 'date', header: 'Date' },
         {
@@ -793,37 +752,8 @@ export default function SchedulesPage() {
                                     <IconCalendarCog className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Manage Schedule
-                            </TooltipContent>
+                            <TooltipContent side="top">Manage Schedule</TooltipContent>
                         </Tooltip>
-                        {/* <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                        setIsEditing(true);
-                                        setEditId(schedule.id);
-                                        setFormData({
-                                            name: schedule.name || '',
-                                            class_id: schedule.class_id.toString(),
-                                            start_time: formatTimeForInput(schedule.start_time),
-                                            end_time: formatTimeForInput(schedule.end_time),
-                                            date: schedule.date,
-                                            quota: schedule.quota,
-                                            venue_id: schedule.venue_id.toString(),
-                                        });
-                                        setIsDialogOpen(true);
-                                    }}
-                                >
-                                    <IconPencil className="w-4 h-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
-                        </Tooltip> */}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -837,9 +767,7 @@ export default function SchedulesPage() {
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -851,7 +779,7 @@ export default function SchedulesPage() {
         {
             accessorKey: 'coach.name',
             header: 'Coach',
-            cell: ({ row }) => row.original.coach?.name || 'Unknown', // Fallback for missing name
+            cell: ({ row }) => row.original.coach?.name || 'Unknown',
         },
         {
             accessorKey: 'is_head_coach',
@@ -861,16 +789,13 @@ export default function SchedulesPage() {
         {
             accessorKey: 'attendance',
             header: 'Attendance',
-            cell: ({ row }) => {
-                const attendance = row.getValue('attendance');
-                return attendance || 'Not Set';
-            },
+            cell: ({ row }) => row.getValue('attendance') || 'Not Set',
         },
         {
             id: 'actions',
             header: 'Actions',
             cell: ({ row }) => {
-                const coachSchedule = row.original;
+                const cs = row.original;
                 return (
                     <div className="flex gap-2">
                         <Tooltip>
@@ -881,20 +806,18 @@ export default function SchedulesPage() {
                                     onClick={() => {
                                         setIsCoachEditing(true);
                                         setCoachScheduleFormData({
-                                            id: coachSchedule.id,
-                                            schedule_id: coachSchedule.schedule_id,
-                                            coach_id: coachSchedule.coach_id.toString(),
-                                            is_head_coach: coachSchedule.is_head_coach,
-                                            attendance: coachSchedule.attendance || '',
+                                            id: cs.id,
+                                            schedule_id: cs.schedule_id,
+                                            coach_id: cs.coach_id.toString(),
+                                            is_head_coach: cs.is_head_coach,
+                                            attendance: cs.attendance || '',
                                         });
                                     }}
                                 >
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
+                            <TooltipContent side="top">Edit</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -902,16 +825,14 @@ export default function SchedulesPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
-                                        setDeleteId(coachSchedule.id);
+                                        setDeleteId(cs.id);
                                         setIsDeleteDialogOpen(true);
                                     }}
                                 >
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -946,16 +867,15 @@ export default function SchedulesPage() {
         {
             header: 'Report',
             cell: ({ row }) => {
-                const report = row.original;
-                const isReported = report.motorik || report.locomotor || report.body_control || report.overall;
-                return isReported ? 'Reported' : 'Not Reported';
+                const r = row.original;
+                return r.motorik || r.locomotor || r.body_control || r.overall ? 'Reported' : 'Not Reported';
             },
         },
         {
             id: 'actions',
             header: 'Actions',
             cell: ({ row }) => {
-                const attendanceReport = row.original;
+                const ar = row.original;
                 return (
                     <div className="flex gap-2">
                         <Tooltip>
@@ -966,24 +886,22 @@ export default function SchedulesPage() {
                                     onClick={() => {
                                         setIsAttendanceEditing(true);
                                         setAttendanceFormData({
-                                            id: attendanceReport.id,
-                                            schedule_id: attendanceReport.schedule_id,
-                                            coach_id: attendanceReport.coach_id,
-                                            play_kid_id: [attendanceReport.play_kid_id],
-                                            attendance: attendanceReport.attendance,
-                                            motorik: attendanceReport.motorik || '',
-                                            locomotor: attendanceReport.locomotor || '',
-                                            body_control: attendanceReport.body_control || '',
-                                            overall: attendanceReport.overall || 0,
+                                            id: ar.id,
+                                            schedule_id: ar.schedule_id,
+                                            coach_id: ar.coach_id,
+                                            play_kid_id: [ar.play_kid_id],
+                                            attendance: ar.attendance,
+                                            motorik: ar.motorik || '',
+                                            locomotor: ar.locomotor || '',
+                                            body_control: ar.body_control || '',
+                                            overall: ar.overall || 0,
                                         });
                                     }}
                                 >
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
+                            <TooltipContent side="top">Edit</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -991,16 +909,14 @@ export default function SchedulesPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
-                                        setDeleteId(attendanceReport.id);
+                                        setDeleteId(ar.id);
                                         setIsDeleteDialogOpen(true);
                                     }}
                                 >
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -1010,7 +926,44 @@ export default function SchedulesPage() {
 
     return (
         <>
-            <div className="px-6">
+            <div className="px-6 space-y-4">
+                {/* Filter Bar */}
+                <div className="flex flex-wrap gap-2">
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-36">
+                            <SelectValue placeholder="Pilih Bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {MONTHS.map((m) => (
+                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="w-28">
+                            <SelectValue placeholder="Pilih Tahun" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {YEARS.map((y) => (
+                                <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Pilih Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Branch</SelectItem>
+                            {branches.map((b) => (
+                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <DataTable columns={columns} data={schedules} />
             </div>
 
@@ -1028,9 +981,7 @@ export default function SchedulesPage() {
                     <DialogHeader>
                         <DialogTitle>{isEditing ? 'Edit Schedule' : 'New Schedule'}</DialogTitle>
                         <DialogDescription>
-                            {isEditing
-                                ? 'Edit schedule details as needed.'
-                                : 'Fill in the form below to add a new schedule.'}
+                            {isEditing ? 'Edit schedule details as needed.' : 'Fill in the form below to add a new schedule.'}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSaveSchedule}>
@@ -1047,14 +998,10 @@ export default function SchedulesPage() {
                                     <SelectContent>
                                         {classes.length > 0 ? (
                                             classes.map((cls) => (
-                                                <SelectItem key={cls.id} value={cls.id.toString()}>
-                                                    {cls.name}
-                                                </SelectItem>
+                                                <SelectItem key={cls.id} value={cls.id.toString()}>{cls.name}</SelectItem>
                                             ))
                                         ) : (
-                                            <SelectItem value="0" disabled>
-                                                No classes available
-                                            </SelectItem>
+                                            <SelectItem value="0" disabled>No classes available</SelectItem>
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -1078,23 +1025,17 @@ export default function SchedulesPage() {
                                                     return selectedClass ? venue.branch.id === selectedClass.branch_id : false;
                                                 })
                                                 .map((venue) => (
-                                                    <SelectItem key={venue.id} value={venue.id.toString()}>
-                                                        {venue.name}
-                                                    </SelectItem>
+                                                    <SelectItem key={venue.id} value={venue.id.toString()}>{venue.name}</SelectItem>
                                                 ))
                                         ) : (
-                                            <SelectItem value="0" disabled>
-                                                Please select a class first
-                                            </SelectItem>
+                                            <SelectItem value="0" disabled>Please select a class first</SelectItem>
                                         )}
                                         {formData.class_id &&
                                             venues.filter((venue) => {
                                                 const selectedClass = classes.find((cls) => cls.id.toString() === formData.class_id);
                                                 return selectedClass ? venue.branch.id === selectedClass.branch_id : false;
                                             }).length === 0 && (
-                                                <SelectItem value="0" disabled>
-                                                    No venues available for this class
-                                                </SelectItem>
+                                                <SelectItem value="0" disabled>No venues available for this class</SelectItem>
                                             )}
                                     </SelectContent>
                                 </Select>
@@ -1116,18 +1057,17 @@ export default function SchedulesPage() {
                                         type="time"
                                         value={formData.start_time}
                                         onChange={(e) => handleTimeChange(e.target.value, 'start_time')}
-                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden"
                                         required
                                     />
                                 </div>
-
                                 <div className="space-y-1">
                                     <Label>End Time</Label>
                                     <Input
                                         type="time"
                                         value={formData.end_time}
                                         onChange={(e) => handleTimeChange(e.target.value, 'end_time')}
-                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden"
                                         required
                                     />
                                 </div>
@@ -1147,13 +1087,8 @@ export default function SchedulesPage() {
                             </div>
                         </div>
 
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsDialogOpen(false)}
-                                disabled={isLoading}
-                            >
+                        <DialogFooter className="mt-4">
+                            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isLoading}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isLoading}>
@@ -1188,10 +1123,7 @@ export default function SchedulesPage() {
                                         <Select
                                             value={coachScheduleFormData.coach_id}
                                             onValueChange={(value) =>
-                                                setCoachScheduleFormData((prev) => ({
-                                                    ...prev,
-                                                    coach_id: value,
-                                                }))
+                                                setCoachScheduleFormData((prev) => ({ ...prev, coach_id: value }))
                                             }
                                         >
                                             <SelectTrigger>
@@ -1200,14 +1132,10 @@ export default function SchedulesPage() {
                                             <SelectContent>
                                                 {coaches.length > 0 ? (
                                                     coaches.map((coach) => (
-                                                        <SelectItem key={coach.id} value={coach.id.toString()}>
-                                                            {coach.name}
-                                                        </SelectItem>
+                                                        <SelectItem key={coach.id} value={coach.id.toString()}>{coach.name}</SelectItem>
                                                     ))
                                                 ) : (
-                                                    <SelectItem value="0" disabled>
-                                                        No coaches available
-                                                    </SelectItem>
+                                                    <SelectItem value="0" disabled>No coaches available</SelectItem>
                                                 )}
                                             </SelectContent>
                                         </Select>
@@ -1217,10 +1145,7 @@ export default function SchedulesPage() {
                                         <Select
                                             value={coachScheduleFormData.is_head_coach ? 'true' : 'false'}
                                             onValueChange={(value) =>
-                                                setCoachScheduleFormData((prev) => ({
-                                                    ...prev,
-                                                    is_head_coach: value === 'true',
-                                                }))
+                                                setCoachScheduleFormData((prev) => ({ ...prev, is_head_coach: value === 'true' }))
                                             }
                                         >
                                             <SelectTrigger>
@@ -1233,25 +1158,17 @@ export default function SchedulesPage() {
                                         </Select>
                                     </div>
                                     <Button type="submit" disabled={isLoading}>
-                                        {isLoading
-                                            ? 'Loading...'
-                                            : isCoachEditing
-                                                ? 'Update Coach Schedule'
-                                                : 'Add Coach Schedule'}
+                                        {isLoading ? 'Loading...' : isCoachEditing ? 'Update Coach Schedule' : 'Add Coach Schedule'}
                                     </Button>
                                 </div>
                             </form>
                         </TabsContent>
 
                         <TabsContent value="attendance_report" className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <div className="text-sm text-muted-foreground">
-                                    Available Quota: {schedules.find(s => s.id === activeScheduleId)?.quota || 0}
-                                </div>
+                            <div className="text-sm text-muted-foreground">
+                                Available Quota: {schedules.find((s) => s.id === activeScheduleId)?.quota || 0}
                             </div>
-                            
                             <DataTable columns={attendanceColumns} data={attendanceReport} />
-                            
                             <form onSubmit={handleSaveAttendanceReport}>
                                 <div className="grid gap-4">
                                     <div className="space-y-1">
@@ -1259,10 +1176,7 @@ export default function SchedulesPage() {
                                         <MultiSelect
                                             value={attendanceFormData.play_kid_id.map(String)}
                                             onValueChange={(value) =>
-                                                setAttendanceFormData((prev) => ({ 
-                                                    ...prev, 
-                                                    play_kid_id: value.map(Number)
-                                                }))
+                                                setAttendanceFormData((prev) => ({ ...prev, play_kid_id: value.map(Number) }))
                                             }
                                             options={playKids.map((kid) => ({
                                                 value: kid.id.toString(),
@@ -1270,77 +1184,17 @@ export default function SchedulesPage() {
                                             }))}
                                             placeholder="Select play kids"
                                             modalPopover={true}
-                                            disabled={isAttendanceEditing} 
+                                            disabled={isAttendanceEditing}
                                         />
                                     </div>
-                                    
-                                    {/* {isAttendanceEditing && (
-                                        <>
-                                            <div className="space-y-1">
-                                                <Label>Coach</Label>
-                                                <Select
-                                                    value={attendanceFormData.coach_id?.toString() || ''}
-                                                    onValueChange={(value) =>
-                                                        setAttendanceFormData((prev) => ({
-                                                            ...prev,
-                                                            coach_id: parseInt(value, 10),
-                                                        }))
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Choose coach" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {coaches.length > 0 ? (
-                                                            coaches.map((coach) => (
-                                                                <SelectItem key={coach.id} value={coach.id.toString()}>
-                                                                    {coach.name}
-                                                                </SelectItem>
-                                                            ))
-                                                        ) : (
-                                                            <SelectItem value="0" disabled>
-                                                                No coaches available
-                                                            </SelectItem>
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            
-                                            <div className="space-y-1">
-                                                <Label>Attendance</Label>
-                                                <Select
-                                                    value={attendanceFormData.attendance ? 'true' : 'false'}
-                                                    onValueChange={(value) =>
-                                                        setAttendanceFormData((prev) => ({
-                                                            ...prev,
-                                                            attendance: value === 'true',
-                                                        }))
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select attendance" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="true">Present</SelectItem>
-                                                        <SelectItem value="false">Absent</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </>
-                                    )} */}
-                                    
                                     <Button type="submit" disabled={isLoading}>
-                                        {isLoading
-                                            ? 'Loading...'
-                                            : isAttendanceEditing
-                                                ? 'Update Attendance Report'
-                                                : 'Add Attendance Report'}
+                                        {isLoading ? 'Loading...' : isAttendanceEditing ? 'Update Attendance Report' : 'Add Attendance Report'}
                                     </Button>
                                 </div>
                             </form>
                         </TabsContent>
                     </Tabs>
-                    
+
                     <DialogFooter>
                         <Button
                             type="button"
