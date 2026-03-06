@@ -323,7 +323,7 @@ export default function SchedulesPage() {
             });
             if (!response.ok) throw new Error('Failed to fetch coaches');
             const { data } = await response.json();
-            setCoaches(data);
+            setCoaches(data.sort((a: Coach, b: Coach) => a.name.localeCompare(b.name)));
         } catch (error) {
             console.error('Fetch coaches error:', error);
             toast.error('Failed to fetch coach data');
