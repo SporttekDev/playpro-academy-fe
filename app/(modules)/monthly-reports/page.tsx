@@ -148,7 +148,7 @@ export default function RaportPage() {
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
-                allowTaint: true,
+                logging: true, // Add this to check console for image loading errors
                 onclone: (clonedDoc) => {
                     const style = clonedDoc.createElement('style');
                     style.innerHTML = `
