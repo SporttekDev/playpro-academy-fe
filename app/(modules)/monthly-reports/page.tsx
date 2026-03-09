@@ -9,9 +9,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import Cookies from 'js-cookie';
 import { IconFileExport } from '@tabler/icons-react';
 import { ReportPDF } from '@/components/ui/report-pdf';
-import jsPDF from "jspdf"
+import jsPDF from "jspdf";
 import html2canvas from 'html2canvas-pro';
 import { useRequireAdmin } from '@/lib/auth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface ReportResponse {
     play_kid: PlayKid;
@@ -19,6 +20,8 @@ export interface ReportResponse {
     classes: ClassWithCategory[];
     attendance_reports: AttendanceReport[];
     attendance_count: number;
+    month_year: string;
+    month_display: string;
     months: string[];
     months_display: string;
 }
@@ -83,6 +86,32 @@ export interface CoachSummary {
     photo?: string | null;
 }
 
+interface BranchOption {
+    id: string;
+    name: string;
+}
+
+const MONTHS = [
+    { value: '1', label: 'Januari' },    
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },      
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },        
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },       
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' },  
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },  
+    { value: '12', label: 'Desember' },
+];
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, i) => ({
+    value: String(currentYear - i),
+    label: String(currentYear - i),
+}));
+
 export default function RaportPage() {
     const { isAdmin } = useRequireAdmin({
         cookieKey: 'session_key',
@@ -93,25 +122,48 @@ export default function RaportPage() {
     const [reports, setReports] = useState<ReportResponse[]>([]);
     const [reportPdf, setReportPdf] = useState<ReportResponse | null>(null);
     const [exporting, setExporting] = useState(false);
+    const [branches, setBranches] = useState<BranchOption[]>([]);
+
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
+    const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+    const [selectedBranch, setSelectedBranch] = useState<string>('all');
 
     const reportRef = useRef<HTMLDivElement | null>(null);
 
-    // function formatMonthFromDate(dateStr?: string | null) {
-    //     if (!dateStr) return '-';
-    //     const d = new Date(dateStr);
-    //     if (isNaN(d.getTime())) return dateStr;
-    //     return d.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-    // }
-
-    const fetchReports = useCallback(async () => {
+    const fetchBranches = useCallback(async () => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
                 },
             });
+            if (!response.ok) return;
+            const result = await response.json();
+            setBranches(result.data ?? result);
+        } catch (error) {
+            console.error('Fetch branches error:', error);
+        }
+    }, []);
+
+    const fetchReports = useCallback(async () => {
+        try {
+            const token = Cookies.get('token');
+            const params = new URLSearchParams();
+            if (selectedMonth) params.append('month', selectedMonth);
+            if (selectedYear) params.append('year', selectedYear);
+            if (selectedBranch && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports?${params.toString()}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
 
             if (!response.ok) {
                 const error = await response.text();
@@ -120,13 +172,16 @@ export default function RaportPage() {
             }
 
             const { data } = await response.json();
-            console.log("Data : ", data);
             setReports(data);
         } catch (error) {
             console.error('Fetch reports error:', error);
             toast.error('Failed to fetch report data');
         }
-    }, []);
+    }, [selectedMonth, selectedYear, selectedBranch]);
+
+    useEffect(() => {
+        fetchBranches();
+    }, [fetchBranches]);
 
     useEffect(() => {
         fetchReports();
@@ -138,8 +193,6 @@ export default function RaportPage() {
             toast.error('Tidak ada laporan untuk di-download');
             return;
         }
-
-        console.log("Report PDF yang di download: ", reportPdf);
 
         try {
             setExporting(true);
@@ -174,16 +227,15 @@ export default function RaportPage() {
                 onclone: (clonedDoc) => {
                     const style = clonedDoc.createElement('style');
                     style.innerHTML = `
-                #report-to-export, #report-to-export * {
-                  box-shadow: none !important;
-                  background-image: none !important;
-                  filter: none !important;
-                  outline: none !important;
-                }
-                #report-to-export { background-color: #ffffff !important; }
-              `;
+                        #report-to-export, #report-to-export * {
+                            box-shadow: none !important;
+                            background-image: none !important;
+                            filter: none !important;
+                            outline: none !important;
+                        }
+                        #report-to-export { background-color: #ffffff !important; }
+                    `;
                     clonedDoc.head.appendChild(style);
-
                     clonedDoc.querySelectorAll('#report-to-export img')
                         .forEach((img) => (img as HTMLImageElement).crossOrigin = 'anonymous');
                 },
@@ -202,10 +254,10 @@ export default function RaportPage() {
 
             pdf.addImage(imgData, 'PNG', 0, 0, canvasWidthMm, canvasHeightMm);
 
-            const fileName = `${reportPdf?.play_kid.name} - ${reportPdf?.months_display}.pdf`;
+            const fileName = `${reportPdf?.play_kid.name} - ${reportPdf?.month_display}.pdf`;
             pdf.save(fileName);
 
-            toast.success('PDF berhasil di-download ✅');
+            toast.success('PDF berhasil di-download');
         } catch (err) {
             console.error('Export PDF error:', err);
             toast.error('Gagal mengekspor PDF. Lihat console untuk detail.');
@@ -218,11 +270,9 @@ export default function RaportPage() {
         {
             id: 'play_kid',
             header: 'Play Kid',
-            accessorFn: (row) =>
-                row.play_kid?.name ?? row.play_kid?.nick_name ?? `#${row.play_kid?.id}`,
+            accessorFn: (row) => row.play_kid?.name ?? row.play_kid?.nick_name ?? `#${row.play_kid?.id}`,
             cell: ({ row }) => {
-                const report = row.original;
-                const pk = report.play_kid;
+                const pk = row.original.play_kid;
                 return pk ? (pk.name || pk.nick_name || `#${pk.id}`) : '-';
             },
         },
@@ -230,10 +280,15 @@ export default function RaportPage() {
             id: 'branch',
             header: 'Branch',
             accessorFn: (row) => row.branch?.name ?? 'N/A',
-            cell: ({ row }) => {
-                const branch = row.original.branch;
-                return branch ? branch.name : '-';
-            },
+            cell: ({ row }) => row.original.branch?.name ?? '-',
+        },
+        {
+            id: 'month',
+            header: 'Bulan',
+            accessorFn: (row) => row.month_display,
+            cell: ({ row }) => (
+                <span className="font-medium">{row.original.month_display}</span>
+            ),
         },
         {
             id: 'classes',
@@ -242,35 +297,22 @@ export default function RaportPage() {
             cell: ({ row }) => {
                 const classes = row.original.classes;
                 if (!classes || classes.length === 0) return '-';
-
                 return (
                     <div className="max-w-xs">
                         {classes.map((cls) => (
-                            <div key={cls.id} className="text-sm">
-                                {cls.name}
-                            </div>
+                            <div key={cls.id} className="text-sm">{cls.name}</div>
                         ))}
                     </div>
                 );
             },
         },
         {
-            id: 'months',
-            header: 'Months',
-            accessorFn: (row) => row.months_display,
-            cell: ({ row }) => {
-                const months = row.original.months;
-                return months && months.length > 0 ? months.join(', ') : '-';
-            },
-        },
-        {
             id: 'attendance_count',
             header: 'Total Attendance',
             accessorFn: (row) => row.attendance_count ?? 0,
-            cell: ({ row }) => {
-                const count = row.original.attendance_count ?? 0;
-                return <span className="font-medium">{count}</span>;
-            },
+            cell: ({ row }) => (
+                <span className="font-medium">{row.original.attendance_count ?? 0}</span>
+            ),
         },
         {
             id: 'actions',
@@ -281,10 +323,10 @@ export default function RaportPage() {
                     <div className="flex gap-2">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon"
-                                    onClick={() => {
-                                        setReportPdf(report);
-                                    }}
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setReportPdf(report)}
                                 >
                                     <IconFileExport />
                                 </Button>
@@ -302,16 +344,52 @@ export default function RaportPage() {
     }
 
     return (
-        <div className="px-6">
+        <div className="px-6 space-y-4">
+            {/* Filter Bar */}
+            <div className="flex flex-wrap gap-2">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-36">
+                        <SelectValue placeholder="Pilih Bulan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {MONTHS.map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger className="w-28">
+                        <SelectValue placeholder="Pilih Tahun" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {YEARS.map((y) => (
+                            <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                    <SelectTrigger className="w-44">
+                        <SelectValue placeholder="Pilih Branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Branch</SelectItem>
+                        {branches.map((b) => (
+                            <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
             <DataTable columns={columns} data={reports} />
 
             {reportPdf && (
                 <div className="fixed inset-0 flex items-center justify-center bg-opacity-60 backdrop-blur-sm z-50">
                     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-7xl max-h-[75vh] flex flex-col">
-
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                                Preview Laporan - {reportPdf.play_kid.name} - {reportPdf.branch.name}
+                                Preview Laporan - {reportPdf.play_kid.name} - {reportPdf.branch.name} - {reportPdf.month_display}
                             </h2>
                             <button
                                 onClick={() => setReportPdf(null)}
@@ -330,13 +408,9 @@ export default function RaportPage() {
                         </div>
 
                         <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-white dark:bg-gray-900 rounded-b-2xl space-x-2">
-                            <Button
-                                onClick={() => setReportPdf(null)}
-                                variant="destructive"
-                            >
+                            <Button onClick={() => setReportPdf(null)} variant="destructive">
                                 Tutup
                             </Button>
-
                             <Button onClick={handleDownloadPdf} disabled={exporting} variant="default">
                                 {exporting ? 'Mengekspor...' : 'Download PDF'}
                             </Button>
@@ -344,7 +418,6 @@ export default function RaportPage() {
                     </div>
                 </div>
             )}
-
         </div>
-    )
+    );
 }

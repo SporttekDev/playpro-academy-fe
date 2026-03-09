@@ -22,6 +22,13 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 
 interface AttendanceReport {
@@ -63,6 +70,13 @@ interface PlayKid {
 interface Class {
     id: number;
     name: string;
+    branch_id: number;
+    branch: Branch;
+}
+
+interface Branch {
+    id: number;
+    name: string;
 }
 
 interface Venue {
@@ -78,40 +92,77 @@ interface ImportResult {
     warnings: string[];
 }
 
-// interface ValidationResult {
-//     valid_count: number;
-//     total_rows: number;
-//     errors: string[];
-//     warnings: string[];
-//     imported_count: number;
-//     updated_count: number;
-//     skipped_count: number;
-// }
+const MONTHS = [
+    { value: '1', label: 'Januari' },
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Desember' },
+];
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, i) => ({
+    value: String(currentYear - i),
+    label: String(currentYear - i),
+}));
 
 export default function AttendanceReportsPage() {
     const [attendanceReports, setAttendanceReports] = useState<AttendanceReport[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [importLoading, setImportLoading] = useState(false);
-    // const [validateLoading, setValidateLoading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
-    // const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-    // const [isValidateDialogOpen, setIsValidateDialogOpen] = useState(false);
 
-    const fetchAttendanceReports = useCallback(async () => {
-        setIsLoading(true);
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
+    const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+    const [selectedBranch, setSelectedBranch] = useState<string>('all');
+
+    const fetchBranches = useCallback(async () => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
                 },
             });
+            if (!response.ok) return;
+            const { data } = await response.json();
+            setBranches(data);
+        } catch (error) {
+            console.error(error);
+        }
+    }, []);
+
+    const fetchAttendanceReports = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const token = Cookies.get('token');
+
+            const params = new URLSearchParams();
+            if (selectedMonth) params.append('month', selectedMonth);
+            if (selectedYear) params.append('year', selectedYear);
+            if (selectedBranch && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report?${params.toString()}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
             if (!response.ok) {
-                const error = await response.text();
-                console.error(error);
                 throw new Error('Failed to fetch attendance reports');
             }
             const { data } = await response.json();
@@ -121,7 +172,11 @@ export default function AttendanceReportsPage() {
             toast.error('Error fetching attendance reports');
         }
         setIsLoading(false);
-    }, []);
+    }, [selectedMonth, selectedYear, selectedBranch]);
+
+    useEffect(() => {
+        fetchBranches();
+    }, [fetchBranches]);
 
     useEffect(() => {
         fetchAttendanceReports();
@@ -132,20 +187,16 @@ export default function AttendanceReportsPage() {
         if (file) {
             const validTypes = ['.xlsx', '.xls', '.csv'];
             const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-
             if (!validTypes.includes(fileExtension || '')) {
                 toast.error('File harus dalam format Excel (.xlsx, .xls) atau CSV');
                 return;
             }
-
             if (file.size > 10 * 1024 * 1024) {
                 toast.error('File terlalu besar. Maksimal 10MB');
                 return;
             }
-
             setSelectedFile(file);
             setImportResult(null);
-            // setValidationResult(null);
         }
     };
 
@@ -153,15 +204,9 @@ export default function AttendanceReportsPage() {
         try {
             const token = Cookies.get('token');
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/download-template`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to download template');
-            }
-
+            if (!response.ok) throw new Error('Failed to download template');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -171,7 +216,6 @@ export default function AttendanceReportsPage() {
             link.click();
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
-
             toast.success('Template berhasil didownload');
         } catch (error) {
             console.error(error);
@@ -184,29 +228,21 @@ export default function AttendanceReportsPage() {
             toast.error('Pilih file terlebih dahulu');
             return;
         }
-
         setImportLoading(true);
         try {
             const token = Cookies.get('token');
             const formData = new FormData();
             formData.append('file', selectedFile);
-
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/import`, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 body: formData,
             });
-
             const result = await response.json();
-
             if (result.success) {
                 setImportResult(result.data);
                 toast.success(`Import berhasil: ${result.data.imported_count} data baru, ${result.data.updated_count} data diperbarui`);
-
                 fetchAttendanceReports();
-
                 setTimeout(() => {
                     setSelectedFile(null);
                     setImportResult(null);
@@ -225,7 +261,6 @@ export default function AttendanceReportsPage() {
     const resetImport = () => {
         setSelectedFile(null);
         setImportResult(null);
-        // setValidationResult(null);
     };
 
     const columns: ColumnDef<AttendanceReport>[] = [
@@ -243,7 +278,7 @@ export default function AttendanceReportsPage() {
         },
         {
             accessorKey: 'schedule.end_time',
-            header: 'End Time'
+            header: 'End Time',
         },
         {
             accessorKey: 'schedule.date',
@@ -256,7 +291,10 @@ export default function AttendanceReportsPage() {
         },
         {
             header: 'Reports',
-            cell: ({ row }) => (row.original.motorik || row.original.locomotor || row.original.body_control ? 'Submitted' : 'Not Submitted'),
+            cell: ({ row }) =>
+                row.original.motorik || row.original.locomotor || row.original.body_control
+                    ? 'Submitted'
+                    : 'Not Submitted',
         },
         {
             accessorKey: 'overall',
@@ -280,30 +318,70 @@ export default function AttendanceReportsPage() {
                     </Tooltip>
                 </div>
             ),
-        }
+        },
     ];
 
     return (
         <div className='px-6 space-y-4'>
-            {/* Header dengan Actions */}
-            <div className="flex justify-end items-center">
-                {/* <h1 className="text-2xl font-bold">Attendance Reports</h1> */}
+            {/* Filter + Actions Row */}
+            <div className="flex flex-wrap gap-2 justify-between items-center">
+                {/* Filters */}
+                <div className="flex flex-wrap gap-2">
+                    {/* Month */}
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-36">
+                            <SelectValue placeholder="Select Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {MONTHS.map((m) => (
+                                <SelectItem key={m.value} value={m.value}>
+                                    {m.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Year */}
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="w-28">
+                            <SelectValue placeholder="Select Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {YEARS.map((y) => (
+                                <SelectItem key={y.value} value={y.value}>
+                                    {y.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Branch */}
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Select Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Branch</SelectItem>
+                            {branches.map((b) => (
+                                <SelectItem key={b.id} value={String(b.id)}>
+                                    {b.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* Action Buttons */}
                 <div className="flex gap-2">
-                    {/* Refresh Button */}
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button
-                                variant="outline"
-                                onClick={fetchAttendanceReports}
-                                disabled={isLoading}
-                            >
+                            <Button variant="outline" onClick={fetchAttendanceReports} disabled={isLoading}>
                                 <IconReload size={16} className={isLoading ? 'animate-spin' : ''} />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Refresh Data</TooltipContent>
                     </Tooltip>
 
-                    {/* Download Template Button */}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="outline" onClick={downloadTemplate}>
@@ -314,7 +392,6 @@ export default function AttendanceReportsPage() {
                         <TooltipContent>Download Template Excel</TooltipContent>
                     </Tooltip>
 
-                    {/* Import Button */}
                     <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -334,33 +411,24 @@ export default function AttendanceReportsPage() {
                                     Upload file Excel untuk import data attendance reports
                                 </DialogDescription>
                             </DialogHeader>
-
                             <div className="space-y-4">
                                 <div>
-                                    <Input
-                                        type="file"
-                                        accept=".xlsx,.xls,.csv"
-                                        onChange={handleFileSelect}
-                                    />
+                                    <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelect} />
                                     <p className="text-sm text-muted-foreground mt-1">
                                         Format: .xlsx, .xls, .csv (maks. 10MB)
                                     </p>
                                 </div>
-
                                 {selectedFile && (
                                     <div className="p-3 border rounded-md bg-muted/50">
                                         <p className="text-sm font-medium">File terpilih:</p>
-                                        <p className="text-sm">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</p>
+                                        <p className="text-sm">
+                                            {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                                        </p>
                                     </div>
                                 )}
-
                                 {importLoading && (
-                                    <div className="space-y-2">
-                                        {/* <Progress value={50} className="w-full" /> */}
-                                        <p className="text-sm text-center">Sedang mengimport data...</p>
-                                    </div>
+                                    <p className="text-sm text-center">Sedang mengimport data...</p>
                                 )}
-
                                 {importResult && (
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-3 gap-2 text-sm">
@@ -377,7 +445,6 @@ export default function AttendanceReportsPage() {
                                                 <p>Data Dilewati</p>
                                             </div>
                                         </div>
-
                                         {importResult.errors.length > 0 && (
                                             <div>
                                                 <p className="text-sm font-medium text-red-600 mb-2">Error saat import:</p>
@@ -388,7 +455,6 @@ export default function AttendanceReportsPage() {
                                                 </div>
                                             </div>
                                         )}
-
                                         {importResult.warnings.length > 0 && (
                                             <div>
                                                 <p className="text-sm font-medium text-yellow-600 mb-2">Peringatan:</p>
@@ -401,15 +467,9 @@ export default function AttendanceReportsPage() {
                                         )}
                                     </div>
                                 )}
-
                                 <div className="flex gap-2 justify-end">
-                                    <Button variant="outline" onClick={resetImport}>
-                                        Reset
-                                    </Button>
-                                    <Button
-                                        onClick={handleImport}
-                                        disabled={!selectedFile || importLoading}
-                                    >
+                                    <Button variant="outline" onClick={resetImport}>Reset</Button>
+                                    <Button onClick={handleImport} disabled={!selectedFile || importLoading}>
                                         {importLoading ? 'Importing...' : 'Import Data'}
                                     </Button>
                                 </div>
@@ -420,10 +480,7 @@ export default function AttendanceReportsPage() {
             </div>
 
             {/* Data Table */}
-            <DataTable
-                columns={columns}
-                data={attendanceReports}
-            />
+            <DataTable columns={columns} data={attendanceReports} />
         </div>
-    )
+    );
 }

@@ -78,7 +78,8 @@ export default function BranchesPage() {
             const { data } = await response.json();
             console.log("Branch data:", data);
 
-            setBranches(data);
+            const sorted = [...data].sort((a: Branch, b: Branch) => a.name.localeCompare(b.name));
+            setBranches(sorted);
         } catch (error) {
             console.error("Fetch branches failed:", error);
             toast.error("Failed to fetch branch data");

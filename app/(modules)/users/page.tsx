@@ -86,7 +86,9 @@ export default function UsersPage() {
 
             const { data } = await response.json();
             console.log(data)
-            setUsers(data);
+
+            const sorted = [...data].sort((a: User, b: User) => a.name.localeCompare(b.name));
+            setUsers(sorted);
         } catch (error) {
             console.error("Fetch users failed:", error);
             toast.error("Failed to fetch user data");

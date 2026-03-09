@@ -182,7 +182,8 @@ export default function PlayKidsPage() {
             }
 
             const { data } = await response.json();
-            setPlayKids(data);
+            const sorted = [...data].sort((a: PlayKid, b: PlayKid) => a.name.localeCompare(b.name));
+            setPlayKids(sorted);
         } catch (error) {
             console.error("Fetch play kids failed:", error);
             toast.error("Failed to fetch play kid data");

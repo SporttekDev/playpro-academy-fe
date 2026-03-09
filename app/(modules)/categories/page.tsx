@@ -79,7 +79,8 @@ export default function CategoriesPage() {
             const { data } = await response.json();
             console.log("Category data:", data);
 
-            setCategories(data);
+            const sorted = [...data].sort((a: Category, b: Category) => a.name.localeCompare(b.name));
+            setCategories(sorted);
         } catch (error) {
             console.error("Fetch categories failed:", error);
             toast.error("Failed to fetch category data");
