@@ -70,7 +70,8 @@ export default function SportsPage() {
             const { data } = await response.json();
             console.log("Sport data:", data);
 
-            setSports(data);
+            const sorted = [...data].sort((a: Sport, b: Sport) => a.name.localeCompare(b.name));
+            setSports(sorted);
         } catch (error) {
             console.error("Fetch sports failed:", error);
             toast.error("Failed to fetch sport data");

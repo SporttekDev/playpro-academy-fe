@@ -92,7 +92,8 @@ export default function ClassesPage() {
             }
 
             const { data } = await response.json();
-            setClasses(data);
+            const sorted = [...data].sort((a: ClassData, b: ClassData) => a.name.localeCompare(b.name));
+            setClasses(sorted);
         } catch (error) {
             console.error('Fetch classes error:', error);
             toast.error('Failed to fetch class data');

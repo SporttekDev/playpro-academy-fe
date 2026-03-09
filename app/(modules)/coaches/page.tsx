@@ -71,7 +71,8 @@ export default function CoachesPage() {
             }
 
             const { data } = await response.json();
-            setCoaches(data);
+            const sorted = [...data].sort((a: Coach, b: Coach) => a.name.localeCompare(b.name));
+            setCoaches(sorted);
         } catch (error) {
             console.error('Fetch coaches failed:', error);
             toast.error('Failed to fetch coach data');

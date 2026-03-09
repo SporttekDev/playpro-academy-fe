@@ -80,7 +80,8 @@ export default function VenuesPage() {
             }
 
             const { data } = await response.json();
-            setVenues(data);
+            const sorted = [...data].sort((a: Venue, b: Venue) => a.name.localeCompare(b.name));
+            setVenues(sorted);
         } catch (error) {
             console.error('Fetch venues error:', error);
             toast.error('Failed to fetch venue data');
