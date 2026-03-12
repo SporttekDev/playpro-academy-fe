@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
+import { useRequireAdmin } from '@/lib/auth';
 
 interface Branch {
     id: string;
@@ -202,6 +203,12 @@ const formatTimeForAPI = (timeString: string): string => {
 };
 
 export default function SchedulesPage() {
+    const { isAdmin } = useRequireAdmin({
+        cookieKey: 'session_key',
+        redirectTo: '/dashboard',
+        adminRole: 'admin',
+        showToastOnFail: true,
+    });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -924,6 +931,10 @@ export default function SchedulesPage() {
         },
     ];
 
+    if (!isAdmin) {
+        return null;
+    }
+
     return (
         <>
             <div className="px-6 space-y-4">
@@ -1165,10 +1176,14 @@ export default function SchedulesPage() {
                         </TabsContent>
 
                         <TabsContent value="attendance_report" className="space-y-4">
-                            <div className="text-sm text-muted-foreground">
-                                Available Quota: {schedules.find((s) => s.id === activeScheduleId)?.quota || 0}
+                            <div className="flex justify-between items-center">
+                                <div className="text-sm text-muted-foreground">
+                                    Available Quota: {schedules.find(s => s.id === activeScheduleId)?.quota || 0}
+                                </div>
                             </div>
+                            
                             <DataTable columns={attendanceColumns} data={attendanceReport} />
+
                             <form onSubmit={handleSaveAttendanceReport}>
                                 <div className="grid gap-4">
                                     <div className="space-y-1">
@@ -1187,6 +1202,62 @@ export default function SchedulesPage() {
                                             disabled={isAttendanceEditing}
                                         />
                                     </div>
+
+                                    {/* {isAttendanceEditing && (
+                                        <>
+                                            <div className="space-y-1">
+                                                <Label>Coach</Label>
+                                                <Select
+                                                    value={attendanceFormData.coach_id?.toString() || ''}
+                                                    onValueChange={(value) =>
+                                                        setAttendanceFormData((prev) => ({
+                                                            ...prev,
+                                                            coach_id: parseInt(value, 10),
+                                                        }))
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Choose coach" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {coaches.length > 0 ? (
+                                                            coaches.map((coach) => (
+                                                                <SelectItem key={coach.id} value={coach.id.toString()}>
+                                                                    {coach.name}
+                                                                </SelectItem>
+                                                            ))
+                                                        ) : (
+                                                            <SelectItem value="0" disabled>
+                                                                No coaches available
+                                                            </SelectItem>
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            
+                                            <div className="space-y-1">
+                                                <Label>Attendance</Label>
+                                                <Select
+                                                    value={attendanceFormData.attendance ? 'true' : 'false'}
+                                                    onValueChange={(value) =>
+                                                        setAttendanceFormData((prev) => ({
+                                                            ...prev,
+                                                            attendance: value === 'true',
+                                                        }))
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select attendance" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="true">Present</SelectItem>
+                                                        <SelectItem value="false">Absent</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </>
+                                    )} */}
+
                                     <Button type="submit" disabled={isLoading}>
                                         {isLoading ? 'Loading...' : isAttendanceEditing ? 'Update Attendance Report' : 'Add Attendance Report'}
                                     </Button>
@@ -1194,6 +1265,7 @@ export default function SchedulesPage() {
                             </form>
                         </TabsContent>
                     </Tabs>
+
 
                     <DialogFooter>
                         <Button
