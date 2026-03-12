@@ -105,19 +105,21 @@ export default function AttendanceReportForm() {
         body_control: "" as string,
     });
 
-    const len = (s?: string | null) => (s ?? "").length;
+    const len = (s?: string | null) => (s ?? "").trim().length;
 
     const validateField = (key: "motorik" | "locomotor" | "body_control", value: string) => {
-        if (!value || value.trim().length === 0) {
+        const trimmed = value.trim(); 
+
+        if (!trimmed || trimmed.length === 0) {
             return `${key === "motorik" ? "Motorik" : key === "locomotor" ? "Locomotor" : "Body Control"} wajib diisi.`;
         }
-        if (value.length < MIN_CHARS) {
-            return `Minimal ${MIN_CHARS} karakter. Saat ini ${value.length}.`;
+        if (trimmed.length < MIN_CHARS) {
+            return `Minimal ${MIN_CHARS} karakter.`;
         }
-        if (value.length > MAX_CHARS) {
-            return `Maksimal ${MAX_CHARS} karakter. Saat ini ${value.length}.`;
+        if (trimmed.length > MAX_CHARS) {
+            return `Maksimal ${MAX_CHARS} karakter.`;
         }
-        return ""; // valid
+        return ""; 
     };
 
 
@@ -225,7 +227,7 @@ export default function AttendanceReportForm() {
         setErrors({ motorik: vMotorik, locomotor: vLocomotor, body_control: vBody });
 
         if (vMotorik || vLocomotor || vBody) {
-            toast.error("Perbaiki form terlebih dahulu (minimal 30 karakter / maksimal 200).");
+            toast.error("Perbaiki form terlebih dahulu (minimal 200 karakter / maksimal 500).");
             return;
         }
 
@@ -234,9 +236,9 @@ export default function AttendanceReportForm() {
             console.log("SESSION_KEY : ", session)
             const payload = {
                 coach_id: session?.role === "coach" ? session.coach.id : report?.coach_id,
-                motorik: report?.motorik,
-                locomotor: report?.locomotor,
-                body_control: report?.body_control,
+                motorik: report?.motorik?.trim(),
+                locomotor: report?.locomotor?.trim(),
+                body_control: report?.body_control?.trim(),
                 attendance: Boolean(report?.attendance),
                 overall: report?.overall,
             }
@@ -282,8 +284,6 @@ export default function AttendanceReportForm() {
         }
     }
 
-    // console.log("coaches : ", coaches);
-
     return (
         <div className="px-6">
             <div className="flex items-center justify-between mb-6">
@@ -310,7 +310,7 @@ export default function AttendanceReportForm() {
                                 </Avatar>
                                 <div>
                                     <div className="text-lg font-semibold">{report.play_kid?.name}</div>
-                                    <div className="text-sm text-muted-foreground">{report.play_kid?.nick_name ? `“${report.play_kid.nick_name}”` : null}</div>
+                                    <div className="text-sm text-muted-foreground">{report.play_kid?.nick_name ? `"${report.play_kid.nick_name}"` : null}</div>
                                 </div>
                             </CardTitle>
                         </CardHeader>
@@ -390,6 +390,8 @@ export default function AttendanceReportForm() {
                                             <p className="text-xs text-muted-foreground">Choose the coach who filled this assessment.</p>
                                         </div>
                                     ) : null}
+
+                                    {/* Motorik */}
                                     <div className="space-y-2">
                                         <Label htmlFor="motorik">Motorik</Label>
                                         <Textarea
@@ -407,19 +409,16 @@ export default function AttendanceReportForm() {
                                             aria-invalid={!!errors.motorik}
                                             aria-describedby="motorik-help motorik-error"
                                         />
-                                        <div className="flex justify-end text-sm">
-                                            {/* <div id="motorik-help" className="text-gray-500">
-                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
-                                            </div> */}
-                                            <div className={`text-xs ${errors.motorik ? "text-red-600" : "text-gray-500"}`}>
+                                        <div className="flex justify-between text-xs">
+                                            {errors.motorik ? (
+                                                <p id="motorik-error" role="alert" className="text-red-600">
+                                                    {errors.motorik}
+                                                </p>
+                                            ) : <span />}
+                                            <span className={errors.motorik ? "text-red-600" : "text-gray-500"}>
                                                 {len(report.motorik)}/{MAX_CHARS}
-                                            </div>
+                                            </span>
                                         </div>
-                                        {/* {errors.motorik && (
-                                            <p id="motorik-error" role="alert" className="mt-1 text-sm text-red-600">
-                                                {errors.motorik}
-                                            </p>
-                                        )} */}
                                     </div>
 
                                     {/* Locomotor */}
@@ -440,19 +439,16 @@ export default function AttendanceReportForm() {
                                             aria-invalid={!!errors.locomotor}
                                             aria-describedby="locomotor-help locomotor-error"
                                         />
-                                        <div className="flex justify-end text-sm">
-                                            {/* <div id="locomotor-help" className="text-gray-500">
-                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
-                                            </div> */}
-                                            <div className={`text-xs ${errors.locomotor ? "text-red-600" : "text-gray-500"}`}>
+                                        <div className="flex justify-between text-xs">
+                                            {errors.locomotor ? (
+                                                <p id="locomotor-error" role="alert" className="text-red-600">
+                                                    {errors.locomotor}
+                                                </p>
+                                            ) : <span />}
+                                            <span className={errors.locomotor ? "text-red-600" : "text-gray-500"}>
                                                 {len(report.locomotor)}/{MAX_CHARS}
-                                            </div>
+                                            </span>
                                         </div>
-                                        {/* {errors.locomotor && (
-                                            <p id="locomotor-error" role="alert" className="mt-1 text-sm text-red-600">
-                                                {errors.locomotor}
-                                            </p>
-                                        )} */}
                                     </div>
 
                                     {/* Body Control */}
@@ -473,28 +469,26 @@ export default function AttendanceReportForm() {
                                             aria-invalid={!!errors.body_control}
                                             aria-describedby="body-control-help body-control-error"
                                         />
-                                        <div className="flex justify-end text-sm">
-                                            {/* <div id="body-control-help" className="text-gray-500">
-                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
-                                            </div> */}
-                                            <div className={`text-xs ${errors.body_control ? "text-red-600" : "text-gray-500"}`}>
+                                        <div className="flex justify-between text-xs">
+                                            {errors.body_control ? (
+                                                <p id="body-control-error" role="alert" className="text-red-600">
+                                                    {errors.body_control}
+                                                </p>
+                                            ) : <span />}
+                                            <span className={errors.body_control ? "text-red-600" : "text-gray-500"}>
                                                 {len(report.body_control)}/{MAX_CHARS}
-                                            </div>
+                                            </span>
                                         </div>
-                                        {/* {errors.body_control && (
-                                            <p id="body-control-error" role="alert" className="mt-1 text-sm text-red-600">
-                                                {errors.body_control}
-                                            </p>
-                                        )} */}
                                     </div>
-                                    {/* Attendance select (shadcn Select) */}
+
+                                    {/* Attendance */}
                                     <div className="space-y-1">
                                         <Label htmlFor="attendance">Attendance</Label>
                                         <Select
-                                            value={String(report?.attendance ? 1 : 0)} // Pastikan selalu string "1" atau "0"
+                                            value={String(report?.attendance ? 1 : 0)}
                                             onValueChange={(val) => setReport({
                                                 ...report,
-                                                attendance: val === "1" // Konversi ke boolean
+                                                attendance: val === "1"
                                             })}
                                         >
                                             <SelectTrigger id="attendance" className="w-full">
@@ -507,7 +501,8 @@ export default function AttendanceReportForm() {
                                         </Select>
                                         <p className="text-xs text-muted-foreground">Mark whether the student was present for this session.</p>
                                     </div>
-                                    {/* Overall (1-5) select (shadcn Select) */}
+
+                                    {/* Overall */}
                                     <div className="space-y-1">
                                         <Label htmlFor="overall">Overall (1–5)</Label>
                                         <Select
