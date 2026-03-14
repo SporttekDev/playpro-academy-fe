@@ -147,6 +147,7 @@ export default function PlayKidsPage() {
     const [playKids, setPlayKids] = useState<PlayKid[]>([]);
     const [formData, setFormData] = useState<PlayKidForm>(defaultForm);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [removePhoto, setRemovePhoto] = useState(false);
     const [parents, setParents] = useState<Parent[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [membershipForm, setMembershipForm] = useState<MembershipForm>(defaultMembershipForm);
@@ -401,6 +402,7 @@ export default function PlayKidsPage() {
             setFormData(defaultForm);
             setPhotoPreview(null);
             setIsEditing(false);
+            setRemovePhoto(false);
         }
     }, [isDialogOpen]);
 
@@ -586,7 +588,6 @@ export default function PlayKidsPage() {
             }
 
             const method = isEditing ? "PUT" : "POST";
-            const fetchMethod = "POST";
             const url = isEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/${editId}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`;
@@ -602,19 +603,19 @@ export default function PlayKidsPage() {
             formDataToSend.append('medical_history', formData.medical_history || '');
             formDataToSend.append('school_origin', formData.school_origin || '');
 
-            for (const [key, value] of formDataToSend.entries()) {
-                console.log(key, value);
-            }
-
-            const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
-            if (photoInput?.files?.[0]) {
-                formDataToSend.append('photo', photoInput.files[0]);
-            } else if (isEditing && formData.photo && !photoInput?.files?.length) {
-                formDataToSend.append('existing_photo', formData.photo);
+            if (removePhoto) {
+                formDataToSend.append('remove_photo', '1');
+            } else {
+                const photoInput = document.querySelector('input[name="photo"]') as HTMLInputElement;
+                if (photoInput?.files?.[0]) {
+                    formDataToSend.append('photo', photoInput.files[0]);
+                } else if (isEditing && formData.photo) {
+                    formDataToSend.append('existing_photo', formData.photo);
+                }
             }
 
             const res = await fetch(url, {
-                method: fetchMethod,
+                method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -634,6 +635,7 @@ export default function PlayKidsPage() {
             setIsEditing(false);
             setFormData(defaultForm);
             setPhotoPreview(null);
+            setRemovePhoto(false);
             toast.success(isEditing ? "Play Kid updated successfully!" : "Play Kid created successfully!");
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred";
@@ -698,12 +700,23 @@ export default function PlayKidsPage() {
         setState: React.Dispatch<React.SetStateAction<T>>
     ) => {
         if (!date) return;
-
         const formatedDate = formatDateLocal(date);
         setState((prev) => ({
             ...prev,
             [field]: formatedDate,
         }));
+    };
+
+    const resetFileInput = () => {
+        const input = document.querySelector('input[name="photo"]') as HTMLInputElement;
+        if (input) input.value = '';
+    };
+
+    const handleRemovePhoto = () => {
+        setPhotoPreview(null);
+        setFormData(prev => ({ ...prev, photo: '' }));
+        setRemovePhoto(true);
+        resetFileInput();
     };
 
     const columns: ColumnDef<PlayKid>[] = [
@@ -762,9 +775,7 @@ export default function PlayKidsPage() {
                                     <UserPlus className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Manage Memberships
-                            </TooltipContent>
+                            <TooltipContent side="top">Manage Memberships</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -784,7 +795,12 @@ export default function PlayKidsPage() {
                                             medical_history: playKid.medical_history,
                                             school_origin: playKid.school_origin,
                                         });
-                                        setPhotoPreview(playKid.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}` : null);
+                                        setPhotoPreview(
+                                            playKid.photo
+                                                ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${playKid.photo.replace('storage/', '')}`
+                                                : null
+                                        );
+                                        setRemovePhoto(false);
                                         setIsDialogOpen(true);
                                     }}
                                     aria-label={`Edit play kid ${playKid.name}`}
@@ -792,9 +808,7 @@ export default function PlayKidsPage() {
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
+                            <TooltipContent side="top">Edit</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -810,9 +824,7 @@ export default function PlayKidsPage() {
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -878,9 +890,7 @@ export default function PlayKidsPage() {
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
+                            <TooltipContent side="top">Edit</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -893,9 +903,7 @@ export default function PlayKidsPage() {
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -910,12 +918,10 @@ export default function PlayKidsPage() {
             cell: ({ row }) => {
                 const membershipId = row.original.membership_id;
                 const membership = memberships.find(m => m.id === membershipId);
-
                 if (membership) {
                     const branch = branches.find(b => b.id === membership.branch_id);
                     return branch ? branch.name : "N/A";
                 }
-
                 return "N/A";
             }
         },
@@ -949,7 +955,6 @@ export default function PlayKidsPage() {
                                         const monthsDiff = Math.round(
                                             (expiryDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
                                         );
-
                                         setSessionForm({
                                             id: session.id,
                                             membership_id: session.membership_id.toString(),
@@ -966,9 +971,7 @@ export default function PlayKidsPage() {
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Edit
-                            </TooltipContent>
+                            <TooltipContent side="top">Edit</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -981,9 +984,7 @@ export default function PlayKidsPage() {
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                                Delete
-                            </TooltipContent>
+                            <TooltipContent side="top">Delete</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -1004,11 +1005,7 @@ export default function PlayKidsPage() {
                         {/* Refresh Button */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    onClick={fetchPlayKids}
-                                    disabled={isLoading}
-                                >
+                                <Button variant="outline" onClick={fetchPlayKids} disabled={isLoading}>
                                     <IconReload size={16} className={isLoading ? 'animate-spin' : ''} />
                                 </Button>
                             </TooltipTrigger>
@@ -1067,9 +1064,7 @@ export default function PlayKidsPage() {
                                     )}
 
                                     {importLoading && (
-                                        <div className="space-y-2">
-                                            <p className="text-sm text-center">Sedang mengimport data...</p>
-                                        </div>
+                                        <p className="text-sm text-center">Sedang mengimport data...</p>
                                     )}
 
                                     {importResult && (
@@ -1114,13 +1109,8 @@ export default function PlayKidsPage() {
                                     )}
 
                                     <div className="flex gap-2 justify-end">
-                                        <Button variant="outline" onClick={resetImport}>
-                                            Reset
-                                        </Button>
-                                        <Button
-                                            onClick={handleImport}
-                                            disabled={!selectedFile || importLoading}
-                                        >
+                                        <Button variant="outline" onClick={resetImport}>Reset</Button>
+                                        <Button onClick={handleImport} disabled={!selectedFile || importLoading}>
                                             {importLoading ? 'Importing...' : 'Import Data'}
                                         </Button>
                                     </div>
@@ -1134,10 +1124,11 @@ export default function PlayKidsPage() {
                 <DataTable columns={columns} data={playKids} />
             </div>
 
-            {/* Floating Add Button */}
             <FloatingAddButton onClick={() => {
                 setIsEditing(false);
                 setFormData(defaultForm);
+                setPhotoPreview(null);
+                setRemovePhoto(false);
                 setIsDialogOpen(true);
             }} tooltip="Add Play Kid" />
 
@@ -1145,9 +1136,7 @@ export default function PlayKidsPage() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>
-                            {isEditing ? 'Edit PlayKid' : 'New PlayKid'}
-                        </DialogTitle>
+                        <DialogTitle>{isEditing ? 'Edit PlayKid' : 'New PlayKid'}</DialogTitle>
                         <DialogDescription>
                             {isEditing
                                 ? 'Edit play kid details as needed.'
@@ -1179,22 +1168,13 @@ export default function PlayKidsPage() {
                             {/* Name */}
                             <div className="space-y-1">
                                 <Label>Name</Label>
-                                <Input
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                <Input name="name" value={formData.name} onChange={handleChange} required />
                             </div>
 
                             {/* Nick Name */}
                             <div className="space-y-1">
                                 <Label>Nick Name</Label>
-                                <Input
-                                    name="nick_name"
-                                    value={formData.nick_name}
-                                    onChange={handleChange}
-                                />
+                                <Input name="nick_name" value={formData.nick_name} onChange={handleChange} />
                             </div>
 
                             {/* Birth Date */}
@@ -1227,54 +1207,55 @@ export default function PlayKidsPage() {
                             {/* Medical History */}
                             <div className="space-y-1">
                                 <Label>Medical History</Label>
-                                <Input
-                                    name="medical_history"
-                                    value={formData.medical_history}
-                                    onChange={handleChange}
-                                />
+                                <Input name="medical_history" value={formData.medical_history} onChange={handleChange} />
                             </div>
 
                             {/* School Origin */}
                             <div className="space-y-1">
                                 <Label>School Origin</Label>
-                                <Input
-                                    name="school_origin"
-                                    value={formData.school_origin}
-                                    onChange={handleChange}
-                                />
+                                <Input name="school_origin" value={formData.school_origin} onChange={handleChange} />
                             </div>
 
-                            {/* Photo */}
+                            {/* ── Photo ─────────────────────────────────────────────── */}
                             <div className="space-y-1">
                                 <Label>Photo</Label>
                                 <Input
                                     type="file"
                                     name="photo"
                                     accept="image/*"
-                                    onChange={handleFileChange}
+                                    onChange={(e) => {
+                                        setRemovePhoto(false);
+                                        handleFileChange(e);
+                                    }}
                                 />
-                                {/* Photo Preview */}
+
                                 <div className="mt-2">
-                                    {photoPreview ? (
-                                        <div className="flex flex-col items-start gap-2">
-                                            <Image
-                                                src={photoPreview}
-                                                alt="Preview"
-                                                width={80}
-                                                height={80}
-                                                className="object-cover rounded border"
-                                            />
-                                        </div>
-                                    ) : formData.photo ? (
-                                        <div className="flex flex-col items-start gap-2">
-                                            <Image
-                                                src={`${process.env.NEXT_PUBLIC_API_URL}/${formData.photo.replace('storage/', '')}`}
-                                                alt="Current"
-                                                width={80}
-                                                height={80}
-                                                className="object-cover rounded border"
-                                            />
-                                            <span className="text-xs text-gray-500">Current photo</span>
+                                    {!removePhoto && (photoPreview || formData.photo) ? (
+                                        <div className="flex flex-col items-start gap-1">
+                                            <div className="relative inline-block">
+                                                <Image
+                                                    src={
+                                                        photoPreview
+                                                            ? photoPreview
+                                                            : `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${formData.photo.replace('storage/', '')}`
+                                                    }
+                                                    alt="Photo preview"
+                                                    width={80}
+                                                    height={80}
+                                                    className="object-cover rounded border"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemovePhoto}
+                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs leading-none transition-colors"
+                                                    aria-label="Hapus foto"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                            {!photoPreview && formData.photo && (
+                                                <span className="text-xs text-gray-500">Current photo</span>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">
@@ -1285,7 +1266,7 @@ export default function PlayKidsPage() {
                             </div>
                         </div>
 
-                        <DialogFooter>
+                        <DialogFooter className="mt-4">
                             <Button type='button' variant="outline" onClick={() => setIsDialogOpen(false)}>
                                 Cancel
                             </Button>
@@ -1351,8 +1332,7 @@ export default function PlayKidsPage() {
                                         <Label>Status</Label>
                                         <Select
                                             value={membershipForm.status}
-                                            onValueChange={(value) =>
-                                                setMembershipForm(prev => ({ ...prev, status: value }))}
+                                            onValueChange={(value) => setMembershipForm(prev => ({ ...prev, status: value }))}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select status" />
@@ -1367,8 +1347,7 @@ export default function PlayKidsPage() {
                                         <Label>Branch</Label>
                                         <Select
                                             value={membershipForm.branch_id}
-                                            onValueChange={(value) =>
-                                                setMembershipForm(prev => ({ ...prev, branch_id: value }))}
+                                            onValueChange={(value) => setMembershipForm(prev => ({ ...prev, branch_id: value }))}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select branch" />
@@ -1422,10 +1401,8 @@ export default function PlayKidsPage() {
                                             <Label>Membership</Label>
                                             <Select
                                                 value={sessionForm.membership_id}
-                                                onValueChange={(value) =>
-                                                    setSessionForm((prev) => ({ ...prev, membership_id: value }))
-                                                }
-                                                disabled={isEditingSession} // Disable membership selection when editing
+                                                onValueChange={(value) => setSessionForm((prev) => ({ ...prev, membership_id: value }))}
+                                                disabled={isEditingSession}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select membership" />
@@ -1456,9 +1433,7 @@ export default function PlayKidsPage() {
                                             <Input
                                                 type="number"
                                                 value={sessionForm.count}
-                                                onChange={(e) =>
-                                                    setSessionForm((prev) => ({ ...prev, count: parseInt(e.target.value) || 0 }))
-                                                }
+                                                onChange={(e) => setSessionForm((prev) => ({ ...prev, count: parseInt(e.target.value) || 0 }))}
                                                 min="1"
                                                 required
                                             />
@@ -1482,7 +1457,10 @@ export default function PlayKidsPage() {
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button type="submit" disabled={isLoading || !sessionForm.membership_id || sessionForm.count <= 0 || sessionForm.expiry_date <= 0}>
+                                        <Button
+                                            type="submit"
+                                            disabled={isLoading || !sessionForm.membership_id || sessionForm.count <= 0 || sessionForm.expiry_date <= 0}
+                                        >
                                             {isLoading ? "Loading..." : isEditingSession ? "Save Changes" : "Add Session"}
                                         </Button>
                                         {isEditingSession && (
