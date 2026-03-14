@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -113,7 +114,21 @@ const YEARS = Array.from({ length: 5 }, (_, i) => ({
     label: String(currentYear - i),
 }));
 
-export default function AttendanceReportsPage() {
+function AttendanceReportsContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Baca initial state dari URL — hanya month, year, branch
+    const [selectedMonth, setSelectedMonth] = useState<string>(
+        searchParams.get('month') ?? String(new Date().getMonth() + 1)
+    );
+    const [selectedYear, setSelectedYear] = useState<string>(
+        searchParams.get('year') ?? String(currentYear)
+    );
+    const [selectedBranch, setSelectedBranch] = useState<string>(
+        searchParams.get('branch') ?? 'all'
+    );
+
     const [attendanceReports, setAttendanceReports] = useState<AttendanceReport[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -122,9 +137,13 @@ export default function AttendanceReportsPage() {
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
-    const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
-    const [selectedBranch, setSelectedBranch] = useState<string>('all');
+    useEffect(() => {
+        const params = new URLSearchParams();
+        params.set('month', selectedMonth);
+        params.set('year', selectedYear);
+        params.set('branch', selectedBranch);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [selectedMonth, selectedYear, selectedBranch]);
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -162,9 +181,7 @@ export default function AttendanceReportsPage() {
                     },
                 }
             );
-            if (!response.ok) {
-                throw new Error('Failed to fetch attendance reports');
-            }
+            if (!response.ok) throw new Error('Failed to fetch attendance reports');
             const { data } = await response.json();
             setAttendanceReports(data);
         } catch (error) {
@@ -203,9 +220,10 @@ export default function AttendanceReportsPage() {
     const downloadTemplate = async () => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/download-template`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/download-template`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             if (!response.ok) throw new Error('Failed to download template');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -233,15 +251,20 @@ export default function AttendanceReportsPage() {
             const token = Cookies.get('token');
             const formData = new FormData();
             formData.append('file', selectedFile);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/import`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: formData,
-            });
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/import`,
+                {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                }
+            );
             const result = await response.json();
             if (result.success) {
                 setImportResult(result.data);
-                toast.success(`Import berhasil: ${result.data.imported_count} data baru, ${result.data.updated_count} data diperbarui`);
+                toast.success(
+                    `Import berhasil: ${result.data.imported_count} data baru, ${result.data.updated_count} data diperbarui`
+                );
                 fetchAttendanceReports();
                 setTimeout(() => {
                     setSelectedFile(null);
@@ -308,7 +331,9 @@ export default function AttendanceReportsPage() {
                 <div className="flex gap-2">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Link href={`/attendance-reports/${row.original.id}`}>
+                            <Link
+                                href={`/attendance-reports/${row.original.id}?returnTo=${encodeURIComponent('?' + searchParams.toString())}`}
+                            >
                                 <Button variant="outline" size="icon">
                                     <IconFilePencil size={16} />
                                 </Button>
@@ -482,5 +507,13 @@ export default function AttendanceReportsPage() {
             {/* Data Table */}
             <DataTable columns={columns} data={attendanceReports} />
         </div>
+    );
+}
+
+export default function AttendanceReportsPage() {
+    return (
+        <Suspense fallback={<div className="px-6 py-8">Loading...</div>}>
+            <AttendanceReportsContent />
+        </Suspense>
     );
 }

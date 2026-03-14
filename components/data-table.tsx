@@ -44,7 +44,6 @@ export function DataTable<TData, TValue>({
     data,
     filters,
 }: DataTableProps<TData, TValue>) {
-    // stabilize filters array
     const appliedFilters = React.useMemo(() => filters ?? [], [filters]);
 
     const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -61,7 +60,6 @@ export function DataTable<TData, TValue>({
         pageSize: 10,
     });
 
-    // filter data by global search (all fields) and applied filters
     const filteredData = React.useMemo(() => {
         return data.filter(item => {
             const text = JSON.stringify(item).toLowerCase();
@@ -87,16 +85,13 @@ export function DataTable<TData, TValue>({
         getPaginationRowModel: getPaginationRowModel(),
     });
 
-    // reset to first page on filter/search change
     React.useEffect(() => {
         setPagination(prev => ({ ...prev, pageIndex: 0 }));
     }, [globalFilter, selectedFilters]);
 
     const currentPage = table.getState().pagination.pageIndex + 1;
     const totalPages = table.getPageCount();
-
     const pageRange = getPaginationRange(currentPage, totalPages);
-
 
     return (
         <div className="space-y-4">
@@ -110,7 +105,9 @@ export function DataTable<TData, TValue>({
                             <DataTableFilter
                                 options={['all', ...f.options]}
                                 value={selectedFilters[String(f.key)]}
-                                onChange={v => setSelectedFilters(prev => ({ ...prev, [String(f.key)]: v }))}
+                                onChange={v =>
+                                    setSelectedFilters(prev => ({ ...prev, [String(f.key)]: v }))
+                                }
                                 placeholder={f.label ?? String(f.key)}
                             />
                         </div>
@@ -133,9 +130,11 @@ export function DataTable<TData, TValue>({
                                         <div className="flex items-center gap-1">
                                             {flexRender(header.column.columnDef.header, header.getContext())}
                                             {header.column.getCanSort() && (
-                                                header.column.getIsSorted() === 'asc' ? <ArrowUp className="w-4 h-4" /> :
-                                                    header.column.getIsSorted() === 'desc' ? <ArrowDown className="w-4 h-4" /> :
-                                                        <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                                header.column.getIsSorted() === 'asc'
+                                                    ? <ArrowUp className="w-4 h-4" />
+                                                    : header.column.getIsSorted() === 'desc'
+                                                        ? <ArrowDown className="w-4 h-4" />
+                                                        : <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </div>
                                     </TableHead>
@@ -187,7 +186,7 @@ export function DataTable<TData, TValue>({
                     >
                         Prev
                     </Button>
-                    {pageRange.map((page, i) => (
+                    {pageRange.map((page, i) =>
                         typeof page === 'string' ? (
                             <span key={i} className="px-2 text-sm text-muted-foreground">...</span>
                         ) : (
@@ -200,7 +199,7 @@ export function DataTable<TData, TValue>({
                                 {page}
                             </Button>
                         )
-                    ))}
+                    )}
                     <Button
                         variant="outline"
                         size="sm"
