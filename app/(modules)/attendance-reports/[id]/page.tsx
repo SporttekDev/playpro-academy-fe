@@ -118,13 +118,20 @@ function AttendanceReportFormContent() {
 
     const len = (s?: string | null) => (s ?? '').trim().length
 
-    const validateField = (key: 'motorik' | 'locomotor' | 'body_control', value: string) => {
+    const validateField = (
+        key: 'motorik' | 'locomotor' | 'body_control',
+        value: string,
+        isPresent: boolean
+    ) => {
+        if (!isPresent) return ''
         const trimmed = value.trim()
         if (!trimmed || trimmed.length === 0) {
-            return `${key === 'motorik' ? 'Motorik' : key === 'locomotor' ? 'Locomotor' : 'Body Control'} wajib diisi.`
+            const label =
+                key === 'motorik' ? 'Motorik' : key === 'locomotor' ? 'Locomotor' : 'Body Control'
+            return `${label} is required.`
         }
-        if (trimmed.length < MIN_CHARS) return `Minimal ${MIN_CHARS} karakter.`
-        if (trimmed.length > MAX_CHARS) return `Maksimal ${MAX_CHARS} karakter.`
+        if (trimmed.length < MIN_CHARS) return `Minimum ${MIN_CHARS} characters.`
+        if (trimmed.length > MAX_CHARS) return `Maximum ${MAX_CHARS} characters.`
         return ''
     }
 
@@ -198,12 +205,14 @@ function AttendanceReportFormContent() {
     }, [report])
 
     useEffect(() => {
+        if (!report) return
+        const isPresent = Boolean(report.attendance)
         setErrors({
-            motorik: validateField('motorik', report?.motorik ?? ''),
-            locomotor: validateField('locomotor', report?.locomotor ?? ''),
-            body_control: validateField('body_control', report?.body_control ?? ''),
+            motorik: validateField('motorik', report.motorik ?? '', isPresent),
+            locomotor: validateField('locomotor', report.locomotor ?? '', isPresent),
+            body_control: validateField('body_control', report.body_control ?? '', isPresent),
         })
-    }, [report?.motorik, report?.locomotor, report?.body_control])
+    }, [report?.motorik, report?.locomotor, report?.body_control, report?.attendance])
 
     const fieldClass = (errorMsg: string) =>
         `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${
@@ -213,14 +222,15 @@ function AttendanceReportFormContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        const vMotorik = validateField('motorik', report?.motorik ?? '')
-        const vLocomotor = validateField('locomotor', report?.locomotor ?? '')
-        const vBody = validateField('body_control', report?.body_control ?? '')
+        const isPresent = Boolean(report?.attendance)
+        const vMotorik = validateField('motorik', report?.motorik ?? '', isPresent)
+        const vLocomotor = validateField('locomotor', report?.locomotor ?? '', isPresent)
+        const vBody = validateField('body_control', report?.body_control ?? '', isPresent)
 
         setErrors({ motorik: vMotorik, locomotor: vLocomotor, body_control: vBody })
 
         if (vMotorik || vLocomotor || vBody) {
-            toast.error('Perbaiki form terlebih dahulu (minimal 200 karakter / maksimal 500).')
+            toast.error('Please fix the form first (min 200 characters / max 500).')
             return
         }
 
@@ -228,9 +238,9 @@ function AttendanceReportFormContent() {
             const token = Cookies.get('token')
             const payload = {
                 coach_id: session?.role === 'coach' ? session.coach.id : report?.coach_id,
-                motorik: report?.motorik?.trim(),
-                locomotor: report?.locomotor?.trim(),
-                body_control: report?.body_control?.trim(),
+                motorik: report?.motorik?.trim() || null,
+                locomotor: report?.locomotor?.trim() || null,
+                body_control: report?.body_control?.trim() || null,
                 attendance: Boolean(report?.attendance),
                 overall: report?.overall,
             }
@@ -271,6 +281,8 @@ function AttendanceReportFormContent() {
     if (isLoading) return <p className="px-6 py-8">Loading...</p>
     if (!report || !defaultReport) return <p className="px-6 py-8">No report found</p>
 
+    const isPresent = Boolean(report.attendance)
+
     const ageOrBirth = (bd?: string) => {
         if (!bd) return '-'
         try {
@@ -288,7 +300,6 @@ function AttendanceReportFormContent() {
     return (
         <div className="px-6">
             <div className="flex items-center justify-between mb-6">
-                {/* Header dengan tombol Back */}
                 <div className="flex items-center gap-3">
                     <Button
                         variant="outline"
@@ -388,12 +399,14 @@ function AttendanceReportFormContent() {
                             <CardHeader>
                                 <CardTitle>Assessment</CardTitle>
                                 <CardDescription>
-                                    Enter notes for Motorik, Locomotor, Body Control, and the Overall rating.
+                                    {isPresent
+                                        ? 'Fill in Motorik, Locomotor, Body Control notes and Overall rating.'
+                                        : 'Playkid is absent — assessment fields are not required.'}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                    {/* Coach — hanya admin */}
+                                    {/* Coach — admin only */}
                                     {session?.role === 'admin' ? (
                                         <div className="lg:col-span-2 space-y-1">
                                             <Label htmlFor="coach">Coach</Label>
@@ -422,7 +435,9 @@ function AttendanceReportFormContent() {
 
                                     {/* Motorik */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="motorik">Motorik</Label>
+                                        <Label htmlFor="motorik">
+                                            Motorik{isPresent && <span className="text-red-500 ml-1">*</span>}
+                                        </Label>
                                         <Textarea
                                             id="motorik"
                                             ref={motorikRef}
@@ -433,14 +448,22 @@ function AttendanceReportFormContent() {
                                                 autoSize(e.target)
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
-                                            placeholder="Write motorik notes..."
+                                            placeholder={
+                                                isPresent
+                                                    ? 'Write motorik notes...'
+                                                    : 'Optional when absent...'
+                                            }
                                             className={fieldClass(errors.motorik)}
                                             aria-invalid={!!errors.motorik}
                                         />
                                         <div className="flex justify-between text-xs">
                                             {errors.motorik ? (
                                                 <p role="alert" className="text-red-600">{errors.motorik}</p>
-                                            ) : <span />}
+                                            ) : !isPresent ? (
+                                                <p className="text-muted-foreground italic">Not required when absent.</p>
+                                            ) : (
+                                                <span />
+                                            )}
                                             <span className={errors.motorik ? 'text-red-600' : 'text-gray-500'}>
                                                 {len(report.motorik)}/{MAX_CHARS}
                                             </span>
@@ -449,7 +472,9 @@ function AttendanceReportFormContent() {
 
                                     {/* Locomotor */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="locomotor">Locomotor</Label>
+                                        <Label htmlFor="locomotor">
+                                            Locomotor{isPresent && <span className="text-red-500 ml-1">*</span>}
+                                        </Label>
                                         <Textarea
                                             id="locomotor"
                                             ref={locomotorRef}
@@ -460,14 +485,22 @@ function AttendanceReportFormContent() {
                                                 autoSize(e.target)
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
-                                            placeholder="Write locomotor notes..."
+                                            placeholder={
+                                                isPresent
+                                                    ? 'Write locomotor notes...'
+                                                    : 'Optional when absent...'
+                                            }
                                             className={fieldClass(errors.locomotor)}
                                             aria-invalid={!!errors.locomotor}
                                         />
                                         <div className="flex justify-between text-xs">
                                             {errors.locomotor ? (
                                                 <p role="alert" className="text-red-600">{errors.locomotor}</p>
-                                            ) : <span />}
+                                            ) : !isPresent ? (
+                                                <p className="text-muted-foreground italic">Not required when absent.</p>
+                                            ) : (
+                                                <span />
+                                            )}
                                             <span className={errors.locomotor ? 'text-red-600' : 'text-gray-500'}>
                                                 {len(report.locomotor)}/{MAX_CHARS}
                                             </span>
@@ -476,7 +509,9 @@ function AttendanceReportFormContent() {
 
                                     {/* Body Control */}
                                     <div className="space-y-2 lg:col-span-2">
-                                        <Label htmlFor="body_control">Body Control</Label>
+                                        <Label htmlFor="body_control">
+                                            Body Control{isPresent && <span className="text-red-500 ml-1">*</span>}
+                                        </Label>
                                         <Textarea
                                             id="body_control"
                                             ref={bodyControlRef}
@@ -487,14 +522,22 @@ function AttendanceReportFormContent() {
                                                 autoSize(e.target)
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
-                                            placeholder="Write body control notes..."
+                                            placeholder={
+                                                isPresent
+                                                    ? 'Write body control notes...'
+                                                    : 'Optional when absent...'
+                                            }
                                             className={`min-h-[100px] resize-none ${fieldClass(errors.body_control)}`}
                                             aria-invalid={!!errors.body_control}
                                         />
                                         <div className="flex justify-between text-xs">
                                             {errors.body_control ? (
                                                 <p role="alert" className="text-red-600">{errors.body_control}</p>
-                                            ) : <span />}
+                                            ) : !isPresent ? (
+                                                <p className="text-muted-foreground italic">Not required when absent.</p>
+                                            ) : (
+                                                <span />
+                                            )}
                                             <span className={errors.body_control ? 'text-red-600' : 'text-gray-500'}>
                                                 {len(report.body_control)}/{MAX_CHARS}
                                             </span>

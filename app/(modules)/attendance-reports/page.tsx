@@ -313,10 +313,19 @@ function AttendanceReportsContent() {
         {
             header: 'Reports',
             cell: ({ row }) => {
-                const isSubmitted =
-                    row.original.motorik || row.original.locomotor || row.original.body_control;
+                const { attendance, motorik, locomotor, body_control, coach } = row.original;
+
+                // ketika abent
+                if (!attendance) {
+                    const coachName = coach?.user?.name ?? null;
+                    return coachName ? `Submitted by ${coachName}` : 'Not Submitted';
+                }
+
+                // ketika present
+                const isSubmitted = motorik || locomotor || body_control;
                 if (!isSubmitted) return 'Not Submitted';
-                const coachName = row.original.coach?.user?.name ?? 'Unknown';
+
+                const coachName = coach?.user?.name ?? 'Unknown';
                 return `Submitted by ${coachName}`;
             },
         },
