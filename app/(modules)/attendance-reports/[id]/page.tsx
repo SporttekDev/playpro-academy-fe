@@ -214,9 +214,13 @@ function AttendanceReportFormContent() {
         })
     }, [report?.motorik, report?.locomotor, report?.body_control, report?.attendance])
 
-    const fieldClass = (errorMsg: string) =>
+    const fieldClass = (errorMsg: string, disabled: boolean) =>
         `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${
-            errorMsg ? 'border-red-500 ring-red-200' : 'border-gray-200 ring-emerald-300'
+            disabled
+                ? 'border-gray-200 bg-muted text-muted-foreground cursor-not-allowed'
+                : errorMsg
+                ? 'border-red-500 ring-red-200'
+                : 'border-gray-200 ring-emerald-300'
         }`
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -282,6 +286,12 @@ function AttendanceReportFormContent() {
     if (!report || !defaultReport) return <p className="px-6 py-8">No report found</p>
 
     const isPresent = Boolean(report.attendance)
+
+    const isFilledByOtherCoach =
+        session?.role !== 'admin' &&
+        report.coach_id !== null &&
+        Boolean(report.motorik || report.locomotor || report.body_control) &&
+        session?.coach?.id !== report.coach_id
 
     const ageOrBirth = (bd?: string) => {
         if (!bd) return '-'
@@ -394,6 +404,13 @@ function AttendanceReportFormContent() {
 
                 {/* Right: Form */}
                 <main className="md:col-span-2">
+                    {isFilledByOtherCoach && (
+                        <div className="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-800">
+                            This report has already been submitted by{' '}
+                            <span className="font-semibold">{report.coach?.user?.name}</span>. You cannot edit it.
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <Card>
                             <CardHeader>
@@ -436,13 +453,16 @@ function AttendanceReportFormContent() {
                                     {/* Motorik */}
                                     <div className="space-y-2">
                                         <Label htmlFor="motorik">
-                                            Motorik{isPresent && <span className="text-red-500 ml-1">*</span>}
+                                            Motorik{isPresent && !isFilledByOtherCoach && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
                                         </Label>
                                         <Textarea
                                             id="motorik"
                                             ref={motorikRef}
                                             value={report.motorik ?? ''}
                                             maxLength={MAX_CHARS}
+                                            disabled={!!isFilledByOtherCoach}
                                             onChange={(e) => {
                                                 setReport({ ...report, motorik: e.target.value })
                                                 autoSize(e.target)
@@ -453,7 +473,7 @@ function AttendanceReportFormContent() {
                                                     ? 'Write motorik notes...'
                                                     : 'Optional when absent...'
                                             }
-                                            className={fieldClass(errors.motorik)}
+                                            className={fieldClass(errors.motorik, !!isFilledByOtherCoach)}
                                             aria-invalid={!!errors.motorik}
                                         />
                                         <div className="flex justify-between text-xs">
@@ -473,13 +493,16 @@ function AttendanceReportFormContent() {
                                     {/* Locomotor */}
                                     <div className="space-y-2">
                                         <Label htmlFor="locomotor">
-                                            Locomotor{isPresent && <span className="text-red-500 ml-1">*</span>}
+                                            Locomotor{isPresent && !isFilledByOtherCoach && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
                                         </Label>
                                         <Textarea
                                             id="locomotor"
                                             ref={locomotorRef}
                                             value={report.locomotor ?? ''}
                                             maxLength={MAX_CHARS}
+                                            disabled={!!isFilledByOtherCoach}
                                             onChange={(e) => {
                                                 setReport({ ...report, locomotor: e.target.value })
                                                 autoSize(e.target)
@@ -490,7 +513,7 @@ function AttendanceReportFormContent() {
                                                     ? 'Write locomotor notes...'
                                                     : 'Optional when absent...'
                                             }
-                                            className={fieldClass(errors.locomotor)}
+                                            className={fieldClass(errors.locomotor, !!isFilledByOtherCoach)}
                                             aria-invalid={!!errors.locomotor}
                                         />
                                         <div className="flex justify-between text-xs">
@@ -510,13 +533,16 @@ function AttendanceReportFormContent() {
                                     {/* Body Control */}
                                     <div className="space-y-2 lg:col-span-2">
                                         <Label htmlFor="body_control">
-                                            Body Control{isPresent && <span className="text-red-500 ml-1">*</span>}
+                                            Body Control{isPresent && !isFilledByOtherCoach && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
                                         </Label>
                                         <Textarea
                                             id="body_control"
                                             ref={bodyControlRef}
                                             value={report.body_control ?? ''}
                                             maxLength={MAX_CHARS}
+                                            disabled={!!isFilledByOtherCoach}
                                             onChange={(e) => {
                                                 setReport({ ...report, body_control: e.target.value })
                                                 autoSize(e.target)
@@ -527,7 +553,7 @@ function AttendanceReportFormContent() {
                                                     ? 'Write body control notes...'
                                                     : 'Optional when absent...'
                                             }
-                                            className={`min-h-[100px] resize-none ${fieldClass(errors.body_control)}`}
+                                            className={`min-h-[100px] resize-none ${fieldClass(errors.body_control, !!isFilledByOtherCoach)}`}
                                             aria-invalid={!!errors.body_control}
                                         />
                                         <div className="flex justify-between text-xs">
@@ -552,6 +578,7 @@ function AttendanceReportFormContent() {
                                             onValueChange={(val) =>
                                                 setReport({ ...report, attendance: val === '1' })
                                             }
+                                            disabled={!!isFilledByOtherCoach}
                                         >
                                             <SelectTrigger id="attendance" className="w-full">
                                                 <SelectValue placeholder="Select attendance" />
@@ -574,6 +601,7 @@ function AttendanceReportFormContent() {
                                             onValueChange={(val) =>
                                                 setReport({ ...report, overall: val ? Number(val) : null })
                                             }
+                                            disabled={!!isFilledByOtherCoach}
                                         >
                                             <SelectTrigger id="overall" className="w-full">
                                                 <SelectValue placeholder="Select rating" />
@@ -592,12 +620,14 @@ function AttendanceReportFormContent() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-end gap-3 mt-4">
-                                    <Button variant="ghost" type="button" onClick={handleReset}>
-                                        Reset
-                                    </Button>
-                                    <Button type="submit">Save</Button>
-                                </div>
+                                {!isFilledByOtherCoach && (
+                                    <div className="flex items-center justify-end gap-3 mt-4">
+                                        <Button variant="ghost" type="button" onClick={handleReset}>
+                                            Reset
+                                        </Button>
+                                        <Button type="submit">Save</Button>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </form>
