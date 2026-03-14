@@ -95,6 +95,17 @@ interface ImportResult {
     warnings: string[];
 }
 
+interface Session {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    coach?: {
+        id: number;
+        user_id: number;
+    };
+}
+
 const MONTHS = [
     { value: '1', label: 'Januari' },
     { value: '2', label: 'Februari' },
@@ -120,7 +131,6 @@ function AttendanceReportsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Baca initial state dari URL — hanya month, year, branch
     const [selectedMonth, setSelectedMonth] = useState<string>(
         searchParams.get('month') ?? String(new Date().getMonth() + 1)
     );
@@ -131,6 +141,7 @@ function AttendanceReportsContent() {
         searchParams.get('branch') ?? 'all'
     );
 
+    const [session, setSession] = useState<Session | null | 'loading'>('loading');
     const [attendanceReports, setAttendanceReports] = useState<AttendanceReport[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -138,6 +149,20 @@ function AttendanceReportsContent() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+    useEffect(() => {
+        const sessionString = Cookies.get('session_key');
+        if (sessionString) {
+            try {
+                setSession(JSON.parse(sessionString));
+            } catch {
+                console.error('Failed to parse session');
+                setSession(null);
+            }
+        } else {
+            setSession(null);
+        }
+    }, []);
 
     useEffect(() => {
         const params = new URLSearchParams();
@@ -165,14 +190,19 @@ function AttendanceReportsContent() {
     }, []);
 
     const fetchAttendanceReports = useCallback(async () => {
+        if (session === 'loading') return;
+
         setIsLoading(true);
         try {
             const token = Cookies.get('token');
-
             const params = new URLSearchParams();
             if (selectedMonth) params.append('month', selectedMonth);
             if (selectedYear) params.append('year', selectedYear);
             if (selectedBranch && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
+
+            if (session !== null && session.role === 'coach' && session.coach?.id) {
+                params.append('coach_id', String(session.coach.id));
+            }
 
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report?${params.toString()}`,
@@ -191,7 +221,7 @@ function AttendanceReportsContent() {
             toast.error('Error fetching attendance reports');
         }
         setIsLoading(false);
-    }, [selectedMonth, selectedYear, selectedBranch]);
+    }, [selectedMonth, selectedYear, selectedBranch, session]);
 
     useEffect(() => {
         fetchBranches();
@@ -288,6 +318,8 @@ function AttendanceReportsContent() {
         setImportResult(null);
     };
 
+    const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
+
     const columns: ColumnDef<AttendanceReport>[] = [
         {
             header: 'Play Kid',
@@ -356,6 +388,10 @@ function AttendanceReportsContent() {
         },
     ];
 
+    if (session === 'loading') {
+        return <div className="px-6 py-8">Loading...</div>;
+    }
+
     return (
         <div className='px-6 space-y-4'>
             {/* Filter + Actions Row */}
@@ -391,19 +427,21 @@ function AttendanceReportsContent() {
                     </Select>
 
                     {/* Branch */}
-                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                        <SelectTrigger className="w-44">
-                            <SelectValue placeholder="Select Branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Branch</SelectItem>
-                            {branches.map((b) => (
-                                <SelectItem key={b.id} value={String(b.id)}>
-                                    {b.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {!isCoach && (
+                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder="Select Branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Branch</SelectItem>
+                                {branches.map((b) => (
+                                    <SelectItem key={b.id} value={String(b.id)}>
+                                        {b.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
 
                 {/* Action Buttons */}
@@ -417,100 +455,104 @@ function AttendanceReportsContent() {
                         <TooltipContent>Refresh Data</TooltipContent>
                     </Tooltip>
 
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="outline" onClick={downloadTemplate}>
-                                <IconDownload size={16} />
-                                <span className="ml-2">Template</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Download Template Excel</TooltipContent>
-                    </Tooltip>
+                    {!isCoach && (
+                        <>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="outline" onClick={downloadTemplate}>
+                                        <IconDownload size={16} />
+                                        <span className="ml-2">Template</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download Template Excel</TooltipContent>
+                            </Tooltip>
 
-                    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <DialogTrigger asChild>
-                                    <Button>
-                                        <IconUpload size={16} />
-                                        <span className="ml-2">Import Data</span>
-                                    </Button>
-                                </DialogTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent>Import Data</TooltipContent>
-                        </Tooltip>
-                        <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Import Data Reports</DialogTitle>
-                                <DialogDescription>
-                                    Upload file Excel untuk import data attendance reports
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                                <div>
-                                    <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelect} />
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        Format: .xlsx, .xls, .csv (maks. 10MB)
-                                    </p>
-                                </div>
-                                {selectedFile && (
-                                    <div className="p-3 border rounded-md bg-muted/50">
-                                        <p className="text-sm font-medium">File terpilih:</p>
-                                        <p className="text-sm">
-                                            {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                                        </p>
-                                    </div>
-                                )}
-                                {importLoading && (
-                                    <p className="text-sm text-center">Sedang mengimport data...</p>
-                                )}
-                                {importResult && (
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-3 gap-2 text-sm">
-                                            <div className="text-center p-2 bg-green-50 rounded">
-                                                <p className="font-bold text-green-600">{importResult.imported_count}</p>
-                                                <p>Data Baru</p>
-                                            </div>
-                                            <div className="text-center p-2 bg-blue-50 rounded">
-                                                <p className="font-bold text-blue-600">{importResult.updated_count}</p>
-                                                <p>Data Diupdate</p>
-                                            </div>
-                                            <div className="text-center p-2 bg-red-50 rounded">
-                                                <p className="font-bold text-red-600">{importResult.skipped_count}</p>
-                                                <p>Data Dilewati</p>
-                                            </div>
+                            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DialogTrigger asChild>
+                                            <Button>
+                                                <IconUpload size={16} />
+                                                <span className="ml-2">Import Data</span>
+                                            </Button>
+                                        </DialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Import Data</TooltipContent>
+                                </Tooltip>
+                                <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Import Data Reports</DialogTitle>
+                                        <DialogDescription>
+                                            Upload file Excel untuk import data attendance reports
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelect} />
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Format: .xlsx, .xls, .csv (maks. 10MB)
+                                            </p>
                                         </div>
-                                        {importResult.errors.length > 0 && (
-                                            <div>
-                                                <p className="text-sm font-medium text-red-600 mb-2">Error saat import:</p>
-                                                <div className="max-h-32 overflow-y-auto text-sm">
-                                                    {importResult.errors.map((error, index) => (
-                                                        <p key={index} className="text-red-600 py-1">• {error}</p>
-                                                    ))}
-                                                </div>
+                                        {selectedFile && (
+                                            <div className="p-3 border rounded-md bg-muted/50">
+                                                <p className="text-sm font-medium">File terpilih:</p>
+                                                <p className="text-sm">
+                                                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                                                </p>
                                             </div>
                                         )}
-                                        {importResult.warnings.length > 0 && (
-                                            <div>
-                                                <p className="text-sm font-medium text-yellow-600 mb-2">Peringatan:</p>
-                                                <div className="max-h-32 overflow-y-auto text-sm">
-                                                    {importResult.warnings.map((warning, index) => (
-                                                        <p key={index} className="text-yellow-600 py-1">• {warning}</p>
-                                                    ))}
+                                        {importLoading && (
+                                            <p className="text-sm text-center">Sedang mengimport data...</p>
+                                        )}
+                                        {importResult && (
+                                            <div className="space-y-3">
+                                                <div className="grid grid-cols-3 gap-2 text-sm">
+                                                    <div className="text-center p-2 bg-green-50 rounded">
+                                                        <p className="font-bold text-green-600">{importResult.imported_count}</p>
+                                                        <p>Data Baru</p>
+                                                    </div>
+                                                    <div className="text-center p-2 bg-blue-50 rounded">
+                                                        <p className="font-bold text-blue-600">{importResult.updated_count}</p>
+                                                        <p>Data Diupdate</p>
+                                                    </div>
+                                                    <div className="text-center p-2 bg-red-50 rounded">
+                                                        <p className="font-bold text-red-600">{importResult.skipped_count}</p>
+                                                        <p>Data Dilewati</p>
+                                                    </div>
                                                 </div>
+                                                {importResult.errors.length > 0 && (
+                                                    <div>
+                                                        <p className="text-sm font-medium text-red-600 mb-2">Error saat import:</p>
+                                                        <div className="max-h-32 overflow-y-auto text-sm">
+                                                            {importResult.errors.map((error, index) => (
+                                                                <p key={index} className="text-red-600 py-1">• {error}</p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {importResult.warnings.length > 0 && (
+                                                    <div>
+                                                        <p className="text-sm font-medium text-yellow-600 mb-2">Peringatan:</p>
+                                                        <div className="max-h-32 overflow-y-auto text-sm">
+                                                            {importResult.warnings.map((warning, index) => (
+                                                                <p key={index} className="text-yellow-600 py-1">• {warning}</p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
+                                        <div className="flex gap-2 justify-end">
+                                            <Button variant="outline" onClick={resetImport}>Reset</Button>
+                                            <Button onClick={handleImport} disabled={!selectedFile || importLoading}>
+                                                {importLoading ? 'Importing...' : 'Import Data'}
+                                            </Button>
+                                        </div>
                                     </div>
-                                )}
-                                <div className="flex gap-2 justify-end">
-                                    <Button variant="outline" onClick={resetImport}>Reset</Button>
-                                    <Button onClick={handleImport} disabled={!selectedFile || importLoading}>
-                                        {importLoading ? 'Importing...' : 'Import Data'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+                                </DialogContent>
+                            </Dialog>
+                        </>
+                    )}
                 </div>
             </div>
 
