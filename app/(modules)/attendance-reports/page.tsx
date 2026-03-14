@@ -60,7 +60,9 @@ interface Schedule {
 
 interface Coach {
     id: number;
-    name: string;
+    user?: {
+        name: string;
+    };
 }
 
 interface PlayKid {
@@ -300,10 +302,6 @@ function AttendanceReportsContent() {
             header: 'Start Time',
         },
         {
-            accessorKey: 'schedule.end_time',
-            header: 'End Time',
-        },
-        {
             accessorKey: 'schedule.date',
             header: 'Date',
         },
@@ -314,10 +312,13 @@ function AttendanceReportsContent() {
         },
         {
             header: 'Reports',
-            cell: ({ row }) =>
-                row.original.motorik || row.original.locomotor || row.original.body_control
-                    ? 'Submitted'
-                    : 'Not Submitted',
+            cell: ({ row }) => {
+                const isSubmitted =
+                    row.original.motorik || row.original.locomotor || row.original.body_control;
+                if (!isSubmitted) return 'Not Submitted';
+                const coachName = row.original.coach?.user?.name ?? 'Unknown';
+                return `Submitted by ${coachName}`;
+            },
         },
         {
             accessorKey: 'overall',
