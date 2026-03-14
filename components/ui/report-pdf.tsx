@@ -99,9 +99,9 @@ export function ReportPDF({ report }: ReportPDFProps) {
 
     const ageString = `${years} tahun ${months} bulan`;
 
-    const sortedAttendance = [...attendance].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    const sortedAttendance = [...attendance]
+        .filter((item) => item.attendance)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return (
         <div className="w-full">
