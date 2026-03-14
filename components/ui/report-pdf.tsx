@@ -74,8 +74,15 @@ interface ReportPDFProps {
     report: ReportResponse;
 }
 
+const formatDateDMY = (date?: string | null) => {
+    if (!date) return '-';
+    const [year, month, day] = date.split('-');
+    if (!year || !month || !day) return date;
+    return `${day}-${month}-${year}`;
+};
+
 export function ReportPDF({ report }: ReportPDFProps) {
-    console.log("Report Data : ", report);
+    // console.log("Report Data : ", report);
 
     const { branch, classes, attendance_reports: attendance, play_kid: kid, months_display } = report;
 
@@ -92,17 +99,9 @@ export function ReportPDF({ report }: ReportPDFProps) {
 
     const ageString = `${years} tahun ${months} bulan`;
 
-    const attendanceByClass = attendance.reduce((acc, item) => {
-        if (!acc[item.class_id]) {
-            acc[item.class_id] = {
-                class_name: item.class_name,
-                class_info: classes.find(cls => cls.id === item.class_id),
-                reports: []
-            };
-        }
-        acc[item.class_id].reports.push(item);
-        return acc;
-    }, {} as Record<number, { class_name: string; class_info: ClassWithCategory | undefined; reports: AttendanceReport[] }>);
+    const sortedAttendance = [...attendance].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
     return (
         <div className="w-full">
@@ -163,112 +162,93 @@ export function ReportPDF({ report }: ReportPDFProps) {
                     </div>
                 </div>
             </div>
-            <div className='bg-gray-100 px-10 pt-8 pb-2'>
-                {Object.entries(attendanceByClass).map(([classId, classData]) => (
-                    <div key={classId} className='mb-8'>
-                        <div className='space-y-6'>
-                            {classData.reports?.length > 0 ? (
-                                classData.reports.map((item) => {
-                                    const coachSrc = item.coach?.photo
-                                        ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${item.coach.photo.replace('storage/', '')}`
-                                        : '/images/coach-avatar.png';
 
-                                    const formatDateDMY = (date?: string | null) => {
-                                        if (!date) return '-'
+            {/* ATTENDANCE LIST */}
+            <div className="bg-gray-100 px-10 pt-8 pb-2">
+                <div className="space-y-6 mb-8">
+                    {sortedAttendance.length > 0 ? (
+                        sortedAttendance.map((item) => {
+                            const classInfo = classes.find(cls => cls.id === item.class_id);
+                            const coachSrc = item.coach?.photo
+                                ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${item.coach.photo.replace('storage/', '')}`
+                                : '/images/coach-avatar.png';
 
-                                        const [year, month, day] = date.split('-')
-                                        if (!year || !month || !day) return date
+                            return (
+                                <div
+                                    key={item.id}
+                                    className="bg-[#1f3d56] rounded-xl shadow-lg overflow-hidden p-4"
+                                >
+                                    <div className="grid grid-cols-4 gap-4 items-start">
+                                        {/* FOTO COACH */}
+                                        <div className="col-span-1 h-full">
+                                            <Image
+                                                src={coachSrc}
+                                                alt={item.coach?.name ?? 'Coach'}
+                                                width={500}
+                                                height={500}
+                                                className="w-full h-full object-cover rounded-lg border-2 border-white/20"
+                                            />
+                                        </div>
 
-                                        return `${day}-${month}-${year}`
-                                    }
+                                        {/* KONTEN KANAN */}
+                                        <div className="col-span-3 flex flex-col">
+                                            {/* header bar: coach name + kelas + tanggal */}
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-wide text-white/70">Coach</p>
+                                                    <h3 className="text-sm font-bold text-white">{item.coach?.name ?? '-'}</h3>
+                                                    <p className="text-xs text-white/70 mt-1">
+                                                        {classInfo?.sport?.name}
+                                                        {classInfo?.category ? ` — ${classInfo.category.name}` : ''}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs text-white/70">Tanggal</p>
+                                                    <p className="text-sm font-semibold text-white/90">
+                                                        {formatDateDMY(item.date)}
+                                                    </p>
+                                                </div>
+                                            </div>
 
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            className="bg-[#1f3d56] rounded-xl shadow-lg overflow-hidden p-4"
-                                        >
-                                            <div className="grid grid-cols-4 gap-4 items-start">
-                                                {/* FOTO COACH */}
-                                                <div className="col-span-1 h-full">
-                                                    <Image
-                                                        src={coachSrc}
-                                                        alt={item.coach?.name ?? 'Coach'}
-                                                        width={500}
-                                                        height={500}
-                                                        className="w-full h-full object-cover rounded-lg border-2 border-white/20"
-                                                    />
+                                            {/* PENILAIAN */}
+                                            <div className="mt-4 grid grid-cols-3 gap-4">
+                                                <div className="bg-white rounded-lg p-3 shadow-sm min-h-[140px] flex flex-col">
+                                                    <p className="text-sm font-semibold text-center mb-2">Motoric</p>
+                                                    <div className="flex-1 flex items-center justify-center">
+                                                        <span className="inline-block px-3 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-800 text-center">
+                                                            {item.motorik ?? '-'}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
-                                                {/* KONTEN KANAN */}
-                                                <div className="col-span-3 flex flex-col">
-                                                    {/* header bar: coach name + kelas + tanggal */}
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <p className="text-xs uppercase tracking-wide text-white/70">Coach</p>
-                                                            <h3 className="text-sm font-bold text-white">{item.coach?.name ?? '-'}</h3>
-                                                            <p className="text-xs text-white/70 mt-1">
-                                                                {classData.class_info?.sport?.name}
-                                                                {classData.class_info?.category ? ` — ${classData.class_info.category.name}` : ''}
-                                                            </p>
-                                                        </div>
-
-                                                        <div className="text-right">
-                                                            <p className="text-xs text-white/70">Tanggal</p>
-                                                            <p className="text-sm font-semibold text-white/90">{formatDateDMY(item.date)}</p>
-                                                        </div>
+                                                <div className="bg-white rounded-lg p-3 shadow-sm min-h-[140px] flex flex-col">
+                                                    <p className="text-sm font-semibold text-center mb-2">Locomotor</p>
+                                                    <div className="flex-1 flex items-center justify-center">
+                                                        <span className="inline-block px-3 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-800 text-center">
+                                                            {item.locomotor ?? '-'}
+                                                        </span>
                                                     </div>
+                                                </div>
 
-                                                    {/* PENILAIAN: tiga kotak */}
-                                                    <div className="mt-4 grid grid-cols-3 gap-4">
-                                                        {/* Card template */}
-                                                        <div className="bg-white rounded-lg p-3 shadow-sm min-h-[140px] flex flex-col">
-                                                            <p className="text-sm font-semibold text-center mb-2">
-                                                                Motoric
-                                                            </p>
-
-                                                            <div className="flex-1 flex items-center justify-center">
-                                                                <span className="inline-block px-3 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-800 text-center">
-                                                                    {item.motorik ?? '-'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white rounded-lg p-3 shadow-sm min-h-[140px] flex flex-col">
-                                                            <p className="text-sm font-semibold text-center mb-2">
-                                                                Locomotor
-                                                            </p>
-
-                                                            <div className="flex-1 flex items-center justify-center">
-                                                                <span className="inline-block px-3 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-800 text-center">
-                                                                    {item.locomotor ?? '-'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white rounded-lg p-3 shadow-sm min-h-[140px] flex flex-col">
-                                                            <p className="text-sm font-semibold text-center mb-2">
-                                                                Body Control
-                                                            </p>
-
-                                                            <div className="flex-1 flex items-center justify-center">
-                                                                <span className="inline-block px-3 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-800 text-center">
-                                                                    {item.body_control ?? '-'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
+                                                <div className="bg-white rounded-lg p-3 shadow-sm min-h-[140px] flex flex-col">
+                                                    <p className="text-sm font-semibold text-center mb-2">Body Control</p>
+                                                    <div className="flex-1 flex items-center justify-center">
+                                                        <span className="inline-block px-3 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-800 text-center">
+                                                            {item.body_control ?? '-'}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    );
-                                })
-                            ) : (
-                                <p className="text-gray-500 italic">Belum ada data kehadiran.</p>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <p className="text-gray-500 italic">Belum ada data kehadiran.</p>
+                    )}
+                </div>
             </div>
         </div>
-    )
+    );
 }
