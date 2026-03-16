@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { toast } from 'sonner'
-import Image from 'next/image';
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,8 +12,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { IconArrowLeft } from '@tabler/icons-react'
 
 interface AttendanceReport {
     id: number
@@ -76,221 +82,252 @@ interface AttendanceReport {
 }
 
 interface Session {
-    id: number;
+    id: number
     coach: {
-        id: number;
-    };
-    name: string;
-    role: string;
+        id: number
+    }
+    name: string
+    role: string
 }
 
-const MIN_CHARS = 200;
-const MAX_CHARS = 500;
+const MIN_CHARS = 200
+const MAX_CHARS = 500
 
-
-export default function AttendanceReportForm() {
+function AttendanceReportFormContent() {
     const { id } = useParams()
-    const [report, setReport] = useState<AttendanceReport | null>(null);
-    const [defaultReport, setDefaultReport] = useState<AttendanceReport | null>(null);
-    const [session, setSession] = useState<Session | null>(null);
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    const returnTo = searchParams.get('returnTo') ?? ''
+
+    const [report, setReport] = useState<AttendanceReport | null>(null)
+    const [defaultReport, setDefaultReport] = useState<AttendanceReport | null>(null)
+    const [session, setSession] = useState<Session | null>(null)
     const [coaches, setCoaches] = useState<{ id: number; name: string }[]>([])
-    const [isLoading, setIsLoading] = useState(false);
-    const motorikRef = useRef<HTMLTextAreaElement | null>(null);
-    const locomotorRef = useRef<HTMLTextAreaElement | null>(null);
-    const bodyControlRef = useRef<HTMLTextAreaElement | null>(null);
+    const [isLoading, setIsLoading] = useState(false)
+
+    const motorikRef = useRef<HTMLTextAreaElement | null>(null)
+    const locomotorRef = useRef<HTMLTextAreaElement | null>(null)
+    const bodyControlRef = useRef<HTMLTextAreaElement | null>(null)
 
     const [errors, setErrors] = useState({
-        motorik: "" as string,
-        locomotor: "" as string,
-        body_control: "" as string,
-    });
+        motorik: '' as string,
+        locomotor: '' as string,
+        body_control: '' as string,
+    })
 
-    const len = (s?: string | null) => (s ?? "").length;
+    const len = (s?: string | null) => (s ?? '').trim().length
 
-    const validateField = (key: "motorik" | "locomotor" | "body_control", value: string) => {
-        if (!value || value.trim().length === 0) {
-            return `${key === "motorik" ? "Motorik" : key === "locomotor" ? "Locomotor" : "Body Control"} wajib diisi.`;
+    const validateField = (
+        key: 'motorik' | 'locomotor' | 'body_control',
+        value: string,
+        isPresent: boolean
+    ) => {
+        if (!isPresent) return ''
+        const trimmed = value.trim()
+        if (!trimmed || trimmed.length === 0) {
+            const label =
+                key === 'motorik' ? 'Motorik' : key === 'locomotor' ? 'Locomotor' : 'Body Control'
+            return `${label} is required.`
         }
-        if (value.length < MIN_CHARS) {
-            return `Minimal ${MIN_CHARS} karakter. Saat ini ${value.length}.`;
-        }
-        if (value.length > MAX_CHARS) {
-            return `Maksimal ${MAX_CHARS} karakter. Saat ini ${value.length}.`;
-        }
-        return ""; // valid
-    };
-
+        if (trimmed.length < MIN_CHARS) return `Minimum ${MIN_CHARS} characters.`
+        if (trimmed.length > MAX_CHARS) return `Maximum ${MAX_CHARS} characters.`
+        return ''
+    }
 
     const fetchReport = useCallback(async (id: string) => {
-        setIsLoading(true);
+        setIsLoading(true)
         try {
-            const sessionString = Cookies.get("session_key");
-            if (!sessionString) return null;
+            const sessionString = Cookies.get('session_key')
+            if (!sessionString) return null
+            const sessionKey = JSON.parse(sessionString)
 
-            const sessionKey = JSON.parse(sessionString);
-            console.log("session : ", sessionKey);
-
-            const token = Cookies.get("token");
+            const token = Cookies.get('token')
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+                { headers: { Authorization: `Bearer ${token}` } }
+            )
+            if (!response.ok) throw new Error('Failed to fetch report')
 
-            if (!response.ok) throw new Error("Failed to fetch report");
-
-            const { data } = await response.json();
-            console.log(data);
-
-            setReport(data);
-            setDefaultReport(data);
-            setSession(sessionKey);
+            const { data } = await response.json()
+            setReport(data)
+            setDefaultReport(data)
+            setSession(sessionKey)
         } catch (error) {
-            console.error("Error : ", error);
-            toast.error("Error fetching report");
+            console.error('Error : ', error)
+            toast.error('Error fetching report')
         } finally {
-            setIsLoading(false);
+            setIsLoading(false)
         }
-    }, []);
+    }, [])
 
     useEffect(() => {
-        if (id) fetchReport(String(id));
-    }, [id, fetchReport]);
+        if (id) fetchReport(String(id))
+    }, [id, fetchReport])
 
     useEffect(() => {
         const fetchCoaches = async () => {
             try {
-                const token = Cookies.get("token");
+                const token = Cookies.get('token')
                 const response = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${report?.schedule_id}/coaches`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    }
-                );
-                if (!response.ok) throw new Error("Failed to fetch coaches");
-                const { data } = await response.json();
-
+                    { headers: { Authorization: `Bearer ${token}` } }
+                )
+                if (!response.ok) throw new Error('Failed to fetch coaches')
+                const { data } = await response.json()
                 const coachList = data.map((cs: { coach: { id: number; name: string } }) => ({
                     id: cs.coach.id,
                     name: cs.coach.name,
-                }));
-                setCoaches(coachList);
+                }))
+                setCoaches(coachList)
             } catch (error) {
-                console.error(error);
-                toast.error("Error fetching coaches");
+                console.error(error)
+                toast.error('Error fetching coaches')
             }
-        };
-
-        if (session?.role === "admin" && report?.schedule_id) {
-            fetchCoaches();
         }
-    }, [session, report?.schedule_id]);
+
+        if (session?.role === 'admin' && report?.schedule_id) {
+            fetchCoaches()
+        }
+    }, [session, report?.schedule_id])
 
     const autoSize = (el?: HTMLTextAreaElement | null) => {
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
+        if (!el) return
+        el.style.height = 'auto'
+        el.style.height = `${el.scrollHeight}px`
     }
 
     useEffect(() => {
-        if (!report) return;
-        autoSize(motorikRef.current);
-        autoSize(locomotorRef.current);
-        autoSize(bodyControlRef.current);
-    }, [report]);
+        if (!report) return
+        autoSize(motorikRef.current)
+        autoSize(locomotorRef.current)
+        autoSize(bodyControlRef.current)
+    }, [report])
 
     useEffect(() => {
+        if (!report) return
+        const isPresent = Boolean(report.attendance)
         setErrors({
-            motorik: validateField("motorik", report?.motorik ?? ""),
-            locomotor: validateField("locomotor", report?.locomotor ?? ""),
-            body_control: validateField("body_control", report?.body_control ?? ""),
-        });
-    }, [report?.motorik, report?.locomotor, report?.body_control]);
+            motorik: validateField('motorik', report.motorik ?? '', isPresent),
+            locomotor: validateField('locomotor', report.locomotor ?? '', isPresent),
+            body_control: validateField('body_control', report.body_control ?? '', isPresent),
+        })
+    }, [report?.motorik, report?.locomotor, report?.body_control, report?.attendance])
 
-    const fieldClass = (errorMsg: string) =>
-        `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${errorMsg ? "border-red-500 ring-red-200" : "border-gray-200 ring-emerald-300"
-        }`;
-
+    const fieldClass = (errorMsg: string, disabled: boolean) =>
+        `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${
+            disabled
+                ? 'border-gray-200 bg-muted text-muted-foreground cursor-not-allowed'
+                : errorMsg
+                ? 'border-red-500 ring-red-200'
+                : 'border-gray-200 ring-emerald-300'
+        }`
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+        e.preventDefault()
 
-        const vMotorik = validateField("motorik", report?.motorik ?? "");
-        const vLocomotor = validateField("locomotor", report?.locomotor ?? "");
-        const vBody = validateField("body_control", report?.body_control ?? "");
+        const isPresent = Boolean(report?.attendance)
+        const vMotorik = validateField('motorik', report?.motorik ?? '', isPresent)
+        const vLocomotor = validateField('locomotor', report?.locomotor ?? '', isPresent)
+        const vBody = validateField('body_control', report?.body_control ?? '', isPresent)
 
-        setErrors({ motorik: vMotorik, locomotor: vLocomotor, body_control: vBody });
+        setErrors({ motorik: vMotorik, locomotor: vLocomotor, body_control: vBody })
 
         if (vMotorik || vLocomotor || vBody) {
-            toast.error("Perbaiki form terlebih dahulu (minimal 30 karakter / maksimal 200).");
-            return;
+            toast.error('Please fix the form first (min 200 characters / max 500).')
+            return
         }
 
         try {
-            const token = Cookies.get('token');
-            console.log("SESSION_KEY : ", session)
+            const token = Cookies.get('token')
             const payload = {
-                coach_id: session?.role === "coach" ? session.coach.id : report?.coach_id,
-                motorik: report?.motorik,
-                locomotor: report?.locomotor,
-                body_control: report?.body_control,
+                coach_id: session?.role === 'coach' ? session.coach.id : report?.coach_id,
+                motorik: report?.motorik?.trim() || null,
+                locomotor: report?.locomotor?.trim() || null,
+                body_control: report?.body_control?.trim() || null,
                 attendance: Boolean(report?.attendance),
                 overall: report?.overall,
             }
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            })
-            if (!response.ok) throw new Error('Failed to update report');
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                }
+            )
+            if (!response.ok) throw new Error('Failed to update report')
 
-            await fetchReport(String(id));
-            toast.success('Report updated successfully');
+            await fetchReport(String(id))
+            toast.success('Report updated successfully')
         } catch (error) {
-            console.error('Error : ', error);
-            toast.error('Error updating report');
+            console.error('Error : ', error)
+            toast.error('Error updating report')
         }
     }
 
     const handleReset = () => {
-        setReport(defaultReport);
-        toast.info('Changes reverted to last saved state');
+        setReport(defaultReport)
+        toast.info('Changes reverted to last saved state')
+    }
+
+    const handleBack = () => {
+        if (returnTo) {
+            router.push(`/attendance-reports${returnTo}`)
+        } else {
+            router.push('/attendance-reports')
+        }
     }
 
     if (isLoading) return <p className="px-6 py-8">Loading...</p>
     if (!report || !defaultReport) return <p className="px-6 py-8">No report found</p>
 
+    const isPresent = Boolean(report.attendance)
+
+    const isFilledByOtherCoach =
+        session?.role !== 'admin' &&
+        report.coach_id !== null &&
+        Boolean(report.motorik || report.locomotor || report.body_control) &&
+        session?.coach?.id !== report.coach_id
+
     const ageOrBirth = (bd?: string) => {
-        if (!bd) return '-';
+        if (!bd) return '-'
         try {
-            const birth = new Date(bd);
-            const now = new Date();
-            let age = now.getFullYear() - birth.getFullYear();
-            const m = now.getMonth() - birth.getMonth();
-            if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
-                age--;
-            }
-            return `${age} yrs`;
+            const birth = new Date(bd)
+            const now = new Date()
+            let age = now.getFullYear() - birth.getFullYear()
+            const m = now.getMonth() - birth.getMonth()
+            if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--
+            return `${age} yrs`
         } catch {
-            return bd;
+            return bd
         }
     }
-
-    // console.log("coaches : ", coaches);
 
     return (
         <div className="px-6">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-semibold">Student Profile & Attendance Report</h1>
-                <div className="text-sm text-muted-foreground">Schedule: <span className="font-medium">{report.schedule?.name}</span></div>
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleBack}
+                        aria-label="Back to attendance reports"
+                    >
+                        <IconArrowLeft size={16} />
+                    </Button>
+                    <h1 className="text-2xl font-semibold">Student Profile & Attendance Report</h1>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    Schedule: <span className="font-medium">{report.schedule?.name}</span>
+                </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Left: Student Info */}
                 <aside className="md:col-span-1">
                     <Card className="sticky top-6">
                         <CardHeader>
@@ -306,12 +343,16 @@ export default function AttendanceReportForm() {
                                             unoptimized={true}
                                         />
                                     ) : (
-                                        <AvatarFallback>{(report.play_kid?.name || 'U').slice(0, 1)}</AvatarFallback>
+                                        <AvatarFallback>
+                                            {(report.play_kid?.name || 'U').slice(0, 1)}
+                                        </AvatarFallback>
                                     )}
                                 </Avatar>
                                 <div>
                                     <div className="text-lg font-semibold">{report.play_kid?.name}</div>
-                                    <div className="text-sm text-muted-foreground">{report.play_kid?.nick_name ? `“${report.play_kid.nick_name}”` : null}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {report.play_kid?.nick_name ? `"${report.play_kid.nick_name}"` : null}
+                                    </div>
                                 </div>
                             </CardTitle>
                         </CardHeader>
@@ -319,20 +360,26 @@ export default function AttendanceReportForm() {
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Birth</span>
-                                    <span className="text-sm font-medium">{report.play_kid?.birth_date ? report.play_kid.birth_date : '-'}</span>
+                                    <span className="text-sm font-medium">
+                                        {report.play_kid?.birth_date ?? '-'}
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Age</span>
-                                    <span className="text-sm font-medium">{ageOrBirth(report.play_kid?.birth_date)}</span>
+                                    <span className="text-sm font-medium">
+                                        {ageOrBirth(report.play_kid?.birth_date)}
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Gender</span>
-                                    <Badge className='rounded-full'>{report.play_kid?.gender ?? '-'}</Badge>
+                                    <Badge className="rounded-full">{report.play_kid?.gender ?? '-'}</Badge>
                                 </div>
                                 <Separator />
                                 <div>
                                     <div className="text-sm text-muted-foreground">School</div>
-                                    <div className="text-sm font-medium">{report.play_kid?.school_origin ?? '-'}</div>
+                                    <div className="text-sm font-medium">
+                                        {report.play_kid?.school_origin ?? '-'}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="text-sm text-muted-foreground">Medical</div>
@@ -341,7 +388,9 @@ export default function AttendanceReportForm() {
                                 <Separator />
                                 <div>
                                     <div className="text-sm text-muted-foreground">Coach</div>
-                                    <div className="text-sm font-medium">{report.coach ? `${report.coach.user.name}` : '-'}</div>
+                                    <div className="text-sm font-medium">
+                                        {report.coach ? report.coach.user.name : '-'}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="text-sm text-muted-foreground">Attendance</div>
@@ -352,151 +401,185 @@ export default function AttendanceReportForm() {
                             </div>
                         </CardContent>
                     </Card>
-
                 </aside>
 
-                {/* Right: Form area */}
+                {/* Right: Form */}
                 <main className="md:col-span-2">
+                    {isFilledByOtherCoach && (
+                        <div className="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-800">
+                            This report has already been submitted by{' '}
+                            <span className="font-semibold">{report.coach?.user?.name}</span>. You cannot edit it.
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Assessment</CardTitle>
-                                <CardDescription>Enter notes for Motorik, Locomotor, Body Control, and the Overall rating.</CardDescription>
+                                <CardDescription>
+                                    {isPresent
+                                        ? 'Fill in Motorik, Locomotor, Body Control notes and Overall rating.'
+                                        : 'Playkid is absent — assessment fields are not required.'}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                    {session?.role === "admin" ? (
+                                    {/* Coach — admin only */}
+                                    {session?.role === 'admin' ? (
                                         <div className="lg:col-span-2 space-y-1">
                                             <Label htmlFor="coach">Coach</Label>
                                             <Select
-                                                value={report.coach_id ? String(report.coach_id) : ""}
-                                                onValueChange={(val) => {
-                                                    setReport({
-                                                        ...report,
-                                                        coach_id: Number(val),
-                                                    })
-                                                }}
+                                                value={report.coach_id ? String(report.coach_id) : ''}
+                                                onValueChange={(val) =>
+                                                    setReport({ ...report, coach_id: Number(val) })
+                                                }
                                             >
                                                 <SelectTrigger id="coach" className="w-full">
                                                     <SelectValue placeholder="Select coach" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {coaches.map(c => (
+                                                    {coaches.map((c) => (
                                                         <SelectItem key={c.id} value={String(c.id)}>
                                                             {c.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            <p className="text-xs text-muted-foreground">Choose the coach who filled this assessment.</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Choose the coach who filled this assessment.
+                                            </p>
                                         </div>
                                     ) : null}
+
+                                    {/* Motorik */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="motorik">Motorik</Label>
+                                        <Label htmlFor="motorik">
+                                            Motorik{isPresent && !isFilledByOtherCoach && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
+                                        </Label>
                                         <Textarea
                                             id="motorik"
                                             ref={motorikRef}
-                                            value={report.motorik ?? ""}
+                                            value={report.motorik ?? ''}
                                             maxLength={MAX_CHARS}
+                                            disabled={!!isFilledByOtherCoach}
                                             onChange={(e) => {
-                                                setReport({ ...report, motorik: e.target.value });
-                                                autoSize(e.target);
+                                                setReport({ ...report, motorik: e.target.value })
+                                                autoSize(e.target)
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
-                                            placeholder="Write motorik notes..."
-                                            className={fieldClass(errors.motorik)}
+                                            placeholder={
+                                                isPresent
+                                                    ? 'Write motorik notes...'
+                                                    : 'Optional when absent...'
+                                            }
+                                            className={fieldClass(errors.motorik, !!isFilledByOtherCoach)}
                                             aria-invalid={!!errors.motorik}
-                                            aria-describedby="motorik-help motorik-error"
                                         />
-                                        <div className="flex justify-end text-sm">
-                                            {/* <div id="motorik-help" className="text-gray-500">
-                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
-                                            </div> */}
-                                            <div className={`text-xs ${errors.motorik ? "text-red-600" : "text-gray-500"}`}>
+                                        <div className="flex justify-between text-xs">
+                                            {errors.motorik ? (
+                                                <p role="alert" className="text-red-600">{errors.motorik}</p>
+                                            ) : !isPresent ? (
+                                                <p className="text-muted-foreground italic">Not required when absent.</p>
+                                            ) : (
+                                                <span />
+                                            )}
+                                            <span className={errors.motorik ? 'text-red-600' : 'text-gray-500'}>
                                                 {len(report.motorik)}/{MAX_CHARS}
-                                            </div>
+                                            </span>
                                         </div>
-                                        {/* {errors.motorik && (
-                                            <p id="motorik-error" role="alert" className="mt-1 text-sm text-red-600">
-                                                {errors.motorik}
-                                            </p>
-                                        )} */}
                                     </div>
 
                                     {/* Locomotor */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="locomotor">Locomotor</Label>
+                                        <Label htmlFor="locomotor">
+                                            Locomotor{isPresent && !isFilledByOtherCoach && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
+                                        </Label>
                                         <Textarea
                                             id="locomotor"
                                             ref={locomotorRef}
-                                            value={report.locomotor ?? ""}
+                                            value={report.locomotor ?? ''}
                                             maxLength={MAX_CHARS}
+                                            disabled={!!isFilledByOtherCoach}
                                             onChange={(e) => {
-                                                setReport({ ...report, locomotor: e.target.value });
-                                                autoSize(e.target);
+                                                setReport({ ...report, locomotor: e.target.value })
+                                                autoSize(e.target)
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
-                                            placeholder="Write locomotor notes..."
-                                            className={fieldClass(errors.locomotor)}
+                                            placeholder={
+                                                isPresent
+                                                    ? 'Write locomotor notes...'
+                                                    : 'Optional when absent...'
+                                            }
+                                            className={fieldClass(errors.locomotor, !!isFilledByOtherCoach)}
                                             aria-invalid={!!errors.locomotor}
-                                            aria-describedby="locomotor-help locomotor-error"
                                         />
-                                        <div className="flex justify-end text-sm">
-                                            {/* <div id="locomotor-help" className="text-gray-500">
-                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
-                                            </div> */}
-                                            <div className={`text-xs ${errors.locomotor ? "text-red-600" : "text-gray-500"}`}>
+                                        <div className="flex justify-between text-xs">
+                                            {errors.locomotor ? (
+                                                <p role="alert" className="text-red-600">{errors.locomotor}</p>
+                                            ) : !isPresent ? (
+                                                <p className="text-muted-foreground italic">Not required when absent.</p>
+                                            ) : (
+                                                <span />
+                                            )}
+                                            <span className={errors.locomotor ? 'text-red-600' : 'text-gray-500'}>
                                                 {len(report.locomotor)}/{MAX_CHARS}
-                                            </div>
+                                            </span>
                                         </div>
-                                        {/* {errors.locomotor && (
-                                            <p id="locomotor-error" role="alert" className="mt-1 text-sm text-red-600">
-                                                {errors.locomotor}
-                                            </p>
-                                        )} */}
                                     </div>
 
                                     {/* Body Control */}
                                     <div className="space-y-2 lg:col-span-2">
-                                        <Label htmlFor="body_control">Body Control</Label>
+                                        <Label htmlFor="body_control">
+                                            Body Control{isPresent && !isFilledByOtherCoach && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
+                                        </Label>
                                         <Textarea
                                             id="body_control"
                                             ref={bodyControlRef}
-                                            value={report.body_control ?? ""}
+                                            value={report.body_control ?? ''}
                                             maxLength={MAX_CHARS}
+                                            disabled={!!isFilledByOtherCoach}
                                             onChange={(e) => {
-                                                setReport({ ...report, body_control: e.target.value });
-                                                autoSize(e.target);
+                                                setReport({ ...report, body_control: e.target.value })
+                                                autoSize(e.target)
                                             }}
                                             onInput={(e) => autoSize(e.currentTarget)}
-                                            placeholder="Write body control notes..."
-                                            className={`min-h-[100px] resize-none ${fieldClass(errors.body_control)}`}
+                                            placeholder={
+                                                isPresent
+                                                    ? 'Write body control notes...'
+                                                    : 'Optional when absent...'
+                                            }
+                                            className={`min-h-[100px] resize-none ${fieldClass(errors.body_control, !!isFilledByOtherCoach)}`}
                                             aria-invalid={!!errors.body_control}
-                                            aria-describedby="body-control-help body-control-error"
                                         />
-                                        <div className="flex justify-end text-sm">
-                                            {/* <div id="body-control-help" className="text-gray-500">
-                                                Minimal {MIN_CHARS} — Maksimal {MAX_CHARS} karakter
-                                            </div> */}
-                                            <div className={`text-xs ${errors.body_control ? "text-red-600" : "text-gray-500"}`}>
+                                        <div className="flex justify-between text-xs">
+                                            {errors.body_control ? (
+                                                <p role="alert" className="text-red-600">{errors.body_control}</p>
+                                            ) : !isPresent ? (
+                                                <p className="text-muted-foreground italic">Not required when absent.</p>
+                                            ) : (
+                                                <span />
+                                            )}
+                                            <span className={errors.body_control ? 'text-red-600' : 'text-gray-500'}>
                                                 {len(report.body_control)}/{MAX_CHARS}
-                                            </div>
+                                            </span>
                                         </div>
-                                        {/* {errors.body_control && (
-                                            <p id="body-control-error" role="alert" className="mt-1 text-sm text-red-600">
-                                                {errors.body_control}
-                                            </p>
-                                        )} */}
                                     </div>
-                                    {/* Attendance select (shadcn Select) */}
+
+                                    {/* Attendance */}
                                     <div className="space-y-1">
                                         <Label htmlFor="attendance">Attendance</Label>
                                         <Select
-                                            value={String(report?.attendance ? 1 : 0)} // Pastikan selalu string "1" atau "0"
-                                            onValueChange={(val) => setReport({
-                                                ...report,
-                                                attendance: val === "1" // Konversi ke boolean
-                                            })}
+                                            value={String(report?.attendance ? 1 : 0)}
+                                            onValueChange={(val) =>
+                                                setReport({ ...report, attendance: val === '1' })
+                                            }
+                                            disabled={!!isFilledByOtherCoach}
                                         >
                                             <SelectTrigger id="attendance" className="w-full">
                                                 <SelectValue placeholder="Select attendance" />
@@ -506,17 +589,20 @@ export default function AttendanceReportForm() {
                                                 <SelectItem value="0">Absent</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <p className="text-xs text-muted-foreground">Mark whether the student was present for this session.</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Mark whether the student was present for this session.
+                                        </p>
                                     </div>
-                                    {/* Overall (1-5) select (shadcn Select) */}
+
+                                    {/* Overall */}
                                     <div className="space-y-1">
                                         <Label htmlFor="overall">Overall (1–5)</Label>
                                         <Select
                                             value={report.overall !== null ? String(report.overall) : ''}
-                                            onValueChange={(val) => {
-                                                const parsed = val ? Number(val) : null
-                                                setReport({ ...report, overall: parsed })
-                                            }}
+                                            onValueChange={(val) =>
+                                                setReport({ ...report, overall: val ? Number(val) : null })
+                                            }
+                                            disabled={!!isFilledByOtherCoach}
                                         >
                                             <SelectTrigger id="overall" className="w-full">
                                                 <SelectValue placeholder="Select rating" />
@@ -529,19 +615,33 @@ export default function AttendanceReportForm() {
                                                 <SelectItem value="5">5</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <p className="text-xs text-muted-foreground">Overall rating (1 = low, 5 = excellent).</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Overall rating (1 = low, 5 = excellent).
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-end gap-3 mt-4">
-                                    <Button variant="ghost" type="button" onClick={() => { handleReset() }}>Reset</Button>
-                                    <Button type="submit">Save</Button>
-                                </div>
+                                {!isFilledByOtherCoach && (
+                                    <div className="flex items-center justify-end gap-3 mt-4">
+                                        <Button variant="ghost" type="button" onClick={handleReset}>
+                                            Reset
+                                        </Button>
+                                        <Button type="submit">Save</Button>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </form>
                 </main>
             </div>
         </div>
+    )
+}
+
+export default function AttendanceReportForm() {
+    return (
+        <Suspense fallback={<p className="px-6 py-8">Loading...</p>}>
+            <AttendanceReportFormContent />
+        </Suspense>
     )
 }

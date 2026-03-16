@@ -55,6 +55,7 @@ export default function CoachesPage() {
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [formData, setFormData] = useState<CoachForm>(defaultForm);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [removePhoto, setRemovePhoto] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -95,6 +96,7 @@ export default function CoachesPage() {
             setFormData(defaultForm);
             setPhotoPreview(null);
             setCurrentPhoto(null);
+            setRemovePhoto(false);
             setEditId(null);
         }
     }, [isDialogOpen]);
@@ -116,7 +118,10 @@ export default function CoachesPage() {
             formDataToSend.append('_method', 'PUT');
             formDataToSend.append('birth_date', formData.birth_date);
             formDataToSend.append('description', formData.description);
-            if (formData.photo) {
+
+            if (removePhoto) {
+                formDataToSend.append('remove_photo', '1');
+            } else if (formData.photo) {
                 formDataToSend.append('photo', formData.photo);
             }
 
@@ -139,6 +144,7 @@ export default function CoachesPage() {
             setFormData(defaultForm);
             setPhotoPreview(null);
             setCurrentPhoto(null);
+            setRemovePhoto(false);
             toast.success('Coach updated successfully!');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'An error occurred';
@@ -194,14 +200,24 @@ export default function CoachesPage() {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
-
-            console.log("handleDateChange date:", date);
-
             setFormData((prev) => ({
                 ...prev,
                 birth_date: `${year}-${month}-${day}`,
             }));
         }
+    };
+
+    const resetFileInput = () => {
+        const input = document.querySelector('input[name="photo"]') as HTMLInputElement;
+        if (input) input.value = '';
+    };
+
+    const handleRemovePhoto = () => {
+        setPhotoPreview(null);
+        setCurrentPhoto(null);
+        setFormData((prev) => ({ ...prev, photo: null }));
+        setRemovePhoto(true);
+        resetFileInput();
     };
 
     const columns: ColumnDef<Coach>[] = [
@@ -250,10 +266,13 @@ export default function CoachesPage() {
                                             description: coach.description || '',
                                             photo: null,
                                         });
-                                        setCurrentPhoto(coach.photo
-                                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}`
-                                            : null);
+                                        setCurrentPhoto(
+                                            coach.photo
+                                                ? `${process.env.NEXT_PUBLIC_BACKEND_URL_STORAGE}/${coach.photo.replace('storage/', '')}`
+                                                : null
+                                        );
                                         setPhotoPreview(null);
+                                        setRemovePhoto(false);
                                         setIsDialogOpen(true);
                                     }}
                                     aria-label={`Edit coach ${coach.name}`}
@@ -330,36 +349,42 @@ export default function CoachesPage() {
                                 />
                             </div>
 
+                            {/* Photo */}
                             <div className="space-y-1">
                                 <Label>Photo</Label>
                                 <Input
                                     type="file"
                                     name="photo"
                                     accept="image/*"
-                                    onChange={handleFileChange}
+                                    onChange={(e) => {
+                                        setRemovePhoto(false);
+                                        handleFileChange(e);
+                                    }}
                                 />
                                 <div className="mt-2">
-                                    {photoPreview ? (
-                                        <div className="flex flex-col items-start gap-2">
-                                            <Image
-                                                src={photoPreview}
-                                                alt="Preview"
-                                                width={80}
-                                                height={80}
-                                                className="object-cover rounded border"
-                                                unoptimized={true}
-                                            />
-                                        </div>
-                                    ) : currentPhoto ? (
-                                        <div className="flex flex-col items-start gap-2">
-                                            <Image
-                                                src={currentPhoto}
-                                                alt="Current"
-                                                width={80}
-                                                height={80}
-                                                className="object-cover rounded border"
-                                                unoptimized={true}
-                                            />
+                                    {!removePhoto && (photoPreview || currentPhoto) ? (
+                                        <div className="flex flex-col items-start gap-1">
+                                            <div className="relative inline-block">
+                                                <Image
+                                                    src={photoPreview ?? currentPhoto!}
+                                                    alt="Photo preview"
+                                                    width={80}
+                                                    height={80}
+                                                    className="object-cover rounded border"
+                                                    unoptimized={true}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemovePhoto}
+                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs leading-none transition-colors"
+                                                    aria-label="Hapus foto"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                            {!photoPreview && currentPhoto && (
+                                                <span className="text-xs text-gray-500">Current photo</span>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded border text-sm text-gray-400">

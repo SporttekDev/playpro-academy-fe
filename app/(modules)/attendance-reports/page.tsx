@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,9 @@ interface Schedule {
 
 interface Coach {
     id: number;
-    name: string;
+    user?: {
+        name: string;
+    };
 }
 
 interface PlayKid {
@@ -92,6 +95,17 @@ interface ImportResult {
     warnings: string[];
 }
 
+interface Session {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    coach?: {
+        id: number;
+        user_id: number;
+    };
+}
+
 const MONTHS = [
     { value: '1', label: 'Januari' },
     { value: '2', label: 'Februari' },
@@ -113,7 +127,21 @@ const YEARS = Array.from({ length: 5 }, (_, i) => ({
     label: String(currentYear - i),
 }));
 
-export default function AttendanceReportsPage() {
+function AttendanceReportsContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const [selectedMonth, setSelectedMonth] = useState<string>(
+        searchParams.get('month') ?? String(new Date().getMonth() + 1)
+    );
+    const [selectedYear, setSelectedYear] = useState<string>(
+        searchParams.get('year') ?? String(currentYear)
+    );
+    const [selectedBranch, setSelectedBranch] = useState<string>(
+        searchParams.get('branch') ?? 'all'
+    );
+
+    const [session, setSession] = useState<Session | null | 'loading'>('loading');
     const [attendanceReports, setAttendanceReports] = useState<AttendanceReport[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -122,9 +150,27 @@ export default function AttendanceReportsPage() {
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
-    const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
-    const [selectedBranch, setSelectedBranch] = useState<string>('all');
+    useEffect(() => {
+        const sessionString = Cookies.get('session_key');
+        if (sessionString) {
+            try {
+                setSession(JSON.parse(sessionString));
+            } catch {
+                console.error('Failed to parse session');
+                setSession(null);
+            }
+        } else {
+            setSession(null);
+        }
+    }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams();
+        params.set('month', selectedMonth);
+        params.set('year', selectedYear);
+        params.set('branch', selectedBranch);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [selectedMonth, selectedYear, selectedBranch]);
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -144,14 +190,19 @@ export default function AttendanceReportsPage() {
     }, []);
 
     const fetchAttendanceReports = useCallback(async () => {
+        if (session === 'loading') return;
+
         setIsLoading(true);
         try {
             const token = Cookies.get('token');
-
             const params = new URLSearchParams();
             if (selectedMonth) params.append('month', selectedMonth);
             if (selectedYear) params.append('year', selectedYear);
             if (selectedBranch && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
+
+            if (session !== null && session.role === 'coach' && session.coach?.id) {
+                params.append('coach_id', String(session.coach.id));
+            }
 
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report?${params.toString()}`,
@@ -162,9 +213,7 @@ export default function AttendanceReportsPage() {
                     },
                 }
             );
-            if (!response.ok) {
-                throw new Error('Failed to fetch attendance reports');
-            }
+            if (!response.ok) throw new Error('Failed to fetch attendance reports');
             const { data } = await response.json();
             setAttendanceReports(data);
         } catch (error) {
@@ -172,7 +221,7 @@ export default function AttendanceReportsPage() {
             toast.error('Error fetching attendance reports');
         }
         setIsLoading(false);
-    }, [selectedMonth, selectedYear, selectedBranch]);
+    }, [selectedMonth, selectedYear, selectedBranch, session]);
 
     useEffect(() => {
         fetchBranches();
@@ -203,9 +252,10 @@ export default function AttendanceReportsPage() {
     const downloadTemplate = async () => {
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/download-template`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/download-template`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             if (!response.ok) throw new Error('Failed to download template');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -233,15 +283,20 @@ export default function AttendanceReportsPage() {
             const token = Cookies.get('token');
             const formData = new FormData();
             formData.append('file', selectedFile);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/import`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: formData,
-            });
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/playkid-reports/import`,
+                {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                }
+            );
             const result = await response.json();
             if (result.success) {
                 setImportResult(result.data);
-                toast.success(`Import berhasil: ${result.data.imported_count} data baru, ${result.data.updated_count} data diperbarui`);
+                toast.success(
+                    `Import berhasil: ${result.data.imported_count} data baru, ${result.data.updated_count} data diperbarui`
+                );
                 fetchAttendanceReports();
                 setTimeout(() => {
                     setSelectedFile(null);
@@ -262,6 +317,8 @@ export default function AttendanceReportsPage() {
         setSelectedFile(null);
         setImportResult(null);
     };
+
+    const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     const columns: ColumnDef<AttendanceReport>[] = [
         {
@@ -291,10 +348,22 @@ export default function AttendanceReportsPage() {
         },
         {
             header: 'Reports',
-            cell: ({ row }) =>
-                row.original.motorik || row.original.locomotor || row.original.body_control
-                    ? 'Submitted'
-                    : 'Not Submitted',
+            cell: ({ row }) => {
+                const { attendance, motorik, locomotor, body_control, coach } = row.original;
+
+                // ketika abent
+                if (!attendance) {
+                    const coachName = coach?.user?.name ?? null;
+                    return coachName ? `Submitted by ${coachName}` : 'Not Submitted';
+                }
+
+                // ketika present
+                const isSubmitted = motorik || locomotor || body_control;
+                if (!isSubmitted) return 'Not Submitted';
+
+                const coachName = coach?.user?.name ?? 'Unknown';
+                return `Submitted by ${coachName}`;
+            },
         },
         {
             accessorKey: 'overall',
@@ -308,7 +377,9 @@ export default function AttendanceReportsPage() {
                 <div className="flex gap-2">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Link href={`/attendance-reports/${row.original.id}`}>
+                            <Link
+                                href={`/attendance-reports/${row.original.id}?returnTo=${encodeURIComponent('?' + searchParams.toString())}`}
+                            >
                                 <Button variant="outline" size="icon">
                                     <IconFilePencil size={16} />
                                 </Button>
@@ -320,6 +391,10 @@ export default function AttendanceReportsPage() {
             ),
         },
     ];
+
+    if (session === 'loading') {
+        return <div className="px-6 py-8">Loading...</div>;
+    }
 
     return (
         <div className='px-6 space-y-4'>
@@ -356,19 +431,21 @@ export default function AttendanceReportsPage() {
                     </Select>
 
                     {/* Branch */}
-                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                        <SelectTrigger className="w-44">
-                            <SelectValue placeholder="Select Branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Branch</SelectItem>
-                            {branches.map((b) => (
-                                <SelectItem key={b.id} value={String(b.id)}>
-                                    {b.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {!isCoach && (
+                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder="Select Branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Branch</SelectItem>
+                                {branches.map((b) => (
+                                    <SelectItem key={b.id} value={String(b.id)}>
+                                        {b.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
 
                 {/* Action Buttons */}
@@ -382,105 +459,117 @@ export default function AttendanceReportsPage() {
                         <TooltipContent>Refresh Data</TooltipContent>
                     </Tooltip>
 
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="outline" onClick={downloadTemplate}>
-                                <IconDownload size={16} />
-                                <span className="ml-2">Template</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Download Template Excel</TooltipContent>
-                    </Tooltip>
+                    {!isCoach && (
+                        <>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="outline" onClick={downloadTemplate}>
+                                        <IconDownload size={16} />
+                                        <span className="ml-2">Template</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download Template Excel</TooltipContent>
+                            </Tooltip>
 
-                    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <DialogTrigger asChild>
-                                    <Button>
-                                        <IconUpload size={16} />
-                                        <span className="ml-2">Import Data</span>
-                                    </Button>
-                                </DialogTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent>Import Data</TooltipContent>
-                        </Tooltip>
-                        <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Import Data Reports</DialogTitle>
-                                <DialogDescription>
-                                    Upload file Excel untuk import data attendance reports
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                                <div>
-                                    <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelect} />
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        Format: .xlsx, .xls, .csv (maks. 10MB)
-                                    </p>
-                                </div>
-                                {selectedFile && (
-                                    <div className="p-3 border rounded-md bg-muted/50">
-                                        <p className="text-sm font-medium">File terpilih:</p>
-                                        <p className="text-sm">
-                                            {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                                        </p>
-                                    </div>
-                                )}
-                                {importLoading && (
-                                    <p className="text-sm text-center">Sedang mengimport data...</p>
-                                )}
-                                {importResult && (
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-3 gap-2 text-sm">
-                                            <div className="text-center p-2 bg-green-50 rounded">
-                                                <p className="font-bold text-green-600">{importResult.imported_count}</p>
-                                                <p>Data Baru</p>
-                                            </div>
-                                            <div className="text-center p-2 bg-blue-50 rounded">
-                                                <p className="font-bold text-blue-600">{importResult.updated_count}</p>
-                                                <p>Data Diupdate</p>
-                                            </div>
-                                            <div className="text-center p-2 bg-red-50 rounded">
-                                                <p className="font-bold text-red-600">{importResult.skipped_count}</p>
-                                                <p>Data Dilewati</p>
-                                            </div>
+                            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DialogTrigger asChild>
+                                            <Button>
+                                                <IconUpload size={16} />
+                                                <span className="ml-2">Import Data</span>
+                                            </Button>
+                                        </DialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Import Data</TooltipContent>
+                                </Tooltip>
+                                <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Import Data Reports</DialogTitle>
+                                        <DialogDescription>
+                                            Upload file Excel untuk import data attendance reports
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelect} />
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Format: .xlsx, .xls, .csv (maks. 10MB)
+                                            </p>
                                         </div>
-                                        {importResult.errors.length > 0 && (
-                                            <div>
-                                                <p className="text-sm font-medium text-red-600 mb-2">Error saat import:</p>
-                                                <div className="max-h-32 overflow-y-auto text-sm">
-                                                    {importResult.errors.map((error, index) => (
-                                                        <p key={index} className="text-red-600 py-1">• {error}</p>
-                                                    ))}
-                                                </div>
+                                        {selectedFile && (
+                                            <div className="p-3 border rounded-md bg-muted/50">
+                                                <p className="text-sm font-medium">File terpilih:</p>
+                                                <p className="text-sm">
+                                                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                                                </p>
                                             </div>
                                         )}
-                                        {importResult.warnings.length > 0 && (
-                                            <div>
-                                                <p className="text-sm font-medium text-yellow-600 mb-2">Peringatan:</p>
-                                                <div className="max-h-32 overflow-y-auto text-sm">
-                                                    {importResult.warnings.map((warning, index) => (
-                                                        <p key={index} className="text-yellow-600 py-1">• {warning}</p>
-                                                    ))}
+                                        {importLoading && (
+                                            <p className="text-sm text-center">Sedang mengimport data...</p>
+                                        )}
+                                        {importResult && (
+                                            <div className="space-y-3">
+                                                <div className="grid grid-cols-3 gap-2 text-sm">
+                                                    <div className="text-center p-2 bg-green-50 rounded">
+                                                        <p className="font-bold text-green-600">{importResult.imported_count}</p>
+                                                        <p>Data Baru</p>
+                                                    </div>
+                                                    <div className="text-center p-2 bg-blue-50 rounded">
+                                                        <p className="font-bold text-blue-600">{importResult.updated_count}</p>
+                                                        <p>Data Diupdate</p>
+                                                    </div>
+                                                    <div className="text-center p-2 bg-red-50 rounded">
+                                                        <p className="font-bold text-red-600">{importResult.skipped_count}</p>
+                                                        <p>Data Dilewati</p>
+                                                    </div>
                                                 </div>
+                                                {importResult.errors.length > 0 && (
+                                                    <div>
+                                                        <p className="text-sm font-medium text-red-600 mb-2">Error saat import:</p>
+                                                        <div className="max-h-32 overflow-y-auto text-sm">
+                                                            {importResult.errors.map((error, index) => (
+                                                                <p key={index} className="text-red-600 py-1">• {error}</p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {importResult.warnings.length > 0 && (
+                                                    <div>
+                                                        <p className="text-sm font-medium text-yellow-600 mb-2">Peringatan:</p>
+                                                        <div className="max-h-32 overflow-y-auto text-sm">
+                                                            {importResult.warnings.map((warning, index) => (
+                                                                <p key={index} className="text-yellow-600 py-1">• {warning}</p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
+                                        <div className="flex gap-2 justify-end">
+                                            <Button variant="outline" onClick={resetImport}>Reset</Button>
+                                            <Button onClick={handleImport} disabled={!selectedFile || importLoading}>
+                                                {importLoading ? 'Importing...' : 'Import Data'}
+                                            </Button>
+                                        </div>
                                     </div>
-                                )}
-                                <div className="flex gap-2 justify-end">
-                                    <Button variant="outline" onClick={resetImport}>Reset</Button>
-                                    <Button onClick={handleImport} disabled={!selectedFile || importLoading}>
-                                        {importLoading ? 'Importing...' : 'Import Data'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+                                </DialogContent>
+                            </Dialog>
+                        </>
+                    )}
                 </div>
             </div>
 
             {/* Data Table */}
             <DataTable columns={columns} data={attendanceReports} />
         </div>
+    );
+}
+
+export default function AttendanceReportsPage() {
+    return (
+        <Suspense fallback={<div className="px-6 py-8">Loading...</div>}>
+            <AttendanceReportsContent />
+        </Suspense>
     );
 }

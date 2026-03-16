@@ -1176,9 +1176,12 @@ export default function SchedulesPage() {
                         </TabsContent>
 
                         <TabsContent value="attendance_report" className="space-y-4">
-                            <div className="text-sm text-muted-foreground">
-                                Available Quota: {schedules.find((s) => s.id === activeScheduleId)?.quota || 0}
+                            <div className="flex justify-between items-center">
+                                <div className="text-sm text-muted-foreground">
+                                    Available Quota: {schedules.find(s => s.id === activeScheduleId)?.quota || 0}
+                                </div>
                             </div>
+
                             <DataTable columns={attendanceColumns} data={attendanceReport} />
                             <form onSubmit={handleSaveAttendanceReport}>
                                 <div className="grid gap-4">
@@ -1205,6 +1208,7 @@ export default function SchedulesPage() {
                             </form>
                         </TabsContent>
                     </Tabs>
+
 
                     <DialogFooter>
                         <Button

@@ -11,6 +11,7 @@ import { IconFileExport } from '@tabler/icons-react';
 import { ReportPDF } from '@/components/ui/report-pdf';
 import jsPDF from "jspdf";
 import html2canvas from 'html2canvas-pro';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRequireAdmin } from '@/lib/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
