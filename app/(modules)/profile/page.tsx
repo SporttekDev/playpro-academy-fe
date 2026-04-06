@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react"
 import Cookies from "js-cookie"
 import Image from "next/image"
+import { toast } from "sonner"
 
 interface CoachProfile {
   id: number
@@ -43,7 +44,7 @@ interface FormState {
   password_confirmation: string
 }
 
-type FormErrors = Partial<Record<keyof FormState | "general", string>>
+type FormErrors = Partial<Record<keyof FormState, string>>
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -74,7 +75,6 @@ export default function EditProfilePage() {
   const [removePhoto, setRemovePhoto]   = useState(false)
   const [loading, setLoading]           = useState(true)
   const [saving, setSaving]             = useState(false)
-  const [saved, setSaved]               = useState(false)
   const [errors, setErrors]             = useState<FormErrors>({})
   const [showPass, setShowPass]         = useState(false)
   const [showConfirm, setShowConfirm]   = useState(false)
@@ -101,7 +101,7 @@ export default function EditProfilePage() {
         if (data.coach?.photo) setPhotoPreview(data.coach.photo)
       } catch (e) {
         console.error(e)
-        setErrors({ general: "Failed to load profile. Please refresh the page." })
+        toast.error("Failed to load profile. Please refresh the page.")
       } finally {
         setLoading(false)
       }
@@ -120,13 +120,12 @@ export default function EditProfilePage() {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 2 * 1024 * 1024) {
-      setErrors((p) => ({ ...p, general: "Photo must be smaller than 2 MB." }))
+      toast.error("Photo must be smaller than 2 MB.")
       return
     }
     setPhotoFile(file)
     setPhotoPreview(URL.createObjectURL(file))
     setRemovePhoto(false)
-    setErrors((p) => ({ ...p, general: undefined }))
   }
 
   const handleRemovePhoto = () => {
@@ -229,12 +228,9 @@ export default function EditProfilePage() {
       setForm((p) => ({ ...p, password: "", password_confirmation: "" }))
       setPhotoFile(null)
       setRemovePhoto(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3500)
+      toast.success("Profile updated successfully!")
     } catch (err: unknown) {
-      setErrors({
-        general: err instanceof Error ? err.message : "Something went wrong.",
-      })
+      toast.error(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setSaving(false)
     }
@@ -256,20 +252,6 @@ export default function EditProfilePage() {
   return (
     <div className="min-h-screen">
       <form id="profile-form" onSubmit={handleSubmit} className="p-8">
-        {/* Alerts */}
-        {errors.general && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-600">
-            <IconAlertCircle size={18} className="mt-0.5 shrink-0" />
-            {errors.general}
-          </div>
-        )}
-        {saved && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
-            <IconCheck size={18} />
-            Profile updated successfully!
-          </div>
-        )}
-
         <div className="grid gap-6 lg:grid-cols-3">
 
           <div className="space-y-6 lg:col-span-1">
@@ -362,7 +344,7 @@ export default function EditProfilePage() {
 
           </div>
 
-          {/*Personal Info*/}
+          {/* Personal Info */}
           <div className="space-y-6 lg:col-span-2">
 
             <Section title="Personal Information" icon={<IconFileText size={14} />}>
@@ -449,13 +431,8 @@ export default function EditProfilePage() {
           </div>
         </div>
 
-        {/* Save Button*/}
-        <div className="mt-8 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-end">
-          {saved && (
-            <p className="flex items-center gap-2 text-sm font-medium text-emerald-600">
-              <IconCheck size={15} /> Saved successfully!
-            </p>
-          )}
+        {/* Save Button */}
+        <div className="mt-8 flex items-center justify-end">
           <button
             type="submit"
             disabled={saving}
