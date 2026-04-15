@@ -399,7 +399,7 @@ export default function EditProfilePage() {
 
             <Section title="Security" icon={<IconLock size={14} />}>
               <p className="mb-5 text-[12px] text-[#aaa]">
-                Leave both fields empty if you don't want to change your password.
+                Leave both fields empty if you don&apos;t want to change your password.
               </p>
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label="New Password" error={errors.password}>
