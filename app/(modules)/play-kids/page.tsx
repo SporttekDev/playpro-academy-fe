@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UserPlus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import formatDateLocal from '@/helpers/formatDateLocal';
-import { useRequireAdmin } from '@/lib/auth';
+
 
 interface PlayKid {
     id: number;
@@ -132,12 +132,7 @@ interface ImportResult {
 }
 
 export default function PlayKidsPage() {
-    const { isAdmin } = useRequireAdmin({
-        cookieKey: 'session_key',
-        redirectTo: '/dashboard',
-        adminRole: 'admin',
-        showToastOnFail: true,
-    });
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -993,9 +988,7 @@ export default function PlayKidsPage() {
         },
     ];
 
-    if (!isAdmin) {
-        return null;
-    }
+
 
     return (
         <>

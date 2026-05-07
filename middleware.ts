@@ -1,60 +1,103 @@
+// middleware.ts
+
 import { NextRequest, NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
-    // console.log("Middleware dijalankan!");
-    const token = request.cookies.get("token")?.value;
-    const url = new URL(request.url);
+type SessionShape = {
+    role?: string;
+    user?: {
+        role?: string;
+    };
+};
 
-    const isAuthPage = url.pathname.startsWith("/login");
-    const isProtectedPage = url.pathname.startsWith("/dashboard");
+const PUBLIC_ROUTES = ["/login", "/register"];
+const SESSION_COOKIE = "session_key";
 
-    if (url.pathname === "/") {
-        return NextResponse.redirect(new URL(token ? "/dashboard" : "/login", request.url));
+function getRoleFromCookie(request: NextRequest): string | null {
+    const raw = request.cookies.get(SESSION_COOKIE)?.value;
+
+    if (!raw) return null;
+
+    try {
+        const session: SessionShape = JSON.parse(raw);
+
+        const role = session?.role ?? session?.user?.role;
+
+        return typeof role === "string"
+            ? role.toLowerCase()
+            : null;
+    } catch (err) {
+        return null;
+    }
+}
+
+function isPublicRoute(pathname: string) {
+    return PUBLIC_ROUTES.some((route) => pathname === route);
+}
+
+function isAllowed(role: string, pathname: string) {
+
+    // ADMIN
+    if (role === "admin") {
+        return true;
     }
 
-    if (token && isAuthPage) {
-        const valid = await isTokenValid(token, request);
-        if (valid) return NextResponse.redirect(new URL("/dashboard", request.url));
-
-        return clearTokenAndContinue(request);
+    // COACH
+    if (role === "coach") {
+        return (
+            pathname.startsWith("/dashboard") ||
+            pathname.startsWith("/attendance-reports")
+        );
     }
 
-    if (isProtectedPage) {
-        if (!token) return NextResponse.redirect(new URL("/login", request.url));
+    // PARENT
+    if (role === "parent") {
+        return pathname.startsWith("/dashboard");
+    }
 
-        const valid = await isTokenValid(token, request);
-        if (!valid) {
-            const res = NextResponse.redirect(new URL("/login", request.url));
-            res.cookies.delete("token");
-            res.cookies.delete("session_key");
-            return res;
+    return false;
+}
+
+export function middleware(request: NextRequest) {
+    const pathname = request.nextUrl.pathname;
+
+    const role = getRoleFromCookie(request);
+
+    // BELUM LOGIN
+    if (!role) {
+
+        if (isPublicRoute(pathname)) {
+            return NextResponse.next();
         }
+
+
+        return NextResponse.redirect(
+            new URL("/login", request.url)
+        );
+    }
+
+    // SUDAH LOGIN TAPI BUKA LOGIN
+    if (isPublicRoute(pathname)) {
+
+        return NextResponse.redirect(
+            new URL("/dashboard", request.url)
+        );
+    }
+
+    // ROLE CHECK
+    const allowed = isAllowed(role, pathname);
+
+    if (!allowed) {
+
+        return NextResponse.redirect(
+            new URL("/dashboard", request.url)
+        );
     }
 
     return NextResponse.next();
 }
 
-async function isTokenValid(token: string, request: NextRequest): Promise<boolean> {
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-            },
-        });
-        return res.ok;
-    } catch {
-        return false;
-    }
-}
-
-function clearTokenAndContinue(request: NextRequest) {
-    const res = NextResponse.next();
-    res.cookies.delete("token");
-    res.cookies.delete("session_key");
-    return res;
-}
-
 export const config = {
-    matcher: ["/dashboard/:path*", "/login", "/"],
+    matcher: [
+        "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    ],
 };
