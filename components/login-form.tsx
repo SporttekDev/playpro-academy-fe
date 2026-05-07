@@ -49,11 +49,14 @@ export function LoginForm({
         expires: 1, // 1 hari
         secure: process.env.NODE_ENV === 'production',
         sameSite: "Strict",
+        path: "/",
       });
 
       Cookies.set("session_key", userData, {
+        expires: 1, // 1 hari
         secure: process.env.NODE_ENV === 'production',
         sameSite: "Strict",
+        path: "/",
       });
 
       toast.success("Login berhasil!");

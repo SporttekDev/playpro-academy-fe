@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UserPlus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import formatDateLocal from '@/helpers/formatDateLocal';
-import { useRequireAdmin } from '@/lib/auth';
+
 
 interface PlayKid {
     id: number;
@@ -132,12 +132,7 @@ interface ImportResult {
 }
 
 export default function PlayKidsPage() {
-    const { isAdmin } = useRequireAdmin({
-        cookieKey: 'session_key',
-        redirectTo: '/dashboard',
-        adminRole: 'admin',
-        showToastOnFail: true,
-    });
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -167,23 +162,36 @@ export default function PlayKidsPage() {
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [importLoading, setImportLoading] = useState(false);
 
+    const [selectedBranch, setSelectedBranch] = useState<string>("all");
+
     const fetchPlayKids = useCallback(async () => {
         setIsLoading(true);
         try {
             const token = Cookies.get("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
-                },
-            });
+            const params = new URLSearchParams();
+
+            if (selectedBranch && selectedBranch !== "all") {
+                params.append("branch_id", selectedBranch);
+            }
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid?${params.toString()}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                }
+            );
 
             if (!response.ok) {
                 throw new Error("Failed to fetch play kids from server");
             }
 
             const { data } = await response.json();
-            const sorted = [...data].sort((a: PlayKid, b: PlayKid) => a.name.localeCompare(b.name));
+            const sorted = [...data].sort((a: PlayKid, b: PlayKid) =>
+                a.name.localeCompare(b.name)
+            );
             setPlayKids(sorted);
         } catch (error) {
             console.error("Fetch play kids failed:", error);
@@ -191,7 +199,7 @@ export default function PlayKidsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [selectedBranch]);
 
     const fetchParents = useCallback(async () => {
         try {
@@ -993,15 +1001,30 @@ export default function PlayKidsPage() {
         },
     ];
 
-    if (!isAdmin) {
-        return null;
-    }
+
 
     return (
         <>
             {/* Header dengan Actions */}
             <div className='px-6 space-y-4'>
-                <div className="flex justify-end items-center">
+                <div className="flex flex-wrap gap-2 justify-between items-center">
+                    {/* Filters */}
+                    <div className="flex flex-wrap gap-2">
+                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder="Select Branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Branch</SelectItem>
+                                {branches.map((b) => (
+                                    <SelectItem key={b.id} value={String(b.id)}>
+                                        {b.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="flex gap-2">
                         {/* Refresh Button */}
                         <Tooltip>

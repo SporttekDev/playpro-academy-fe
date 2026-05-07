@@ -12,7 +12,7 @@ import { ReportPDF } from '@/components/ui/report-pdf';
 import jsPDF from "jspdf";
 import html2canvas from 'html2canvas-pro';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useRequireAdmin } from '@/lib/auth';
+
 
 export interface ReportResponse {
     play_kid: PlayKid;
@@ -113,12 +113,7 @@ const YEARS = Array.from({ length: 5 }, (_, i) => ({
 }));
 
 export default function RaportPage() {
-    const { isAdmin } = useRequireAdmin({
-        cookieKey: 'session_key',
-        redirectTo: '/dashboard',
-        adminRole: 'admin',
-        showToastOnFail: true,
-    });
+
     const [reports, setReports] = useState<ReportResponse[]>([]);
     const [reportPdf, setReportPdf] = useState<ReportResponse | null>(null);
     const [exporting, setExporting] = useState(false);
@@ -339,9 +334,7 @@ export default function RaportPage() {
         },
     ];
 
-    if (!isAdmin) {
-        return null;
-    }
+
 
     return (
         <div className="px-6 space-y-4">

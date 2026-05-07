@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
-import { useRequireAdmin } from '@/lib/auth';
+
 
 interface Branch {
     id: string;
@@ -203,12 +203,7 @@ const formatTimeForAPI = (timeString: string): string => {
 };
 
 export default function SchedulesPage() {
-    const { isAdmin } = useRequireAdmin({
-        cookieKey: 'session_key',
-        redirectTo: '/dashboard',
-        adminRole: 'admin',
-        showToastOnFail: true,
-    });
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -931,9 +926,7 @@ export default function SchedulesPage() {
         },
     ];
 
-    if (!isAdmin) {
-        return null;
-    }
+
 
     return (
         <>

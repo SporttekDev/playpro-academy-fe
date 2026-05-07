@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getNameById } from '@/helpers/getNameById';
-import { useRequireAdmin } from '@/lib/auth';
+
 
 interface Venue {
     id: number;
@@ -51,12 +51,7 @@ const defaultForm: VenueForm = {
 };
 
 export default function VenuesPage() {
-    const { isAdmin } = useRequireAdmin({
-        cookieKey: 'session_key',
-        redirectTo: '/dashboard',
-        adminRole: 'admin',
-        showToastOnFail: true,
-    });
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -256,9 +251,7 @@ export default function VenuesPage() {
         },
     ];
 
-    if (!isAdmin) {
-        return null;
-    }   
+   
 
     return (
         <>

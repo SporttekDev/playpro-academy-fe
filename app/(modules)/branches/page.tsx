@@ -20,7 +20,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useRequireAdmin } from '@/lib/auth';
+
 
 interface Branch {
     id: number;
@@ -39,12 +39,7 @@ const defaultForm: BranchForm = {
 };
 
 export default function BranchesPage() {
-    const { isAdmin } = useRequireAdmin({
-        cookieKey: 'session_key',
-        redirectTo: '/dashboard',
-        adminRole: 'admin',
-        showToastOnFail: true,
-    });
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -238,9 +233,7 @@ export default function BranchesPage() {
         },
     ];
 
-    if (!isAdmin) {
-        return null;
-    }
+
 
     return (
         <>
