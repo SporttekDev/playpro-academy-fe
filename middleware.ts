@@ -8,15 +8,14 @@ type SessionShape = {
         role?: string;
     };
 };
-
-const PUBLIC_ROUTES = ["/login", "/register"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/class-programs", "/about-us", "/membership-package", "/schedules-booking", "/coach-list", "/gallery-activities"];
+const AUTH_ROUTES = ["/login", "/register"];
 const SESSION_COOKIE = "session_key";
 
 function getRoleFromCookie(request: NextRequest): string | null {
     const raw = request.cookies.get(SESSION_COOKIE)?.value;
 
     if (!raw) return null;
-
     try {
         const session: SessionShape = JSON.parse(raw);
 
@@ -76,8 +75,7 @@ export function middleware(request: NextRequest) {
     }
 
     // SUDAH LOGIN TAPI BUKA LOGIN
-    if (isPublicRoute(pathname)) {
-
+    if (AUTH_ROUTES.includes(pathname)) {
         return NextResponse.redirect(
             new URL("/dashboard", request.url)
         );
