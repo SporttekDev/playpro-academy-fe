@@ -162,6 +162,7 @@ export default function PlayKidsPage() {
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [importLoading, setImportLoading] = useState(false);
 
+
     const [selectedBranch, setSelectedBranch] = useState<string>("all");
 
     const fetchPlayKids = useCallback(async () => {
@@ -242,6 +243,45 @@ export default function PlayKidsPage() {
             toast.error("Failed to fetch branches data");
         }
     }, []);
+
+    const exportData = async () => {
+        try {
+            const token = Cookies.get('token');
+            const params = new URLSearchParams();
+
+            if (selectedBranch && selectedBranch !== 'all') {
+                params.append('branch_id', selectedBranch);
+            }
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/play-kid/export?${params.toString()}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to export data');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `play_kids_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Data berhasil diexport');
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to export data');
+        }
+    };
 
     const downloadTemplate = async () => {
         try {
@@ -1034,6 +1074,16 @@ export default function PlayKidsPage() {
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>Refresh Data</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="outline" onClick={exportData}>
+                                    <IconDownload size={16} />
+                                    <span className="ml-2">Export</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Export Data</TooltipContent>
                         </Tooltip>
 
                         {/* Download Template Button */}
