@@ -7,20 +7,18 @@ import TestimonialSection from "@/components/landing-ui/testimoni";
 import ActivitiesSection from "@/components/landing-ui/activity";
 import FAQSection from "@/components/landing-ui/faq";
 import LocationsSection from "@/components/landing-ui/location";
-import ClassProgramGatewayPage from "@/components/landing-ui/class-program";
 
 export default function Home() {
   return (
     <>
       <Navbar />
-      <HeroSection /> 
+      <HeroSection />
       <ProgramsSection />
       <LocationsSection />
       <PromoSection />
       <TestimonialSection />
       <ActivitiesSection />
       <FAQSection />
-      {/* <ClassProgramGatewayPage/> */}
       <Footer />
     </>
   );
