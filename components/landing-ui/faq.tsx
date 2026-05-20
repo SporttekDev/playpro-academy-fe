@@ -8,6 +8,8 @@ import {
     ShieldCheck,
     Users,
     Baby,
+    MapPin,
+    PhoneCall,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -19,55 +21,364 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion"
 
-const faqs = [
+type FAQItem = {
+    question: string
+    answer: React.ReactNode
+}
+
+const faqs: FAQItem[] = [
     {
-        question: "Minimal usia anak untuk bergabung di PlayPro Academy?",
-        answer:
-            "PlayPro Academy menerima siswa mulai dari usia toddler hingga junior dengan program dan pendekatan pembelajaran yang disesuaikan berdasarkan usia anak.",
+        question:
+            "Biaya apa saja yang perlu disiapkan untuk mengikuti kelas di PlayPro Academy?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Untuk mengikuti kelas di PlayPro Academy, terdapat{" "}
+                    <strong>biaya registrasi</strong> yang dibayarkan satu kali pada saat
+                    pendaftaran awal <strong>(Membership fee)</strong>, serta{" "}
+                    <strong>biaya bulanan</strong> <strong>(Monthly fee)</strong> berupa
+                    paket visit sesuai kelas yang dipilih.
+                </p>
+
+                <p>
+                    Nominal biaya dapat berbeda tergantung jenis olahraga dan kategori
+                    usia anak.
+                </p>
+
+                <p>
+                    Untuk informasi lebih lengkap mengenai pilihan paket, jadwal, dan
+                    rincian biaya, Mom &amp; Dad dapat langsung menghubungi admin
+                    PlayPro Academy melalui WhatsApp berikut:
+                </p>
+
+                <Link
+                    href="https://wa.me/62812XXXXXXXX"
+                    target="_blank"
+                    className="
+            inline-flex items-center gap-2 rounded-full
+            bg-primary px-4 py-2 text-sm font-semibold text-white
+            transition hover:bg-primary/90
+          "
+                >
+                    <PhoneCall className="h-4 w-4" />
+                    Chat Admin via WhatsApp
+                </Link>
+            </div>
+        ),
     },
+
     {
-        question: "Apakah tersedia free trial sebelum mendaftar?",
-        answer:
-            "Ya, kami menyediakan sesi free trial agar anak dan orang tua dapat merasakan suasana latihan serta metode pembelajaran PlayPro Academy terlebih dahulu.",
+        question: "Di mana saja lokasi latihan PlayPro Academy tersedia?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Saat ini, PlayPro Academy tersedia di beberapa area seperti Jakarta,
+                    Tangerang, Bekasi, Karawang, dan Bandung.
+                </p>
+
+                <p>
+                    Untuk melihat informasi lokasi kelas secara lebih lengkap dan detail,
+                    Mom &amp; Dad dapat mengakses halaman lokasi PlayPro Academy melalui
+                    link berikut:
+                </p>
+
+                <Link
+                    href="/locations"
+                    className="
+            inline-flex items-center gap-2 rounded-full
+            bg-primary/5 px-4 py-2 text-sm font-semibold
+            text-primary transition hover:bg-primary/10
+          "
+                >
+                    <MapPin className="h-4 w-4" />
+                    View Locations
+                </Link>
+            </div>
+        ),
     },
+
     {
-        question: "Apakah coach di PlayPro Academy bersertifikat?",
-        answer:
-            "Semua coach PlayPro Academy telah memiliki pengalaman dan sertifikasi sesuai bidang olahraga masing-masing untuk memastikan kualitas pembelajaran terbaik.",
+        question: "Apakah PlayPro Academy memiliki jadwal kelas tetap?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    PlayPro Academy memiliki jadwal kelas yang sudah ditentukan di setiap
+                    cabang.
+                </p>
+
+                <p>
+                    Jadwal kelas dapat berbeda-beda tergantung lokasi dan program yang
+                    dipilih.
+                </p>
+
+                <p>
+                    Saat ini kelas tersedia pada hari Sabtu dan Minggu, serta beberapa
+                    cabang tertentu juga menyediakan pilihan kelas di hari kerja
+                    (weekdays).
+                </p>
+
+                <p>
+                    Untuk informasi jadwal yang paling sesuai, Mom &amp; Dad dapat
+                    berdiskusi langsung dengan admin PlayPro Academy sesuai cabang yang
+                    diinginkan.
+                </p>
+            </div>
+        ),
     },
+
     {
-        question: "Berapa kali latihan dilakukan dalam seminggu?",
-        answer:
-            "Jadwal latihan berbeda untuk setiap program dan cabang olahraga, namun umumnya dilakukan 1–3 kali per minggu sesuai paket yang dipilih.",
+        question: "Bagaimana sistem membership di PlayPro Academy?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Sistem membership di PlayPro Academy diawali dengan pembayaran biaya
+                    registrasi member yang dilakukan satu kali pada saat pendaftaran
+                    awal.
+                </p>
+
+                <p>
+                    Keanggotaan memberikan akses bagi si kecil untuk mengikuti berbagai
+                    kegiatan dan program yang tersedia di PlayPro Academy.
+                </p>
+
+                <p>
+                    Setelah registrasi, pembayaran kelas dilakukan menggunakan sistem{" "}
+                    <strong>paket visit</strong> atau kunjungan latihan.
+                </p>
+
+                <p>
+                    Paket visit ini bersifat fleksibel dan dapat digunakan sesuai jumlah
+                    pertemuan yang dimiliki.
+                </p>
+
+                <p>
+                    Untuk informasi lebih detail mengenai pilihan paket dan ketentuan
+                    membership, Mom &amp; Dad dapat menghubungi admin PlayPro Academy.
+                </p>
+            </div>
+        ),
     },
+
     {
-        question: "Apakah ada evaluasi perkembangan anak?",
-        answer:
-            "Ya, kami melakukan evaluasi perkembangan siswa secara berkala agar orang tua dapat memantau progres kemampuan dan perkembangan anak.",
+        question: "Apakah PlayPro Academy menyediakan trial class?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    PlayPro Academy menyediakan trial class yang dapat diikuti melalui
+                    kelas reguler sesuai program yang tersedia.
+                </p>
+
+                <p>
+                    Melalui sesi trial ini, si kecil dapat merasakan secara langsung
+                    suasana latihan, metode pengajaran coach, aktivitas di kelas, serta
+                    interaksi selama kegiatan berlangsung.
+                </p>
+
+                <p>
+                    Setelah menghubungi admin, Mom &amp; Dad dapat memilih jadwal trial
+                    yang paling sesuai dengan ketersediaan kelas di masing-masing cabang.
+                </p>
+            </div>
+        ),
     },
+
     {
-        question: "Apakah orang tua diperbolehkan menunggu selama latihan?",
-        answer:
-            "Tentu. Kami menyediakan area tunggu yang nyaman bagi orang tua selama anak mengikuti sesi latihan.",
+        question:
+            "Mulai usia berapa anak dapat mengikuti latihan di PlayPro Academy? Apakah anak di luar kategori usia tetap bisa bergabung?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Program di PlayPro Academy tersedia untuk kategori{" "}
+                    <strong>Toddler</strong> usia 2–5 tahun dan kategori{" "}
+                    <strong>Junior</strong> usia 6–14 tahun.
+                </p>
+
+                <p>
+                    Namun, karena perkembangan setiap anak dapat berbeda-beda,
+                    penyesuaian kategori usia tetap dapat dipertimbangkan berdasarkan
+                    kesiapan, kemampuan mengikuti arahan, serta kenyamanan anak saat
+                    berada di kelas.
+                </p>
+
+                <p>
+                    Mom &amp; Dad dapat berkonsultasi terlebih dahulu dengan admin
+                    PlayPro Academy untuk menentukan program dan kategori yang paling
+                    sesuai bagi si kecil.
+                </p>
+            </div>
+        ),
+    },
+
+    {
+        question:
+            "Apakah anak dengan kebutuhan pendampingan khusus tetap dapat mengikuti kelas di PlayPro Academy?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Anak dengan kebutuhan pendampingan khusus pada tingkat ringan, seperti
+                    speech delay, ADHD, maupun autism spectrum tingkat ringan, tetap dapat
+                    mengikuti kegiatan di PlayPro Academy.
+                </p>
+
+                <p>
+                    Terutama apabila anak masih dapat berinteraksi dan mengikuti arahan
+                    sederhana selama kelas berlangsung.
+                </p>
+
+                <p>
+                    Untuk memberikan pendampingan yang lebih optimal, PlayPro Academy
+                    menyarankan program <strong>VIP Class</strong>.
+                </p>
+
+                <p>
+                    Pada kelas ini, si kecil akan didampingi secara lebih personal oleh
+                    coach sejak awal hingga akhir sesi latihan sehingga proses belajar dan
+                    adaptasi di kelas dapat berjalan dengan lebih nyaman dan terarah.
+                </p>
+            </div>
+        ),
+    },
+
+    {
+        question: "Apa saja yang perlu dibawa saat latihan di PlayPro Academy?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Seluruh peralatan latihan telah disediakan oleh PlayPro Academy.
+                </p>
+
+                <p>
+                    Si kecil hanya perlu membawa <strong>minum pribadi</strong> dan
+                    menggunakan pakaian olahraga yang nyaman saat mengikuti kelas.
+                </p>
+
+                <p>
+                    PlayPro Academy juga menyediakan t-shirt dan jersey yang dapat
+                    digunakan sebagai seragam latihan anak selama mengikuti kegiatan di
+                    kelas.
+                </p>
+            </div>
+        ),
+    },
+
+    {
+        question:
+            "Berapa jumlah anak dalam satu sesi dan berapa lama durasi latihannya?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Jumlah peserta dalam satu sesi latihan umumnya tidak lebih dari 15
+                    anak.
+                </p>
+
+                <p>
+                    Namun, pada beberapa kelas dan cabang tertentu, jumlah peserta dapat
+                    dibatasi kurang dari 10 anak agar proses pembelajaran dapat berjalan
+                    lebih optimal.
+                </p>
+
+                <p>
+                    Setiap sesi latihan berlangsung selama 60 menit untuk seluruh cabang
+                    dan jenis olahraga.
+                </p>
+
+                <p>
+                    Dalam durasi tersebut, kegiatan sudah mencakup pemanasan, aktivitas
+                    inti, games atau fun activities, serta pendinginan.
+                </p>
+            </div>
+        ),
+    },
+
+    {
+        question:
+            "Apa manfaat dan output utama dari program di PlayPro Academy?",
+        answer: (
+            <div className="space-y-3">
+                <p>
+                    Program di PlayPro Academy dirancang untuk membantu anak mendapatkan
+                    pengalaman motorik dan pengenalan olahraga sejak dini melalui
+                    aktivitas yang aktif, menyenangkan, dan terarah.
+                </p>
+
+                <p>
+                    Selain perkembangan motorik, program latihan juga membantu membangun
+                    rasa percaya diri, keberanian, kemampuan sosial, serta kemandirian
+                    anak saat berinteraksi di lingkungan kelas.
+                </p>
+
+                <p>
+                    Untuk membantu memantau perkembangan si kecil, PlayPro Academy juga
+                    memiliki beberapa program evaluasi seperti rapor bulanan dan{" "}
+                    <strong>assessment class</strong> yang diadakan secara berkala.
+                </p>
+
+                <p>
+                    Melalui program ini, Mom &amp; Dad dapat melihat perkembangan anak
+                    dari waktu ke waktu baik dari sisi kemampuan mengikuti aktivitas,
+                    keberanian, maupun keterampilan dasar olahraga.
+                </p>
+            </div>
+        ),
     },
 ]
+
+function ContactCTA() {
+    return (
+        <div
+            className="
+        rounded-[2rem]
+        border border-primary/10
+        bg-primary/5 p-6
+      "
+        >
+            <div className="flex items-start gap-4">
+                <div
+                    className="
+            flex h-12 w-12 shrink-0 items-center
+            justify-center rounded-2xl
+            bg-primary text-white
+          "
+                >
+                    <MessageCircle className="h-5 w-5" />
+                </div>
+
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                        Masih punya pertanyaan?
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                        Tim PlayPro Academy siap membantu Anda mendapatkan informasi terbaik
+                        untuk anak.
+                    </p>
+
+                    <Button size="lg" className="mt-5" asChild>
+                        <Link
+                            href="https://wa.me/62812XXXXXXXX"
+                            target="_blank"
+                        >
+                            Contact Admin
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export default function FAQSection() {
     return (
         <section className="relative overflow-hidden py-24">
-
             {/* Background */}
             <div className="absolute inset-0 -z-10">
                 <div className="absolute right-[-120px] top-[-120px] h-[320px] w-[320px] rounded-full bg-secondary/10 blur-3xl" />
             </div>
 
             <div className="container mx-auto px-4">
-
                 <div className="grid items-start gap-14 lg:grid-cols-2">
-
                     {/* Left Content */}
                     <div className="w-full">
-
                         {/* Badge */}
                         <div
                             className="
@@ -100,14 +411,12 @@ export default function FAQSection() {
                 text-slate-600
               "
                         >
-                            Kami memahami bahwa orang tua ingin memastikan
-                            anak mendapatkan lingkungan belajar olahraga
-                            yang aman, nyaman, dan berkualitas.
+                            Kami memahami bahwa orang tua ingin memastikan anak mendapatkan
+                            lingkungan belajar olahraga yang aman, nyaman, dan berkualitas.
                         </p>
 
                         {/* Mini Cards */}
                         <div className="mt-8 grid gap-4 sm:grid-cols-3">
-
                             <div
                                 className="
                   rounded-2xl border border-slate-200
@@ -130,7 +439,7 @@ export default function FAQSection() {
                                 <Users className="h-6 w-6 text-primary" />
 
                                 <p className="mt-3 text-sm font-semibold text-slate-900">
-                                    500+ Parents
+                                    Trusted Parents
                                 </p>
                             </div>
 
@@ -148,47 +457,9 @@ export default function FAQSection() {
                             </div>
                         </div>
 
-                        {/* CTA */}
-                        <div
-                            className="
-                mt-10 rounded-[2rem]
-                border border-primary/10
-                bg-primary/5 p-6
-              "
-                        >
-                            <div className="flex items-start gap-4">
-
-                                <div
-                                    className="
-                    flex h-12 w-12 shrink-0 items-center
-                    justify-center rounded-2xl
-                    bg-primary text-white
-                  "
-                                >
-                                    <MessageCircle className="h-5 w-5" />
-                                </div>
-
-                                <div>
-                                    <h3 className="text-lg font-bold text-slate-900">
-                                        Masih punya pertanyaan?
-                                    </h3>
-
-                                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                                        Tim PlayPro Academy siap membantu Anda
-                                        mendapatkan informasi terbaik untuk anak.
-                                    </p>
-
-                                    <Button
-                                        size="lg"
-                                        className="mt-5"
-                                        asChild
-                                    >
-                                        <Link href="/contact">
-                                            Contact Us
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </div>
+                        {/* Desktop CTA */}
+                        <div className="mt-10 hidden lg:block">
+                            <ContactCTA />
                         </div>
                     </div>
 
@@ -229,6 +500,11 @@ export default function FAQSection() {
                                 </AccordionItem>
                             ))}
                         </Accordion>
+
+                        {/* Mobile CTA */}
+                        <div className="mt-10 block lg:hidden">
+                            <ContactCTA />
+                        </div>
                     </div>
                 </div>
             </div>
