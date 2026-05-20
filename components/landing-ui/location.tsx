@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 import {
     AnimatePresence,
@@ -131,8 +131,8 @@ const branches: CityBranch[] = [
         city: "Jakarta",
         students: "400+ Students",
         pinPosition: {
-            bottom: "18%",
-            right: "22%",
+            top: "4%",
+            right: "40%",
         },
         branches: [
             {
@@ -205,21 +205,25 @@ function BranchCard({
         <button
             onClick={onClick}
             className={`
-        group w-full rounded-[1.5rem] border p-4 text-left
-        transition-all duration-300
-        hover:-translate-y-1 hover:shadow-xl
-        ${isActive
+                group shrink-0 rounded-[1.5rem]
+                border p-4 text-left transition-all duration-300
+                hover:-translate-y-1 hover:shadow-xl
+
+                min-w-[220px] w-[220px]
+                lg:w-full lg:min-w-0
+
+                ${isActive
                     ? "border-primary bg-primary text-white shadow-xl"
                     : "border-slate-200 bg-white"
                 }
-      `}
+            `}
         >
             <div className="flex items-start gap-3">
                 <div
                     className={`
-            flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl
-            ${isActive ? "bg-white/20" : "bg-primary/10"}
-          `}
+                        flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl
+                        ${isActive ? "bg-white/20" : "bg-primary/10"}
+                    `}
                 >
                     <MapPin
                         className={`h-5 w-5 ${isActive ? "text-white" : "text-primary"
@@ -247,6 +251,7 @@ function BranchCard({
         </button>
     )
 }
+
 
 // ─── Interactive Map ─────────────────────────────────────────────────────────
 
@@ -279,7 +284,7 @@ function InteractiveMap({
                         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, scale: 0.98, filter: "blur(6px)" }}
                         transition={{ duration: 0.35 }}
-                        className="relative aspect-[1.25/1]"
+                        className="relative aspect-[1/1] lg:aspect-[1.8/1]"
                     >
                         {/* Background */}
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-white to-secondary/10" />
@@ -392,7 +397,7 @@ function InteractiveMap({
                         </div>
 
                         {/* Branches */}
-                        <div className="mt-8 grid gap-4 max-h-[420px] overflow-y-auto pr-2">
+                        <div className="mt-8 grid gap-4 max-h-[320px] overflow-y-auto pr-2">
                             {activeBranch.branches.map((location) => (
                                 <div
                                     key={location.name}
@@ -480,8 +485,25 @@ export default function LocationsSection() {
     const [activeBranch, setActiveBranch] =
         useState<CityBranch | null>(null)
 
+    const mapRef = useRef<HTMLDivElement | null>(null)
+
+    const handleSelectBranch = (branch: CityBranch) => {
+        setActiveBranch(branch)
+
+        // smooth scroll to map on mobile
+        if (window.innerWidth < 1024) {
+            setTimeout(() => {
+                mapRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                })
+            }, 100)
+        }
+    }
+
     return (
-        <section className="relative overflow-hidden bg-slate-50 py-24">
+        <section className="relative overflow-hidden bg-slate-50 pt-36 pb-24 sm:py-24">
+
             {/* Background */}
             <div className="absolute inset-0 -z-10">
                 <div className="absolute left-[-120px] top-[-120px] h-[320px] w-[320px] rounded-full bg-primary/10 blur-3xl" />
@@ -490,14 +512,16 @@ export default function LocationsSection() {
             </div>
 
             <div className="container mx-auto px-4">
+
                 {/* Header */}
                 <div className="mx-auto max-w-3xl text-center">
+
                     <div
                         className="
-              inline-flex items-center gap-2 rounded-full
-              border border-primary/10 bg-primary/5
-              px-4 py-2 text-sm font-medium text-primary
-            "
+                            inline-flex items-center gap-2 rounded-full
+                            border border-primary/10 bg-primary/5
+                            px-4 py-2 text-sm font-medium text-primary
+                        "
                     >
                         <Sparkles className="h-4 w-4" />
                         Our Locations
@@ -517,26 +541,39 @@ export default function LocationsSection() {
                 </div>
 
                 {/* Layout */}
-                <div className="mt-14 grid gap-8 lg:grid-cols-[300px_1fr]">
-                    {/* Left */}
-                    <div className="space-y-4">
+                <div className="mt-14 grid gap-6 lg:grid-cols-[300px_1fr] lg:gap-8">
+
+                    {/* Mobile Horizontal + Desktop Sidebar */}
+                    <div
+                        className="
+                            order-1 flex gap-3 overflow-x-auto pb-2
+                            scrollbar-hide
+
+                            lg:block lg:space-y-4 lg:overflow-visible lg:pb-0
+                        "
+                    >
                         {branches.map((branch) => (
                             <BranchCard
                                 key={branch.city}
                                 branch={branch}
                                 isActive={activeBranch?.city === branch.city}
-                                onClick={() => setActiveBranch(branch)}
+                                onClick={() => handleSelectBranch(branch)}
                             />
                         ))}
                     </div>
 
-                    {/* Right */}
-                    <InteractiveMap
-                        branches={branches}
-                        activeBranch={activeBranch}
-                        onSelect={setActiveBranch}
-                        onBack={() => setActiveBranch(null)}
-                    />
+                    {/* Interactive Map */}
+                    <div
+                        ref={mapRef}
+                        className="order-2 scroll-mt-28"
+                    >
+                        <InteractiveMap
+                            branches={branches}
+                            activeBranch={activeBranch}
+                            onSelect={handleSelectBranch}
+                            onBack={() => setActiveBranch(null)}
+                        />
+                    </div>
                 </div>
             </div>
         </section>
