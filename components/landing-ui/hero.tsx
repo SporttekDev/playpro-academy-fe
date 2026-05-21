@@ -153,7 +153,7 @@ export default function HeroSection() {
                 sm:px-4 sm:py-2 sm:text-sm
               "
                         >
-                            ⚽ PlayPro Academy
+                            PlayPro Academy
                         </div>
 
                         {/* Heading */}
