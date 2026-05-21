@@ -28,9 +28,9 @@ import { Button } from "@/components/ui/button"
 type ProgramKey = "toddler" | "junior"
 
 interface AgeGroup {
-    label: string       // e.g. "2 – 3 tahun"
-    range: string       // e.g. "2-3"
-    tagline: string     // e.g. "Active Star"
+    label: string
+    range: string
+    tagline: string
     sports: SportDetail[]
 }
 
@@ -298,15 +298,15 @@ function SportAccordionItem({
                     : "border-white/60 bg-white/70 hover:border-white/80 hover:bg-white/80"
                 } backdrop-blur-md`}
         >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3.5">
+            <div className="flex items-center justify-between px-4 py-3.5 sm:px-5 sm:py-4">
                 <div className="flex items-center gap-3">
                     <div
                         className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${isOpen ? "bg-primary/10" : "bg-slate-100"
                             }`}
                     >
                         <Icon
-                            className={`h-4 w-4 ${isOpen ? "text-primary" : "text-slate-500"}`}
+                            className={`h-4 w-4 ${isOpen ? "text-primary" : "text-slate-500"
+                                }`}
                         />
                     </div>
                     <div>
@@ -316,6 +316,7 @@ function SportAccordionItem({
                         <p className="text-xs text-slate-500">{sport.tagline}</p>
                     </div>
                 </div>
+
                 {isOpen ? (
                     <ChevronUp className="h-4 w-4 flex-shrink-0 text-slate-400" />
                 ) : (
@@ -323,7 +324,6 @@ function SportAccordionItem({
                 )}
             </div>
 
-            {/* Benefits */}
             <AnimatePresence initial={false}>
                 {isOpen && (
                     <motion.div
@@ -333,17 +333,17 @@ function SportAccordionItem({
                         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                         className="overflow-hidden"
                     >
-                        <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                        <div className="border-t border-slate-100 px-4 pb-4 pt-3 sm:px-5">
                             <ul className="flex flex-col gap-2.5">
                                 {sport.benefits.map((benefit) => (
                                     <li
                                         key={benefit}
-                                        className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed"
+                                        className="flex items-start gap-2.5 text-sm leading-relaxed text-slate-600"
                                     >
                                         <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                                             <Check className="h-2.5 w-2.5 text-primary" />
                                         </span>
-                                        {benefit}
+                                        <span>{benefit}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -367,7 +367,6 @@ function ExpandedProgram({
 
     const currentAgeGroup = program.ageGroups[selectedAgeIndex]
 
-    // Reset open sport when age group changes
     React.useEffect(() => {
         setOpenSport(null)
     }, [selectedAgeIndex])
@@ -378,37 +377,34 @@ function ExpandedProgram({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.985 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary/10 via-background to-secondary/10 text-slate-900"
+            className="relative min-h-dvh overflow-hidden bg-gradient-to-br from-primary/10 via-background to-secondary/10 text-slate-900"
         >
-            {/* Background blobs */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
                 <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-secondary/20 blur-3xl" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.7),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.45),transparent_30%)]" />
             </div>
 
-            {/* Top nav */}
             <div className="absolute left-0 top-0 z-50 w-full">
-                <div className="flex items-center justify-between px-6 py-5">
+                <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
                     <button
+                        type="button"
                         onClick={onBack}
-                        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-900 cursor-pointer"
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-700 backdrop-blur-md transition hover:border-primary/20 hover:text-slate-900 hover:shadow-sm sm:px-4 sm:text-sm"
                     >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Programs
+                        <ArrowLeft className="h-4 w-4 shrink-0" />
+                        <span className="hidden sm:inline">Back to Programs</span>
                     </button>
+
                     <p className="hidden text-sm font-semibold text-slate-600 md:block">
                         {program.label}
                     </p>
                 </div>
             </div>
 
-            {/* Main content */}
-            <div className="relative z-10 container mx-auto flex min-h-screen items-center px-4 py-20">
-                <div className="grid items-start gap-12 lg:items-center lg:grid-cols-2 lg:gap-16 w-full">
-
-                    {/* ── Left: Image ── */}
-                    <div className="relative">
+            <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-7xl items-center px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+                <div className="grid w-full items-start gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
+                    <div className="order-1 relative lg:order-1">
                         <div
                             className={`absolute inset-0 rounded-full ${program.heroClass} opacity-40 blur-3xl`}
                         />
@@ -416,7 +412,7 @@ function ExpandedProgram({
                             initial={{ y: 18, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                            className="relative mx-auto aspect-square w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[420px]"
+                            className="relative mx-auto aspect-square w-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] lg:max-w-[420px] xl:max-w-[460px]"
                         >
                             <Image
                                 src={program.image}
@@ -428,9 +424,7 @@ function ExpandedProgram({
                         </motion.div>
                     </div>
 
-                    {/* ── Right: Info ── */}
-                    <div>
-                        {/* Badge */}
+                    <div className="order-2 lg:order-2">
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -441,45 +435,43 @@ function ExpandedProgram({
                             {program.subtitle}
                         </motion.div>
 
-                        {/* Title */}
                         <motion.h1
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.35, delay: 0.1 }}
-                            className="mt-6 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl lg:text-6xl"
+                            className="mt-5 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-6xl"
                         >
                             {program.title}
                         </motion.h1>
 
-                        {/* Description */}
                         <motion.p
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.35, delay: 0.15 }}
-                            className="mt-5 max-w-2xl text-base leading-relaxed text-slate-700 md:text-lg"
+                            className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-700 sm:mt-5 sm:text-base md:text-lg"
                         >
                             {program.description}
                         </motion.p>
 
-                        {/* ── Age Group Tabs ── */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.35, delay: 0.2 }}
-                            className="mt-10"
+                            className="mt-8 sm:mt-10"
                         >
                             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                                 Pilih kelompok usia anak
                             </p>
-                            <div className="flex flex-wrap gap-2">
+
+                            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
                                 {program.ageGroups.map((group, index) => (
                                     <button
                                         key={group.range}
                                         type="button"
                                         onClick={() => setSelectedAgeIndex(index)}
-                                        className={`rounded-full px-5 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer ${selectedAgeIndex === index
+                                        className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 sm:px-5 ${selectedAgeIndex === index
                                                 ? "bg-slate-900 text-white shadow-sm"
-                                                : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white hover:text-slate-900 backdrop-blur-md"
+                                                : "border border-white/70 bg-white/70 text-slate-600 backdrop-blur-md hover:bg-white hover:text-slate-900"
                                             }`}
                                     >
                                         {group.label}
@@ -487,7 +479,6 @@ function ExpandedProgram({
                                 ))}
                             </div>
 
-                            {/* Tagline for age group */}
                             <AnimatePresence mode="wait">
                                 <motion.p
                                     key={currentAgeGroup.range}
@@ -495,14 +486,13 @@ function ExpandedProgram({
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -4 }}
                                     transition={{ duration: 0.2 }}
-                                    className="mt-2 text-xs text-slate-400 font-medium"
+                                    className="mt-2 text-xs font-medium text-slate-400"
                                 >
                                     Fokus: {currentAgeGroup.tagline}
                                 </motion.p>
                             </AnimatePresence>
                         </motion.div>
 
-                        {/* ── Sport Accordion ── */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -540,18 +530,18 @@ function ExpandedProgram({
                             </AnimatePresence>
                         </motion.div>
 
-                        {/* ── CTA ── */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.35, delay: 0.3 }}
-                            className="mt-10 flex flex-wrap gap-4"
+                            className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row"
                         >
-                            <Button size="xl">
+                            <Button size="xl" className="w-full sm:w-auto">
                                 {program.ctaLabel}
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                            <Button size="xl" variant="outline">
+
+                            <Button size="xl" variant="outline" className="w-full sm:w-auto">
                                 Lihat Jadwal
                             </Button>
                         </motion.div>
@@ -562,10 +552,6 @@ function ExpandedProgram({
     )
 }
 
-// ─────────────────────────────────────────────
-// Gateway Panel (unchanged)
-// ─────────────────────────────────────────────
-
 function GatewayPanel({
     program,
     onClick,
@@ -573,7 +559,6 @@ function GatewayPanel({
     program: Program
     onClick: () => void
 }) {
-    // Build a flat sport list for display (first 3 from first age group)
     const displaySports = program.ageGroups[0].sports.slice(0, 4)
 
     return (
@@ -583,7 +568,7 @@ function GatewayPanel({
             onClick={onClick}
             transition={{ layout: { duration: 0.65, ease: [0.22, 1, 0.36, 1] } }}
             whileHover={{ scale: 1.01 }}
-            className="group relative flex min-h-[50vh] flex-1 overflow-hidden text-left md:min-h-screen cursor-pointer"
+            className="group relative flex min-h-[44vh] flex-1 cursor-pointer overflow-hidden text-left md:min-h-dvh"
         >
             <div className={`absolute inset-0 ${program.heroClass} transition-all duration-500`} />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.28),transparent_32%)]" />
@@ -591,21 +576,19 @@ function GatewayPanel({
             <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
             <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
 
-            <div className="relative z-10 flex h-full w-full flex-col justify-between p-6 md:p-10 lg:p-12">
-                {/* Top Badge */}
+            <div className="relative z-10 flex h-full w-full flex-col justify-between p-4 sm:p-6 md:p-10 lg:p-12">
                 <div className="flex items-center justify-center">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm backdrop-blur-md">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-md sm:px-4 sm:py-2 sm:text-sm">
                         <BadgeCheck className="h-4 w-4 text-primary" />
                         {program.label}
                     </div>
                 </div>
 
-                {/* Center Content */}
                 <div className="flex flex-1 flex-col items-center justify-center text-center">
                     <motion.div
                         whileHover={{ y: -6 }}
                         transition={{ duration: 0.25 }}
-                        className="relative mb-6 aspect-square w-full max-w-[340px] sm:max-w-[380px] lg:max-w-[460px]"
+                        className="relative mb-5 aspect-square w-full max-w-[320px] md:max-w-[340px] 2xl:max-w-[520px]"
                     >
                         <Image
                             src={program.image}
@@ -616,26 +599,25 @@ function GatewayPanel({
                         />
                     </motion.div>
 
-                    <p className="text-sm font-semibold tracking-wide text-slate-800/80">
+                    <p className="text-xs font-semibold tracking-wide text-slate-800/80 sm:text-sm">
                         {program.subtitle}
                     </p>
-                    <h2 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
+                    <h2 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:mt-3 xl:text-4xl 2xl:text-6xl">
                         {program.title}
                     </h2>
-                    <p className="mt-5 max-w-md text-sm leading-relaxed text-slate-800/80 md:text-base">
+                    <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-800/80 sm:mt-5 sm:max-w-md md:text-base">
                         {program.description}
                     </p>
                 </div>
 
-                {/* Bottom */}
                 <div className="flex flex-col items-center">
-                    <div className="flex flex-wrap justify-center gap-2.5">
+                    <div className="flex flex-wrap justify-center gap-2">
                         {displaySports.map((sport) => {
                             const Icon = sport.icon
                             return (
                                 <div
                                     key={sport.name}
-                                    className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-medium text-slate-800 shadow-sm backdrop-blur-md"
+                                    className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-2 text-xs font-medium text-slate-800 shadow-sm backdrop-blur-md sm:px-4 sm:text-sm"
                                 >
                                     <Icon className="h-4 w-4" />
                                     {sport.name}
@@ -644,7 +626,7 @@ function GatewayPanel({
                         })}
                     </div>
 
-                    <div className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 sm:mt-6">
                         Explore Program
                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </div>
@@ -653,10 +635,6 @@ function GatewayPanel({
         </motion.button>
     )
 }
-
-// ─────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────
 
 export default function ClassProgramsPage() {
     const [selectedProgram, setSelectedProgram] =
@@ -667,7 +645,7 @@ export default function ClassProgramsPage() {
     )
 
     return (
-        <main className="relative min-h-screen overflow-hidden bg-white">
+        <main className="relative min-h-dvh overflow-hidden bg-white">
             <AnimatePresence mode="wait">
                 {!selectedProgram ? (
                     <motion.section
@@ -675,18 +653,21 @@ export default function ClassProgramsPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="relative min-h-screen overflow-hidden bg-white"
+                        className="relative min-h-dvh overflow-hidden bg-white"
                     >
                         <div className="absolute left-0 top-0 z-50 w-full">
-                            <div className="flex items-center justify-between px-6 py-5">
+                            <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
                                 <Link
                                     href="/"
-                                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-900"
+                                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-700 backdrop-blur-md transition hover:border-primary/20 hover:text-slate-900 hover:shadow-sm sm:px-4 sm:text-sm"
                                 >
                                     <ArrowLeft className="h-4 w-4" />
-                                    <span className="hidden sm:inline">PlayPro Academy</span>
+                                    <span className="hidden lg:inline">
+                                        PlayPro Academy
+                                    </span>
                                 </Link>
-                                <p className="hidden text-sm font-semibold text-slate-700 md:block">
+
+                                <p className="hidden text-sm font-semibold text-slate-700 lg:block">
                                     Choose your child&apos;s journey
                                 </p>
                             </div>
@@ -694,7 +675,7 @@ export default function ClassProgramsPage() {
 
                         <div className="absolute left-1/2 top-0 z-20 hidden h-full w-px -translate-x-1/2 bg-white/35 md:block" />
 
-                        <div className="flex min-h-screen flex-col overflow-hidden md:flex-row">
+                        <div className="flex min-h-dvh flex-col overflow-hidden md:flex-row">
                             {programs.map((program) => (
                                 <GatewayPanel
                                     key={program.key}
