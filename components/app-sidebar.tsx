@@ -1,3 +1,4 @@
+"use client"
 
 import * as React from "react"
 import {
@@ -26,6 +27,7 @@ import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 // import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+
 import {
   Sidebar,
   SidebarContent,
@@ -35,8 +37,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import Cookies from 'js-cookie'
-import { useEffect, useState } from "react"
+
+import Cookies from "js-cookie"
+import { useEffect, useMemo, useState } from "react"
 
 const data = {
   navMain: [
@@ -45,7 +48,6 @@ const data = {
       url: "/dashboard",
       icon: IconDashboard,
     },
-
     {
       title: "PlayKids",
       url: "/play-kids",
@@ -67,6 +69,7 @@ const data = {
       icon: IconClipboardText,
     },
   ],
+
   navClouds: [
     {
       title: "Capture",
@@ -115,6 +118,7 @@ const data = {
       ],
     },
   ],
+
   navSecondary: [
     {
       title: "Settings",
@@ -132,6 +136,7 @@ const data = {
       icon: IconSearch,
     },
   ],
+
   documents: [
     {
       name: "Categories",
@@ -143,11 +148,6 @@ const data = {
       url: "/sports",
       icon: IconBallBasketball,
     },
-    // {
-    //   name: "Products",
-    //   url: "/products",
-    //   icon: IconPackage,
-    // },
     {
       name: "Branches",
       url: "/branches",
@@ -163,11 +163,6 @@ const data = {
       url: "/venues",
       icon: IconSoccerField,
     },
-    // {
-    //   name: "Rosters",
-    //   url: "/rosters",
-    //   icon: IconCalendarCog,
-    // },
     {
       name: "Coaches",
       url: "/coaches",
@@ -181,42 +176,78 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [user, setUser] = useState<{ name: string; email: string; avatar: string } | null>(null);
-  const [mounted, setMounted] = useState(false);
+type UserType = {
+  name: string
+  email: string
+  avatar: string
+}
+
+export function AppSidebar({
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
+  const [mounted, setMounted] = useState(false)
+
+  const [user, setUser] = useState<UserType | null>(null)
+
+  const [role, setRole] = useState<string | null>(null)
 
   useEffect(() => {
-    setMounted(true);
-    const sessionString = Cookies.get("session_key");
+    setMounted(true)
+
+    const sessionString = Cookies.get("session_key")
+
     if (!sessionString) {
-      setUser(null);
-      return;
+      setUser(null)
+      setRole(null)
+      return
     }
+
     try {
-      const session = JSON.parse(sessionString);
+      const session = JSON.parse(sessionString)
+
       setUser({
         name: session?.name ?? "Guest User",
         email: session?.email ?? "guest@gmail.com",
         avatar: session?.avatar ?? "/avatars/default.jpg",
-      });
+      })
+
+      setRole(session?.role ?? null)
     } catch (err) {
-      console.error("JSON parse error:", err);
-      setUser(null);
+      console.error("JSON parse error:", err)
+
+      setUser(null)
+      setRole(null)
     }
-  }, []);
+  }, [])
 
-  const sessionRaw = Cookies.get("session_key");
-  const session = sessionRaw ? JSON.parse(sessionRaw) : null;
-  const role = session?.role ?? null;
+  const filteredNavMain = useMemo(() => {
+    if (!role) return []
 
-  const filteredNavMain =
-    role === "admin"
-      ? data.navMain
-      : data.navMain.filter(
+    if (role === "admin") {
+      return data.navMain
+    }
+
+    if (role === "coach") {
+      return data.navMain.filter(
         (item) =>
           item.url === "/dashboard" ||
           item.url === "/attendance-reports"
-      );
+      )
+    }
+
+    if (role === "parent") {
+      return data.navMain.filter(
+        (item) => item.url === "/dashboard"
+      )
+    }
+
+    return []
+  }, [role])
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return null
+  }
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -229,19 +260,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Playpro Academy</span>
+
+                <span className="text-base font-semibold">
+                  Playpro Academy
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
       <SidebarContent>
         <NavMain items={filteredNavMain} />
+
         {role === "admin" && (
           <NavDocuments items={data.documents} />
         )}
+
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
+
       <SidebarFooter>
         <NavUser user={user} mounted={mounted} />
       </SidebarFooter>

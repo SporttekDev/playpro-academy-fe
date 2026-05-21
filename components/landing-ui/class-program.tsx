@@ -8,9 +8,12 @@ import {
     ArrowLeft,
     ArrowRight,
     BadgeCheck,
+    ChevronDown,
+    ChevronUp,
     Circle,
     Dumbbell,
     Goal,
+    Check,
     Sparkles,
     Trophy,
     Volleyball,
@@ -18,7 +21,25 @@ import {
 
 import { Button } from "@/components/ui/button"
 
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+
 type ProgramKey = "toddler" | "junior"
+
+interface AgeGroup {
+    label: string       // e.g. "2 – 3 tahun"
+    range: string       // e.g. "2-3"
+    tagline: string     // e.g. "Active Star"
+    sports: SportDetail[]
+}
+
+interface SportDetail {
+    name: string
+    icon: React.ElementType
+    tagline: string
+    benefits: string[]
+}
 
 interface Program {
     key: ProgramKey
@@ -28,71 +49,309 @@ interface Program {
     description: string
     image: string
     heroClass: string
-    sports: {
-        name: string
-        icon: React.ElementType
-    }[]
-    highlights: string[]
+    ageGroups: AgeGroup[]
     ctaLabel: string
 }
+
+// ─────────────────────────────────────────────
+// Data
+// ─────────────────────────────────────────────
 
 const programs: Program[] = [
     {
         key: "toddler",
         label: "Toddler Program",
-        subtitle: "Age 2 - 5 Years",
+        subtitle: "Age 2 – 5 Years",
         title: "Fun & Active Learning",
         description:
-            "Program toddler dirancang untuk memperkenalkan olahraga dengan cara yang fun, aman, dan penuh stimulasi motorik untuk anak usia dini.",
+            "Memperkenalkan olahraga dengan cara yang fun, aman, dan penuh stimulasi — cocok untuk anak yang baru aktif bergerak.",
         image: "/images/toddler.png",
-        // heroClass: "from-secondary via-orange-300 to-yellow-200",
         heroClass: "bg-secondary",
-        sports: [
-            { name: "Basketball", icon: Volleyball },
-            { name: "Soccer", icon: Goal },
-            { name: "Tennis", icon: Trophy },
-            { name: "Baseball", icon: Circle },
-        ],
-        highlights: [
-            "Latihan ringan dan menyenangkan",
-            "Melatih motorik, koordinasi, dan fokus",
-            "Pendekatan ramah anak dan aman",
-        ],
         ctaLabel: "Book Toddler Trial",
+        ageGroups: [
+            {
+                label: "2 – 3 tahun",
+                range: "2-3",
+                tagline: "Active Star",
+                sports: [
+                    {
+                        name: "Soccer",
+                        icon: Goal,
+                        tagline: "Bermain & Eksplorasi",
+                        benefits: [
+                            "Mengenal bola sebagai alat bermain yang menyenangkan",
+                            "Melatih motorik kasar, koordinasi, dan keseimbangan tubuh",
+                            "Menumbuhkan rasa senang bergerak aktif sejak dini",
+                        ],
+                    },
+                    {
+                        name: "Basketball",
+                        icon: Volleyball,
+                        tagline: "Bermain & Eksplorasi",
+                        benefits: [
+                            "Mengenal dan senang bermain dengan bola",
+                            "Melatih lari, lompat, menangkap, dan koordinasi dasar",
+                            "Membiasakan interaksi sosial sederhana bersama teman",
+                        ],
+                    },
+                    {
+                        name: "Tennis",
+                        icon: Trophy,
+                        tagline: "Bermain & Eksplorasi",
+                        benefits: [
+                            "Koordinasi mata & tangan lewat aktivitas raket dan bola",
+                            "Melatih keseimbangan, kelincahan, dan fokus anak",
+                            "Menumbuhkan kepercayaan diri dan kebiasaan aktif bergerak",
+                        ],
+                    },
+                    {
+                        name: "Baseball",
+                        icon: Circle,
+                        tagline: "Bermain & Eksplorasi",
+                        benefits: [
+                            "Koordinasi mata & tangan lewat aktivitas raket dan bola",
+                            "Melatih keseimbangan, kelincahan, dan fokus anak",
+                            "Menumbuhkan kepercayaan diri dan kebiasaan aktif bergerak",
+                        ],
+                    },
+                ],
+            },
+            {
+                label: "4 – 5 tahun",
+                range: "4-5",
+                tagline: "Action Kids",
+                sports: [
+                    {
+                        name: "Soccer",
+                        icon: Goal,
+                        tagline: "Fun · Fundamental · Friendship",
+                        benefits: [
+                            "Mengenal teknik dasar sepak bola dengan cara menyenangkan",
+                            "Mengembangkan fundamental movement dan ball mastery",
+                            "Belajar bermain bersama teman dan membangun pertemanan",
+                        ],
+                    },
+                    {
+                        name: "Basketball",
+                        icon: Volleyball,
+                        tagline: "Fun · Fundamental · Friendship",
+                        benefits: [
+                            "Mengembangkan gerak dasar (FMS) secara menyeluruh",
+                            "Mengenalkan basketball secara fun dan non-kompetitif",
+                            "Mengembangkan aspek fisik, kognitif, sosial, dan emosional",
+                        ],
+                    },
+                    {
+                        name: "Tennis",
+                        icon: Trophy,
+                        tagline: "Fun · Fundamental · Friendship",
+                        benefits: [
+                            "Mengembangkan koordinasi dan keseimbangan dasar",
+                            "Belajar pukulan forehand & backhand secara menyenangkan",
+                            "Membangun kepercayaan diri dengan raket dan bola",
+                        ],
+                    },
+                    {
+                        name: "Baseball",
+                        icon: Circle,
+                        tagline: "Fun · Fundamental · Friendship",
+                        benefits: [
+                            "Mengembangkan koordinasi dan keseimbangan dasar",
+                            "Belajar pukulan forehand & backhand secara menyenangkan",
+                            "Membangun kepercayaan diri dengan raket dan bola",
+                        ],
+                    },
+                ],
+            },
+        ],
     },
     {
         key: "junior",
         label: "Junior Program",
-        subtitle: "Age 6 - 12 Years",
+        subtitle: "Age 6 – 12 Years",
         title: "Structured Sports Training",
         description:
-            "Program junior membantu anak berkembang melalui latihan olahraga yang lebih terarah, kompetitif, dan tetap menyenangkan.",
+            "Membantu anak berkembang melalui latihan olahraga yang lebih terarah, kompetitif, dan tetap menyenangkan.",
         image: "/images/junior.png",
-        // heroClass: "from-primary via-sky-500 to-cyan-300",
         heroClass: "bg-primary",
-        sports: [
-            { name: "Basketball", icon: Volleyball },
-            { name: "Soccer", icon: Goal },
-            { name: "Padel", icon: Dumbbell },
-            { name: "Tennis", icon: Trophy },
-        ],
-        highlights: [
-            "Latihan lebih terarah dan progresif",
-            "Teknik, disiplin, dan teamwork berkembang",
-            "Cocok untuk anak yang ingin lebih aktif",
-        ],
         ctaLabel: "Book Junior Trial",
+        ageGroups: [
+            {
+                label: "6 – 9 tahun",
+                range: "6-9",
+                tagline: "Fun · Fundamental",
+                sports: [
+                    {
+                        name: "Basketball",
+                        icon: Volleyball,
+                        tagline: "Fun · Fundamental",
+                        benefits: [
+                            "Mengenal basketball dengan cara yang menyenangkan",
+                            "Mengembangkan motorik kasar dan koordinasi tangan-mata",
+                            "Menumbuhkan percaya diri dan kerja sama tim",
+                        ],
+                    },
+                    {
+                        name: "Soccer",
+                        icon: Goal,
+                        tagline: "Fun · Fundamental",
+                        benefits: [
+                            "Mengenalkan futsal melalui aktivitas yang menyenangkan",
+                            "Melatih teknik dasar dengan cara yang benar dan seru",
+                            "Membangun rasa percaya diri dan kerja sama dalam tim",
+                        ],
+                    },
+                    {
+                        name: "Padel",
+                        icon: Dumbbell,
+                        tagline: "Fun · Fundamental",
+                        benefits: [
+                            "Mengenal olahraga padel dengan cara yang menyenangkan",
+                            "Mengembangkan koordinasi motorik dan keseimbangan dasar",
+                            "Menumbuhkan rasa percaya diri dan semangat kerja sama",
+                        ],
+                    },
+                    {
+                        name: "Tennis",
+                        icon: Trophy,
+                        tagline: "Fun · Coordination",
+                        benefits: [
+                            "Mengembangkan koordinasi, keseimbangan, dan gerak dasar",
+                            "Mempelajari pukulan forehand dan backhand dasar",
+                            "Membangun kepercayaan diri dengan raket dan bola",
+                        ],
+                    },
+                ],
+            },
+            {
+                label: "10 – 14 tahun",
+                range: "10-14",
+                tagline: "Skill & Development",
+                sports: [
+                    {
+                        name: "Basketball",
+                        icon: Volleyball,
+                        tagline: "Skill & Development",
+                        benefits: [
+                            "Mengembangkan teknik dribbling, passing, shooting, dan defense",
+                            "Meningkatkan kemampuan fisik: agility, speed, dan coordination",
+                            "Melatih disiplin, sportivitas, dan kontrol emosi saat bermain",
+                        ],
+                    },
+                    {
+                        name: "Soccer",
+                        icon: Goal,
+                        tagline: "Skill & Development",
+                        benefits: [
+                            "Mengembangkan teknik dribbling, passing, control, dan shooting",
+                            "Memahami posisi, ruang, timing, dan pengambilan keputusan",
+                            "Mengembangkan disiplin, tanggung jawab, dan sportivitas",
+                        ],
+                    },
+                    {
+                        name: "Padel",
+                        icon: Dumbbell,
+                        tagline: "Skill & Development",
+                        benefits: [
+                            "Menguasai teknik dasar hingga menengah dengan terarah",
+                            "Memahami strategi sederhana dan meningkatkan kebugaran",
+                            "Membangun mental kompetitif yang sehat dan disiplin latihan",
+                        ],
+                    },
+                    {
+                        name: "Tennis",
+                        icon: Trophy,
+                        tagline: "Technique + Consistency",
+                        benefits: [
+                            "Mempelajari mekanik servis, pengembalian, dan konsistensi reli",
+                            "Memahami strategi permainan dan aturan dasar penilaian",
+                            "Pengenalan permainan pertandingan yang sesungguhnya",
+                        ],
+                    },
+                ],
+            },
+        ],
     },
 ]
 
-function SportBadge({ sport }: { sport: Program["sports"][number] }) {
+// ─────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────
+
+function SportAccordionItem({
+    sport,
+    isOpen,
+    onToggle,
+}: {
+    sport: SportDetail
+    isOpen: boolean
+    onToggle: () => void
+}) {
     const Icon = sport.icon
 
     return (
-        <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-medium text-slate-800 shadow-sm backdrop-blur-md transition hover:-translate-y-0.5">
-            <Icon className="h-4 w-4" />
-            {sport.name}
-        </div>
+        <button
+            type="button"
+            onClick={onToggle}
+            className={`w-full rounded-2xl border text-left transition-all duration-200 ${isOpen
+                    ? "border-primary/40 bg-white shadow-sm"
+                    : "border-white/60 bg-white/70 hover:border-white/80 hover:bg-white/80"
+                } backdrop-blur-md`}
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3.5">
+                <div className="flex items-center gap-3">
+                    <div
+                        className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${isOpen ? "bg-primary/10" : "bg-slate-100"
+                            }`}
+                    >
+                        <Icon
+                            className={`h-4 w-4 ${isOpen ? "text-primary" : "text-slate-500"}`}
+                        />
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                            {sport.name}
+                        </p>
+                        <p className="text-xs text-slate-500">{sport.tagline}</p>
+                    </div>
+                </div>
+                {isOpen ? (
+                    <ChevronUp className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                ) : (
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                )}
+            </div>
+
+            {/* Benefits */}
+            <AnimatePresence initial={false}>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                    >
+                        <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                            <ul className="flex flex-col gap-2.5">
+                                {sport.benefits.map((benefit) => (
+                                    <li
+                                        key={benefit}
+                                        className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed"
+                                    >
+                                        <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                            <Check className="h-2.5 w-2.5 text-primary" />
+                                        </span>
+                                        {benefit}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </button>
     )
 }
 
@@ -103,6 +362,16 @@ function ExpandedProgram({
     program: Program
     onBack: () => void
 }) {
+    const [selectedAgeIndex, setSelectedAgeIndex] = React.useState(0)
+    const [openSport, setOpenSport] = React.useState<string | null>(null)
+
+    const currentAgeGroup = program.ageGroups[selectedAgeIndex]
+
+    // Reset open sport when age group changes
+    React.useEffect(() => {
+        setOpenSport(null)
+    }, [selectedAgeIndex])
+
     return (
         <motion.section
             initial={{ opacity: 0, scale: 0.985 }}
@@ -111,12 +380,14 @@ function ExpandedProgram({
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary/10 via-background to-secondary/10 text-slate-900"
         >
-            <div className="absolute inset-0">
+            {/* Background blobs */}
+            <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
                 <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-secondary/20 blur-3xl" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.7),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.45),transparent_30%)]" />
             </div>
 
+            {/* Top nav */}
             <div className="absolute left-0 top-0 z-50 w-full">
                 <div className="flex items-center justify-between px-6 py-5">
                     <button
@@ -126,18 +397,20 @@ function ExpandedProgram({
                         <ArrowLeft className="h-4 w-4" />
                         Back to Programs
                     </button>
-
                     <p className="hidden text-sm font-semibold text-slate-600 md:block">
                         {program.label}
                     </p>
                 </div>
             </div>
 
+            {/* Main content */}
             <div className="relative z-10 container mx-auto flex min-h-screen items-center px-4 py-20">
-                <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+                <div className="grid items-start gap-12 lg:items-center lg:grid-cols-2 lg:gap-16 w-full">
+
+                    {/* ── Left: Image ── */}
                     <div className="relative">
                         <div
-                            className={`absolute inset-0 rounded-full bg-gradient-to-br ${program.heroClass} opacity-40 blur-3xl`}
+                            className={`absolute inset-0 rounded-full ${program.heroClass} opacity-40 blur-3xl`}
                         />
                         <motion.div
                             initial={{ y: 18, opacity: 0 }}
@@ -155,7 +428,9 @@ function ExpandedProgram({
                         </motion.div>
                     </div>
 
+                    {/* ── Right: Info ── */}
                     <div>
+                        {/* Badge */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -166,6 +441,7 @@ function ExpandedProgram({
                             {program.subtitle}
                         </motion.div>
 
+                        {/* Title */}
                         <motion.h1
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -175,6 +451,7 @@ function ExpandedProgram({
                             {program.title}
                         </motion.h1>
 
+                        {/* Description */}
                         <motion.p
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -184,44 +461,86 @@ function ExpandedProgram({
                             {program.description}
                         </motion.p>
 
+                        {/* ── Age Group Tabs ── */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.35, delay: 0.2 }}
                             className="mt-10"
                         >
-                            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-600">
-                                Available Sports
+                            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                Pilih kelompok usia anak
                             </p>
-
-                            <div className="flex flex-wrap gap-3">
-                                {program.sports.map((sport) => (
-                                    <SportBadge key={sport.name} sport={sport} />
+                            <div className="flex flex-wrap gap-2">
+                                {program.ageGroups.map((group, index) => (
+                                    <button
+                                        key={group.range}
+                                        type="button"
+                                        onClick={() => setSelectedAgeIndex(index)}
+                                        className={`rounded-full px-5 py-2 text-sm font-semibold transition-all duration-200 cursor-pointer ${selectedAgeIndex === index
+                                                ? "bg-slate-900 text-white shadow-sm"
+                                                : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white hover:text-slate-900 backdrop-blur-md"
+                                            }`}
+                                    >
+                                        {group.label}
+                                    </button>
                                 ))}
                             </div>
+
+                            {/* Tagline for age group */}
+                            <AnimatePresence mode="wait">
+                                <motion.p
+                                    key={currentAgeGroup.range}
+                                    initial={{ opacity: 0, y: 4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="mt-2 text-xs text-slate-400 font-medium"
+                                >
+                                    Fokus: {currentAgeGroup.tagline}
+                                </motion.p>
+                            </AnimatePresence>
                         </motion.div>
 
+                        {/* ── Sport Accordion ── */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.35, delay: 0.25 }}
-                            className="mt-10 grid gap-4 sm:grid-cols-3"
+                            className="mt-6"
                         >
-                            {program.highlights.map((item) => (
-                                <div
-                                    key={item}
-                                    className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur-md"
+                            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                Pilih olahraga untuk lihat manfaatnya
+                            </p>
+
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={currentAgeGroup.range}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.22 }}
+                                    className="flex flex-col gap-2.5"
                                 >
-                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
-                                        <Sparkles className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <p className="mt-4 text-sm leading-relaxed text-slate-700">
-                                        {item}
-                                    </p>
-                                </div>
-                            ))}
+                                    {currentAgeGroup.sports.map((sport) => (
+                                        <SportAccordionItem
+                                            key={sport.name}
+                                            sport={sport}
+                                            isOpen={openSport === sport.name}
+                                            onToggle={() =>
+                                                setOpenSport(
+                                                    openSport === sport.name
+                                                        ? null
+                                                        : sport.name
+                                                )
+                                            }
+                                        />
+                                    ))}
+                                </motion.div>
+                            </AnimatePresence>
                         </motion.div>
 
+                        {/* ── CTA ── */}
                         <motion.div
                             initial={{ y: 12, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -232,9 +551,8 @@ function ExpandedProgram({
                                 {program.ctaLabel}
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-
                             <Button size="xl" variant="outline">
-                                View Schedule
+                                Lihat Jadwal
                             </Button>
                         </motion.div>
                     </div>
@@ -244,6 +562,10 @@ function ExpandedProgram({
     )
 }
 
+// ─────────────────────────────────────────────
+// Gateway Panel (unchanged)
+// ─────────────────────────────────────────────
+
 function GatewayPanel({
     program,
     onClick,
@@ -251,33 +573,27 @@ function GatewayPanel({
     program: Program
     onClick: () => void
 }) {
+    // Build a flat sport list for display (first 3 from first age group)
+    const displaySports = program.ageGroups[0].sports.slice(0, 4)
+
     return (
         <motion.button
             layout
             type="button"
             onClick={onClick}
-            transition={{
-                layout: {
-                    duration: 0.65,
-                    ease: [0.22, 1, 0.36, 1],
-                },
-            }}
+            transition={{ layout: { duration: 0.65, ease: [0.22, 1, 0.36, 1] } }}
             whileHover={{ scale: 1.01 }}
             className="group relative flex min-h-[50vh] flex-1 overflow-hidden text-left md:min-h-screen cursor-pointer"
         >
-            <div
-                className={`absolute inset-0 ${program.heroClass} transition-all duration-500`}
-                // className={`absolute inset-0 bg-gradient-to-br ${program.heroClass} transition-all duration-500`}
-            />
+            <div className={`absolute inset-0 ${program.heroClass} transition-all duration-500`} />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.28),transparent_32%)]" />
             <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]" />
-
             <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
             <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
 
             <div className="relative z-10 flex h-full w-full flex-col justify-between p-6 md:p-10 lg:p-12">
                 {/* Top Badge */}
-                <div>
+                <div className="flex items-center justify-center">
                     <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm backdrop-blur-md">
                         <BadgeCheck className="h-4 w-4 text-primary" />
                         {program.label}
@@ -286,46 +602,26 @@ function GatewayPanel({
 
                 {/* Center Content */}
                 <div className="flex flex-1 flex-col items-center justify-center text-center">
-                    {/* Image */}
                     <motion.div
                         whileHover={{ y: -6 }}
                         transition={{ duration: 0.25 }}
-                        className="
-        relative
-        mb-6
-        aspect-square
-        w-full
-        max-w-[340px]
-        sm:max-w-[380px]
-        lg:max-w-[460px]
-      "
+                        className="relative mb-6 aspect-square w-full max-w-[340px] sm:max-w-[380px] lg:max-w-[460px]"
                     >
                         <Image
                             src={program.image}
                             alt={program.title}
                             fill
                             priority
-                            className="
-          object-contain
-          drop-shadow-2xl
-          transition-transform
-          duration-500
-          group-hover:scale-105
-        "
+                            className="object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-105"
                         />
                     </motion.div>
 
-                    {/* Subtitle */}
                     <p className="text-sm font-semibold tracking-wide text-slate-800/80">
                         {program.subtitle}
                     </p>
-
-                    {/* Title */}
                     <h2 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-6xl">
                         {program.title}
                     </h2>
-
-                    {/* Description */}
                     <p className="mt-5 max-w-md text-sm leading-relaxed text-slate-800/80 md:text-base">
                         {program.description}
                     </p>
@@ -333,23 +629,13 @@ function GatewayPanel({
 
                 {/* Bottom */}
                 <div className="flex flex-col items-center">
-                    {/* Sports */}
                     <div className="flex flex-wrap justify-center gap-2.5">
-                        {program.sports.slice(0, 3).map((sport) => {
+                        {displaySports.map((sport) => {
                             const Icon = sport.icon
-
                             return (
                                 <div
                                     key={sport.name}
-                                    className="
-              inline-flex items-center gap-2
-              rounded-full
-              bg-white/85
-              px-4 py-2
-              text-sm font-medium text-slate-800
-              shadow-sm
-              backdrop-blur-md
-            "
+                                    className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-medium text-slate-800 shadow-sm backdrop-blur-md"
                                 >
                                     <Icon className="h-4 w-4" />
                                     {sport.name}
@@ -358,10 +644,8 @@ function GatewayPanel({
                         })}
                     </div>
 
-                    {/* CTA */}
                     <div className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
                         Explore Program
-
                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </div>
                 </div>
@@ -369,6 +653,10 @@ function GatewayPanel({
         </motion.button>
     )
 }
+
+// ─────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────
 
 export default function ClassProgramsPage() {
     const [selectedProgram, setSelectedProgram] =
@@ -396,9 +684,8 @@ export default function ClassProgramsPage() {
                                     className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-900"
                                 >
                                     <ArrowLeft className="h-4 w-4" />
-                                    PlayPro Academy
+                                    <span className="hidden sm:inline">PlayPro Academy</span>
                                 </Link>
-
                                 <p className="hidden text-sm font-semibold text-slate-700 md:block">
                                     Choose your child&apos;s journey
                                 </p>

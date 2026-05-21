@@ -1,155 +1,145 @@
-"use client";
+"use client"
 
-import { SectionCards } from "@/components/section-cards";
-import { Card, CardHeader, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCallback, useEffect, useState } from "react";
-import Cookies from "js-cookie";
+import * as React from "react"
+import Cookies from "js-cookie"
+import { Badge } from "@/components/ui/badge"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
+import { LayoutDashboard, Sparkles } from "lucide-react"
+import AdminDashboard from "@/components/dashboard/admin-dashboard"
+import CoachDashboard from "@/components/dashboard/coach-dashboard"
+import ParentDashboard from "@/components/dashboard/parent-dashboard"
 
-type Counts = {
-  playkids: number;
-  coaches: number;
-  sports: number;
-  branches: number;
-};
+type Role = "admin" | "coach" | "parent"
+
+type ParsedSession = {
+  role: Role
+  name: string
+}
+
+function normalizeRole(value: unknown): Role | null {
+  if (typeof value !== "string") return null
+
+  const lower = value.toLowerCase()
+
+  if (lower.includes("admin")) return "admin"
+  if (lower.includes("coach")) return "coach"
+  if (lower.includes("parent")) return "parent"
+
+  return null
+}
+
+function getParsedSession(): ParsedSession {
+  const fallback: ParsedSession = {
+    role: "parent",
+    name: "Parent",
+  }
+
+  const raw = Cookies.get("session_key")
+  if (!raw) return fallback
+
+  try {
+    const parsed = JSON.parse(raw)
+
+    const role =
+      normalizeRole(parsed?.role) ??
+      normalizeRole(parsed?.user?.role) ??
+      normalizeRole(parsed?.account_type) ??
+      normalizeRole(parsed?.type) ??
+      fallback.role
+
+    const nameCandidates = [
+      parsed?.name,
+      parsed?.full_name,
+      parsed?.username,
+      parsed?.user?.name,
+      parsed?.user?.full_name,
+      parsed?.user?.username,
+    ]
+
+    const name =
+      nameCandidates.find(
+        (item) => typeof item === "string" && item.trim().length > 0
+      ) ??
+      (role === "admin" ? "Admin" : role === "coach" ? "Coach" : "Parent")
+
+    return { role, name }
+  } catch {
+    const role = normalizeRole(raw) ?? fallback.role
+
+    return {
+      role,
+      name: role === "admin" ? "Admin" : role === "coach" ? "Coach" : "Parent",
+    }
+  }
+}
+
+function roleLabel(role: Role) {
+  if (role === "admin") return "Admin Dashboard"
+  if (role === "coach") return "Coach Dashboard"
+  return "Parent Dashboard"
+}
+
+function roleChipClass(role: Role) {
+  if (role === "admin") return "bg-slate-950 text-white"
+  if (role === "coach") return "bg-primary text-white"
+  return "bg-secondary text-white"
+}
+
+function roleChipText(role: Role) {
+  if (role === "admin") return "Operational overview"
+  if (role === "coach") return "Today’s class focus"
+  return "Child progress & schedule"
+}
 
 export default function Page() {
-  const [counts, setCounts] = useState<Counts>({
-    playkids: 0,
-    coaches: 0,
-    sports: 0,
-    branches: 0,
-  });
+  const [ready, setReady] = React.useState(false)
+  const [role, setRole] = React.useState<Role>("parent")
+  const [displayName, setDisplayName] = React.useState("Parent")
 
-  const [loading, setLoading] = useState<boolean>(true);
+  React.useEffect(() => {
+    const parsed = getParsedSession()
+    setRole(parsed.role)
+    setDisplayName(parsed.name)
+    setReady(true)
+  }, [])
 
-  const fetchCount = useCallback(
-    async (url: string, token: string, signal?: AbortSignal) => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-          signal,
-        });
-
-        if (!res.ok) {
-          console.warn(`Failed to fetch ${url}:`, res.status);
-          return 0;
-        }
-
-        const json = await res.json();
-        const data = json?.data;
-        return Array.isArray(data) ? data.length : 0;
-      } catch (err: unknown) {
-        // Jangan rethrow AbortError — cukup tangani secara diam-diam
-        if (err instanceof Error && err.name === "AbortError") {
-          // optional: console.debug("fetch aborted for", url);
-          return 0;
-        }
-        console.error(`Error fetching ${url}:`, err);
-        return 0;
-      }
-    },
-    []
-  );
-
-
-  useEffect(() => {
-    let mounted = true;
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    const endpoints: Array<{ url: string; key: keyof Counts }> = [
-      { url: "/admin/play-kid", key: "playkids" },
-      { url: "/admin/coach", key: "coaches" },
-      { url: "/admin/sport", key: "sports" },
-      { url: "/admin/branch", key: "branches" },
-    ];
-
-    async function fetchAll() {
-      setLoading(true);
-      const token = Cookies.get("token") ?? "";
-
-      const promises = endpoints.map((e) =>
-        fetchCount(e.url, token, signal) // fetchCount sekarang sudah meng-handle AbortError
-      );      
-
-      try {
-        const settled = await Promise.allSettled(promises);
-
-        if (!mounted) return;
-
-        const next: Counts = {
-          playkids: 0,
-          coaches: 0,
-          sports: 0,
-          branches: 0,
-        };
-
-        settled.forEach((s, i) => {
-          const key = endpoints[i].key;
-          if (s.status === "fulfilled") {
-            next[key] = typeof s.value === "number" ? s.value : 0;
-          } else {
-            console.warn(`Request for ${endpoints[i].url} failed:`, s.reason);
-            next[key] = 0;
-          }
-        });
-
-        setCounts(next);
-      } catch (err) {
-        console.error("Unexpected error fetching counts:", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    fetchAll();
-
-    return () => {
-      mounted = false;
-      controller.abort();
-    };
-  }, [fetchCount]);
+  if (!ready) {
+    return <DashboardSkeleton />
+  }
 
   return (
-    <>
-      {loading ? (
-        <div className="px-4 lg:px-6">
-          <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="@container/card">
-                <CardHeader>
-                  <CardDescription>
-                    <Skeleton className="h-5 w-24" />
-                  </CardDescription>
-                  <CardTitle>
-                    <Skeleton className="h-10 w-32" />
-                  </CardTitle>
-                </CardHeader>
+    <main className="min-h-screen w-full">
+      <div className="w-full px-4 py-6 lg:px-6">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <Badge className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 hover:bg-white">
+              <LayoutDashboard className="mr-2 h-4 w-4 text-primary" />
+              PlayPro Academy Dashboard
+            </Badge>
 
-                <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                  <div className="line-clamp-1 flex gap-2 font-medium">
-                    <Skeleton className="h-5 w-48" />
-                  </div>
-                  <div className="text-muted-foreground">
-                    <Skeleton className="h-4 w-40" />
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
+            <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
+              {roleLabel(role)}
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 md:text-base">
+              {roleChipText(role)} for {displayName}
+            </p>
+          </div>
+
+          <div className={`inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${roleChipClass(role)}`}>
+            <Sparkles className="h-4 w-4" />
+            {role.toUpperCase()}
           </div>
         </div>
-      ) : (
-        <SectionCards
-          playkids={counts.playkids}
-          coaches={counts.coaches}
-          sports={counts.sports}
-          branches={counts.branches}
-        />
-      )}
-    </>
-  );
+
+        {role === "admin" ? (
+          <AdminDashboard name={displayName} />
+        ) : role === "coach" ? (
+          <CoachDashboard name={displayName} />
+        ) : (
+          <ParentDashboard name={displayName} />
+        )}
+      </div>
+    </main>
+  )
 }
