@@ -9,6 +9,8 @@ import {
     Mail,
     Phone,
     MapPin,
+    ArrowUpRight,
+    Building2,
 } from "lucide-react"
 import { Button } from "../ui/button"
 
@@ -234,7 +236,8 @@ export default function Footer() {
             <section className="border-t bg-gray-50">
                 <div className="container mx-auto flex flex-col items-center justify-between gap-5 px-4 py-6 md:flex-row">
                     <p className="text-center text-sm text-gray-500 md:text-left">
-                        © {new Date().getFullYear()} PlayPro Academy.
+                        © {new Date().getFullYear()} PlayPro Academy —
+                        Part of Sports Group Indonesia.
                         All rights reserved.
                     </p>
 
