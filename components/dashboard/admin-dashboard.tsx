@@ -1,158 +1,240 @@
-import { AlertTriangle, BadgeCheck, Building2, CalendarDays, ClipboardList, Layers3, LayoutDashboard, MapPin, PlusCircle, Sparkles, UserRound, Users } from "lucide-react";
-import { Badge } from "../ui/badge";
-import { Card, CardContent, CardHeader } from "../ui/card";
-import { Button } from "../ui/button";
-import MetricCard from "./metric-card";
-import { SectionTitle } from "./section-title";
-import ScheduleRow from "./schedule-row";
-import QuickAction from "./quick-action";
-import { Avatar, AvatarFallback } from "../ui/avatar";
-import { StatusBadge } from "./status-badge";
-import { Separator } from "../ui/separator";
+"use client"
 
-const adminKpis = [
-    {
-        title: "Total PlayKids",
-        value: "1,248",
-        note: "Active children across all branches",
-        icon: Users,
-        trend: "+12%",
-    },
-    {
-        title: "Active Coaches",
-        value: "18",
-        note: "Coach accounts and assignments",
-        icon: BadgeCheck,
-        trend: "100%",
-    },
-    {
-        title: "Classes Today",
-        value: "24",
-        note: "Schedules created for today",
-        icon: CalendarDays,
-        trend: "+4",
-    },
-    {
-        title: "Branches",
-        value: "7",
-        note: "Operating locations and venues",
-        icon: MapPin,
-        trend: "Stable",
-    },
-    {
-        title: "Sports",
-        value: "8",
-        note: "Available sports in the system",
-        icon: Sparkles,
-        trend: "Active",
-    },
-    {
-        title: "Categories",
-        value: "4",
-        note: "Age and program categories",
-        icon: Layers3,
-        trend: "Managed",
-    },
-]
+import * as React from "react"
+import Cookies from "js-cookie"
+import {
+    ArrowRight,
+    BadgeCheck,
+    BarChart3,
+    CalendarDays,
+    ChevronRight,
+    Loader2,
+    MapPin,
+    Sparkles,
+    Users,
+    Building2,
+    School2,
+    ClipboardList,
+    UserRound,
+} from "lucide-react"
 
-const adminClasses = [
-    {
-        time: "08:00",
-        title: "Toddler Soccer",
-        meta: "Decathlon Summarecon Bekasi • Venue A",
-        coach: "Coach Amanda",
-        students: 12,
-        status: "ongoing" as const,
-    },
-    {
-        time: "10:00",
-        title: "Junior Basketball",
-        meta: "Bakjer Arena Bandung • Court 2",
-        coach: "Coach Daniel",
-        students: 14,
-        status: "upcoming" as const,
-    },
-    {
-        time: "16:00",
-        title: "Toddler Tennis",
-        meta: "HiPlay Arena Jakarta Utara • Mini Court",
-        coach: "Coach Olivia",
-        students: 9,
-        status: "upcoming" as const,
-    },
-    {
-        time: "17:30",
-        title: "Junior Soccer",
-        meta: "Estadio Arena Bekasi • Field B",
-        coach: "Coach Michael",
-        students: 13,
-        status: "pending" as const,
-    },
-]
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
+import { Card, CardContent, CardHeader } from "../ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import MetricCard from "./metric-card"
+import { SectionTitle } from "./section-title"
+import ScheduleRow from "./schedule-row"
 
-const adminActivity = [
-    {
-        title: "New playkid registration",
-        description: "A new family joined the junior basketball class in Bandung.",
-        icon: UserRound,
-        tone: "success" as const,
-    },
-    {
-        title: "Attendance report pending",
-        description: "Two reports from yesterday are still waiting for approval.",
-        icon: ClipboardList,
-        tone: "warning" as const,
-    },
-    {
-        title: "Venue capacity alert",
-        description: "Bekasi toddler venue is close to full for the weekend class.",
-        icon: AlertTriangle,
-        tone: "warning" as const,
-    },
-]
+type AdminDashboardResponse = {
+    message: string
+    admin: {
+        id: number
+        name: string
+        email: string
+        phone: string | null
+        address: string | null
+        role: string
+    }
+    metrics: {
+        playkids: number
+        coaches: number
+        branches: number
+        venues: number
+        classes: number
+        schedules_today: number
+    }
+    ongoing_now: {
+        id: number
+        name: string
+        date: string
+        start_time: string
+        end_time: string
+        quota: number
+        class_name: string
+        sport_name: string
+        category_name: string
+        branch_name: string
+        venue_name: string
+    } | null
+    today_schedules: Array<{
+        id: number
+        time: string
+        end_time: string
+        title: string
+        meta: string
+        coach: string
+        students: number
+        quota: number
+        status: "ongoing" | "upcoming" | "completed"
+    }>
+    recent_registrations: Array<{
+        id: number
+        name: string
+        full_name: string
+        parent_name: string | null
+        gender: string
+        created_at: string
+        photo: string | null
+    }>
+    analytics: {
+        weekly_schedule_trend: Array<{ label: string; value: number }>
+        sport_breakdown: Array<{ label: string; value: number }>
+    }
+}
 
-const adminQuickActions = [
-    { icon: PlusCircle, label: "Add PlayKid", description: "Register a new playkid profile" },
-    { icon: Users, label: "Manage Coaches", description: "Assign coach and branch coverage" },
-    { icon: CalendarDays, label: "Manage Schedules", description: "Create and adjust class slots" },
-    { icon: Building2, label: "Manage Branches", description: "Update branch information" },
-    { icon: MapPin, label: "Manage Venues", description: "Edit venue address and capacity" },
-    { icon: Sparkles, label: "Manage Sports", description: "Sports and program setup" },
-]
+function resolveAssetUrl(path?: string | null) {
+    if (!path) return null
+    if (path.startsWith("http")) return path
 
-const adminRegistrations = [
-    {
-        name: "Ayla Putri",
-        program: "Toddler Soccer",
-        branch: "Bekasi",
-        time: "Today, 07:45",
-        status: "Completed" as const,
-    },
-    {
-        name: "Rafa Pratama",
-        program: "Junior Basketball",
-        branch: "Bandung",
-        time: "Today, 08:10",
-        status: "Pending" as const,
-    },
-    {
-        name: "Nara Valen",
-        program: "Toddler Tennis",
-        branch: "Jakarta",
-        time: "Today, 09:05",
-        status: "New Trial" as const,
-    },
-    {
-        name: "Kian Ardi",
-        program: "Junior Soccer",
-        branch: "BSD",
-        time: "Today, 09:20",
-        status: "Completed" as const,
-    },
-]
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? ""
+    const baseUrl = apiUrl.replace(/\/api\/?$/, "")
 
+    return `${baseUrl}/${path.replace(/^\/+/, "")}`
+}
+
+function formatTime(time: string) {
+    return time.slice(0, 5)
+}
+
+function MiniChart({
+    title,
+    description,
+    data,
+}: {
+    title: string
+    description: string
+    data: Array<{ label: string; value: number }>
+}) {
+    const max = Math.max(...data.map((item) => item.value), 1)
+
+    return (
+        <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
+            <CardHeader className="p-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                            {description}
+                        </p>
+                    </div>
+                    <Badge className="rounded-full bg-primary/10 text-primary hover:bg-primary/10">
+                        Analytics
+                    </Badge>
+                </div>
+            </CardHeader>
+
+            <CardContent className="p-6 pt-0">
+                <div className="flex h-52 items-end gap-3">
+                    {data.map((item) => {
+                        const height = Math.max(12, Math.round((item.value / max) * 100))
+
+                        return (
+                            <div key={item.label} className="flex flex-1 flex-col items-center gap-3">
+                                <div className="flex h-40 w-full items-end rounded-2xl bg-slate-100 p-2">
+                                    <div
+                                        className="w-full rounded-2xl bg-gradient-to-t from-primary to-secondary"
+                                        style={{ height: `${height}%` }}
+                                    />
+                                </div>
+                                <span className="text-xs font-medium text-slate-500">
+                                    {item.label}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-900">
+                                    {item.value}
+                                </span>
+                            </div>
+                        )
+                    })}
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function AdminDashboard({ name }: { name: string }) {
+    const [data, setData] = React.useState<AdminDashboardResponse | null>(null)
+    const [loading, setLoading] = React.useState(true)
+    const [error, setError] = React.useState("")
+
+    React.useEffect(() => {
+        const controller = new AbortController()
+
+        async function fetchDashboard() {
+            try {
+                setLoading(true)
+                setError("")
+
+                const token = Cookies.get("token")
+
+                if (!token) {
+                    throw new Error("Token not found. Please login again.")
+                }
+
+                const response = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/dashboard/admin`,
+                    {
+                        method: "GET",
+                        headers: {
+                            Accept: "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        signal: controller.signal,
+                    }
+                )
+
+                if (response.status === 401) {
+                    throw new Error("Unauthorized. Please login again.")
+                }
+
+                if (!response.ok) {
+                    const result = await response.json().catch(() => null)
+                    throw new Error(
+                        result?.message ?? "Failed to load admin dashboard"
+                    )
+                }
+
+                const result: AdminDashboardResponse = await response.json()
+                setData(result)
+            } catch (err) {
+                if (err instanceof DOMException && err.name === "AbortError") {
+                    return
+                }
+
+                console.error(err)
+                setError(err instanceof Error ? err.message : "Failed to load dashboard")
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchDashboard()
+
+        return () => controller.abort()
+    }, [])
+
+    if (loading) {
+        return (
+            <div className="flex min-h-[50vh] items-center justify-center">
+                <div className="flex items-center gap-3 text-slate-500">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading admin dashboard...
+                </div>
+            </div>
+        )
+    }
+
+    if (error || !data) {
+        return (
+            <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+                {error || "Failed to load admin dashboard"}
+            </div>
+        )
+    }
+
+    const ongoing = data.ongoing_now
+    const totalSchedules = data.today_schedules.length
+
     return (
         <div className="space-y-6">
             <Card className="overflow-hidden rounded-3xl border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-primary text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
@@ -160,17 +242,17 @@ export default function AdminDashboard({ name }: { name: string }) {
                     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
                         <div>
                             <Badge className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-4 py-2 text-white">
-                                <LayoutDashboard className="mr-2 h-4 w-4" />
-                                Admin Overview
+                                <UserRound className="mr-2 h-4 w-4" />
+                                Admin Dashboard
                             </Badge>
 
                             <h1 className="mt-5 text-4xl font-extrabold tracking-tight md:text-5xl">
-                                Good morning, {name}
+                                Good morning, {data.admin.name}
                             </h1>
 
                             <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-300 md:text-lg">
                                 Monitor playkids, coaches, classes, branches, venues, and today&apos;s
-                                academy operation in one clean full-width dashboard.
+                                operational flow in one clean workspace.
                             </p>
                         </div>
 
@@ -191,111 +273,191 @@ export default function AdminDashboard({ name }: { name: string }) {
             </Card>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-                {adminKpis.map((item) => (
-                    <MetricCard
-                        key={item.title}
-                        title={item.title}
-                        value={item.value}
-                        note={item.note}
-                        icon={item.icon}
-                        trend={item.trend}
-                    />
-                ))}
+                <MetricCard
+                    title="Total PlayKids"
+                    value={`${data.metrics.playkids}`}
+                    note="Registered children"
+                    icon={Users}
+                    trend="Live"
+                />
+                <MetricCard
+                    title="Active Coaches"
+                    value={`${data.metrics.coaches}`}
+                    note="Coach accounts"
+                    icon={BadgeCheck}
+                    trend="Active"
+                />
+                <MetricCard
+                    title="Branches"
+                    value={`${data.metrics.branches}`}
+                    note="Operating branches"
+                    icon={Building2}
+                    trend="Stable"
+                />
+                <MetricCard
+                    title="Venues"
+                    value={`${data.metrics.venues}`}
+                    note="Training venues"
+                    icon={MapPin}
+                    trend="Ready"
+                />
+                <MetricCard
+                    title="Classes"
+                    value={`${data.metrics.classes}`}
+                    note="Available classes"
+                    icon={School2}
+                    trend="Managed"
+                />
+                <MetricCard
+                    title="Schedules Today"
+                    value={`${data.metrics.schedules_today}`}
+                    note="Classes for today"
+                    icon={CalendarDays}
+                    trend="Today"
+                />
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-                    <CardHeader className="p-6">
-                        <SectionTitle
-                            eyebrow="Today"
-                            title="Today's Classes"
-                            description="Live, upcoming, and pending sessions that need operational attention."
-                        />
-                    </CardHeader>
-
-                    <CardContent className="space-y-4 p-6 pt-0">
-                        {adminClasses.map((item) => (
-                            <ScheduleRow key={`${item.time}-${item.title}`} {...item} />
-                        ))}
-                    </CardContent>
-                </Card>
-
                 <div className="space-y-6">
-
-                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                    <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
                         <CardHeader className="p-6">
                             <SectionTitle
-                                eyebrow="Quick Access"
-                                title="Management Shortcuts"
-                                description="Fast access to the most common admin actions."
+                                eyebrow="Live"
+                                title="Ongoing Session"
+                                description="Current class that is happening right now."
                             />
                         </CardHeader>
 
-                        <CardContent className="grid gap-3 p-6 pt-0">
-                            {adminQuickActions.map((item) => (
-                                <QuickAction key={item.label} {...item} />
-                            ))}
+                        <CardContent className="p-6 pt-0">
+                            {ongoing ? (
+                                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+                                    <div className="flex flex-wrap items-start justify-between gap-4">
+                                        <div>
+                                            <p className="text-sm font-semibold text-emerald-700">
+                                                {formatTime(ongoing.start_time)} - {formatTime(ongoing.end_time)}
+                                            </p>
+                                            <h3 className="mt-2 text-2xl font-extrabold text-slate-900">
+                                                {ongoing.name}
+                                            </h3>
+                                            <p className="mt-2 text-sm text-slate-600">
+                                                {ongoing.branch_name} • {ongoing.venue_name}
+                                            </p>
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                {ongoing.sport_name} • {ongoing.category_name}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-3">
+                                            <Button className="rounded-2xl">Open Class</Button>
+                                            <Button variant="outline" className="rounded-2xl">
+                                                View Roster
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+                                    No ongoing session right now
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader className="p-6">
+                            <SectionTitle
+                                eyebrow="Today"
+                                title="Today's Schedule"
+                                description="All schedules created for today."
+                            />
+                        </CardHeader>
+
+                        <CardContent className="space-y-4 p-6 pt-0">
+                            {data.today_schedules.length > 0 ? (
+                                data.today_schedules.map((item) => (
+                                    <ScheduleRow
+                                        key={item.id}
+                                        time={`${item.time} - ${item.end_time}`}
+                                        title={item.title}
+                                        meta={item.meta}
+                                        coach={item.coach}
+                                        students={item.students}
+                                        status={item.status}
+                                    />
+                                ))
+                            ) : (
+                                <div className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+                                    No schedules available today
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
-            </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-                    <CardHeader className="p-6">
-                        <SectionTitle
-                            eyebrow="Live Feed"
-                            title="Recent Registrations"
-                            description="Latest student and trial activity from the system."
-                        />
-                    </CardHeader>
+                <div className="space-y-6">
+                    <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader className="p-6">
+                            <SectionTitle
+                                eyebrow="Live Feed"
+                                title="Recent Registrations"
+                                description="Latest children registered in the system."
+                            />
+                        </CardHeader>
 
-                    <CardContent className="p-6 pt-0">
-                        <div className="overflow-hidden rounded-[1.5rem] border border-slate-200">
-                            {adminRegistrations.map((item, index) => (
-                                <div key={item.name}>
-                                    <div className="flex items-center justify-between gap-4 bg-white p-4">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10">
+                        <CardContent className="space-y-3 p-6 pt-0">
+                            {data.recent_registrations.length > 0 ? (
+                                data.recent_registrations.map((item) => {
+                                    const photo = resolveAssetUrl(item.photo)
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <Avatar className="h-11 w-11">
+                                                    {photo ? <AvatarImage src={photo} /> : null}
                                                     <AvatarFallback className="bg-primary/10 text-primary">
-                                                        {item.name
-                                                            .split(" ")
-                                                            .map((part) => part[0])
-                                                            .join("")
-                                                            .slice(0, 2)}
+                                                        {item.name.slice(0, 1)}
                                                     </AvatarFallback>
                                                 </Avatar>
 
-                                                <div className="min-w-0">
-                                                    <p className="font-semibold text-slate-900">{item.name}</p>
-                                                    <p className="text-sm text-slate-500">
-                                                        {item.program} • {item.branch}
+                                                <div>
+                                                    <p className="font-semibold text-slate-900">
+                                                        {item.name}
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-slate-500">
+                                                        Parent: {item.parent_name ?? "-"}
                                                     </p>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className="text-right">
-                                            <StatusBadge
-                                                status={
-                                                    item.status === "Pending"
-                                                        ? "pending"
-                                                        : item.status === "New Trial"
-                                                            ? "attention"
-                                                            : "completed"
-                                                }
-                                            />
-                                            <p className="mt-2 text-xs text-slate-500">{item.time}</p>
+                                            <Badge className="rounded-full bg-slate-100 text-slate-700">
+                                                New
+                                            </Badge>
                                         </div>
-                                    </div>
-
-                                    {index !== adminRegistrations.length - 1 ? <Separator /> : null}
+                                    )
+                                })
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+                                    No recent registrations
                                 </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <MiniChart
+                        title="Weekly Schedule Trend"
+                        description="How many schedules are set across this week."
+                        data={data.analytics.weekly_schedule_trend}
+                    />
+
+                    <MiniChart
+                        title="Sports Distribution"
+                        description="Sport variety used across this week."
+                        data={data.analytics.sport_breakdown}
+                    />
+                </div>
             </div>
         </div>
     )
