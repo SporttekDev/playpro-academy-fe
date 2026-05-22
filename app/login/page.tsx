@@ -48,7 +48,7 @@ export default function LoginPage() {
             Back to Home
           </span>
         </Link>
-        <div className="w-full max-w-sm space-y-8">
+        <div className="w-full max-w-sm">
 
           <LoginForm />
 
