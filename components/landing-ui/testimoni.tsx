@@ -1,5 +1,7 @@
 "use client"
 
+import * as React from "react"
+import { motion, useReducedMotion } from "framer-motion"
 import {
     Quote,
     Star,
@@ -97,47 +99,67 @@ function StarRating() {
     )
 }
 
-function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
+function TestimonialCard({
+    testimonial,
+    index,
+}: {
+    testimonial: Testimonial
+    index: number
+}) {
+    const reduceMotion = useReducedMotion()
+
     return (
-        <article
+        <motion.article
             aria-label={`Testimoni dari ${testimonial.name}`}
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{
+                duration: reduceMotion ? 0 : 0.35,
+                delay: reduceMotion ? 0 : index * 0.05,
+                ease: "easeOut",
+            }}
+            whileHover={
+                reduceMotion
+                    ? undefined
+                    : {
+                        y: -4,
+                        transition: { duration: 0.15, ease: "easeOut" },
+                    }
+            }
             className="
-        group relative break-inside-avoid overflow-hidden
-        rounded-[1.5rem] border border-slate-200/70
-        bg-white p-5 shadow-sm
-        transition-all duration-300
-        hover:-translate-y-1 hover:shadow-xl
-        sm:rounded-[2rem] sm:p-6
-      "
+                group relative break-inside-avoid overflow-hidden
+                rounded-[1.5rem] border border-slate-200/70
+                bg-white p-5 shadow-sm
+                transition-all duration-300
+                hover:shadow-xl
+                sm:rounded-[2rem] sm:p-6
+            "
         >
-            {/* Quote Icon */}
             <div
                 aria-hidden="true"
                 className="
-          absolute right-5 top-5 flex h-10 w-10 items-center
-          justify-center rounded-xl bg-primary/5
-          sm:right-6 sm:top-6 sm:h-12 sm:w-12 sm:rounded-2xl
-        "
+                    absolute right-5 top-5 flex h-10 w-10 items-center
+                    justify-center rounded-xl bg-primary/5
+                    sm:right-6 sm:top-6 sm:h-12 sm:w-12 sm:rounded-2xl
+                "
             >
                 <Quote className="h-4 w-4 text-primary sm:h-6 sm:w-6" />
             </div>
 
-            {/* Rating */}
             <StarRating />
 
-            {/* Review */}
             <p className="mt-4 text-sm leading-relaxed text-slate-700 sm:text-base">
                 &quot;{testimonial.review}&quot;
             </p>
 
-            {/* User */}
             <div className="mt-5 flex items-center gap-3 sm:mt-6">
                 <div
                     aria-hidden="true"
                     className="
-            flex h-12 w-12 shrink-0 items-center justify-center
-            rounded-full bg-primary/10
-          "
+                        flex h-12 w-12 shrink-0 items-center justify-center
+                        rounded-full bg-primary/10
+                    "
                 >
                     <UserRound className="h-5 w-5 text-primary" />
                 </div>
@@ -150,43 +172,109 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
                     </p>
                 </div>
             </div>
-        </article>
+        </motion.article>
     )
 }
 
-function TrustMetricCard({ icon: Icon, value, label }: TrustMetric) {
+function TrustMetricCard({
+    icon: Icon,
+    value,
+    label,
+    index,
+}: TrustMetric & { index: number }) {
+    const reduceMotion = useReducedMotion()
+
     return (
-        <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5 sm:py-4">
+        <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{
+                duration: reduceMotion ? 0 : 0.3,
+                delay: reduceMotion ? 0 : index * 0.05,
+                ease: "easeOut",
+            }}
+            className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5 sm:py-4"
+        >
             <Icon aria-hidden="true" className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
             <div>
                 <p className="text-base font-bold text-slate-900 sm:text-lg">{value}</p>
                 <p className="text-xs text-slate-600 sm:text-sm">{label}</p>
             </div>
-        </div>
+        </motion.div>
     )
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function TestimonialSection() {
-    // Split testimonials into 2 columns for masonry effect
+    const reduceMotion = useReducedMotion()
+
     const leftCol = testimonials.filter((_, i) => i % 2 === 0)
     const rightCol = testimonials.filter((_, i) => i % 2 !== 0)
 
     return (
-        <section
+        <motion.section
             aria-label="Testimoni orang tua PlayPro Academy"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.18 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="relative overflow-hidden py-16 sm:py-24"
         >
             {/* Background */}
             <div aria-hidden="true" className="absolute inset-0 -z-10">
-                <div className="absolute right-[-120px] top-[-100px] h-[300px] w-[300px] rounded-full bg-secondary/10 blur-3xl" />
-                <div className="absolute bottom-[-120px] left-[-100px] h-[320px] w-[320px] rounded-full bg-primary/10 blur-3xl" />
+                <motion.div
+                    animate={
+                        reduceMotion
+                            ? undefined
+                            : {
+                                y: [0, -10, 0],
+                                x: [0, 6, 0],
+                            }
+                    }
+                    transition={
+                        reduceMotion
+                            ? undefined
+                            : {
+                                duration: 10,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            }
+                    }
+                    className="absolute right-[-120px] top-[-100px] h-[300px] w-[300px] rounded-full bg-secondary/10 blur-3xl"
+                />
+                <motion.div
+                    animate={
+                        reduceMotion
+                            ? undefined
+                            : {
+                                y: [0, 12, 0],
+                                x: [0, -6, 0],
+                            }
+                    }
+                    transition={
+                        reduceMotion
+                            ? undefined
+                            : {
+                                duration: 12,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            }
+                    }
+                    className="absolute bottom-[-120px] left-[-100px] h-[320px] w-[320px] rounded-full bg-primary/10 blur-3xl"
+                />
             </div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mx-auto max-w-3xl text-center">
+                <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    className="mx-auto max-w-3xl text-center"
+                >
                     <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary sm:px-4 sm:py-2 sm:text-sm">
                         <HeartHandshake aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         Parent Testimonials
@@ -201,49 +289,49 @@ export default function TestimonialSection() {
                         Pengalaman nyata dari para orang tua yang telah mempercayakan
                         perjalanan olahraga anak mereka bersama PlayPro Academy.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Trust Metrics */}
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:mt-10 sm:gap-4">
-                    {trustMetrics.map((metric) => (
-                        <TrustMetricCard key={metric.label} {...metric} />
+                    {trustMetrics.map((metric, index) => (
+                        <TrustMetricCard key={metric.label} index={index} {...metric} />
                     ))}
                 </div>
 
-                {/* Masonry Grid — mobile: 1 col, sm+: 2 col */}
+                {/* Masonry Grid */}
                 <div
                     role="list"
                     aria-label="Daftar testimoni"
-                    className="mt-10 grid grid-cols-1 gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-6 sm:items-start"
+                    className="
+                        mt-10 grid grid-cols-1 gap-4
+                        sm:mt-14 sm:grid-cols-2 sm:gap-6 sm:items-start
+                    "
                 >
-                    {/* Mobile: render flat, Desktop: split into 2 columns */}
                     <div className="sm:hidden flex flex-col gap-4">
-                        {testimonials.map((item) => (
+                        {testimonials.map((item, index) => (
                             <div key={item.name} role="listitem">
-                                <TestimonialCard testimonial={item} />
+                                <TestimonialCard testimonial={item} index={index} />
                             </div>
                         ))}
                     </div>
 
-                    {/* Left Column */}
                     <div className="hidden sm:flex flex-col gap-6">
-                        {leftCol.map((item) => (
+                        {leftCol.map((item, index) => (
                             <div key={item.name} role="listitem">
-                                <TestimonialCard testimonial={item} />
+                                <TestimonialCard testimonial={item} index={index} />
                             </div>
                         ))}
                     </div>
 
-                    {/* Right Column — offset via padding top for stagger effect */}
                     <div className="hidden sm:flex flex-col gap-6 sm:pt-10">
-                        {rightCol.map((item) => (
+                        {rightCol.map((item, index) => (
                             <div key={item.name} role="listitem">
-                                <TestimonialCard testimonial={item} />
+                                <TestimonialCard testimonial={item} index={index + 1} />
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
-        </section>
+        </motion.section>
     )
 }
