@@ -137,7 +137,7 @@ export default function Page() {
         ) : role === "coach" ? (
           <CoachDashboard name={displayName} />
         ) : (
-          <ParentDashboard name={displayName} />
+          <ParentDashboard />
         )}
       </div>
     </main>
