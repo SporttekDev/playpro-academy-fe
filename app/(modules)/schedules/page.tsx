@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 
 interface Branch {
@@ -140,17 +141,17 @@ interface AttendanceReportForm {
 }
 
 const MONTHS = [
-    { value: '1', label: 'Januari' },   
+    { value: '1', label: 'Januari' },
     { value: '2', label: 'Februari' },
-    { value: '3', label: 'Maret' },     
+    { value: '3', label: 'Maret' },
     { value: '4', label: 'April' },
-    { value: '5', label: 'Mei' },       
+    { value: '5', label: 'Mei' },
     { value: '6', label: 'Juni' },
-    { value: '7', label: 'Juli' },      
+    { value: '7', label: 'Juli' },
     { value: '8', label: 'Agustus' },
-    { value: '9', label: 'September' }, 
+    { value: '9', label: 'September' },
     { value: '10', label: 'Oktober' },
-    { value: '11', label: 'November' }, 
+    { value: '11', label: 'November' },
     { value: '12', label: 'Desember' },
 ];
 
@@ -992,23 +993,19 @@ export default function SchedulesPage() {
                         <div className="grid gap-4">
                             <div className="space-y-1">
                                 <Label>Class</Label>
-                                <Select
+                                <SearchableSelect
                                     value={formData.class_id}
-                                    onValueChange={(value) => setFormData((prev) => ({ ...prev, class_id: value }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Choose class" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {classes.length > 0 ? (
-                                            classes.map((cls) => (
-                                                <SelectItem key={cls.id} value={cls.id.toString()}>{cls.name}</SelectItem>
-                                            ))
-                                        ) : (
-                                            <SelectItem value="0" disabled>No classes available</SelectItem>
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                    onValueChange={(value) =>
+                                        setFormData((prev) => ({ ...prev, class_id: value }))
+                                    }
+                                    options={classes.map((cls) => ({
+                                        value: cls.id.toString(),
+                                        label: cls.name,
+                                    }))}
+                                    placeholder="Choose class"
+                                    searchPlaceholder="Search class..."
+                                    emptyText="No classes available"
+                                />
                             </div>
 
                             <div className="space-y-1">
