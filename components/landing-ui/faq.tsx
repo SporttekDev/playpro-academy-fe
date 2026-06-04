@@ -12,6 +12,8 @@ import {
     PhoneCall,
 } from "lucide-react"
 
+import { motion, Transition } from "framer-motion"
+
 import { Button } from "@/components/ui/button"
 
 import {
@@ -323,25 +325,91 @@ const faqs: FAQItem[] = [
     },
 ]
 
+const fadeUpTransition: Transition = {
+    duration: 0.7,
+    ease: "easeOut",
+}
+
+const faqItemTransition: Transition = {
+    duration: 0.55,
+    ease: "easeOut",
+}
+
+const fadeUp = {
+    hidden: {
+        opacity: 0,
+        y: 40,
+    },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: fadeUpTransition
+    },
+}
+
+const staggerContainer = {
+    hidden: {},
+    visible: {
+        transition: {
+            staggerChildren: 0.12,
+        },
+    },
+}
+
+const faqItemVariant = {
+    hidden: {
+        opacity: 0,
+        y: 24,
+    },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: faqItemTransition
+    },
+}
+
 function ContactCTA() {
     return (
-        <div
+        <motion.div
+            initial={{
+                opacity: 0,
+                y: 30,
+            }}
+            whileInView={{
+                opacity: 1,
+                y: 0,
+            }}
+            viewport={{
+                once: true,
+            }}
+            transition={{
+                duration: 0.7,
+                ease: "easeOut",
+            }}
             className="
-        rounded-[2rem]
-        border border-primary/10
-        bg-primary/5 p-6
-      "
+                rounded-[2rem]
+                border border-primary/10
+                bg-primary/5 p-6
+            "
         >
             <div className="flex items-start gap-4">
-                <div
+                <motion.div
+                    animate={{
+                        y: [0, -4, 0],
+                    }}
+                    transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
                     className="
-            flex h-12 w-12 shrink-0 items-center
-            justify-center rounded-2xl
-            bg-primary text-white
-          "
+                        flex h-12 w-12 shrink-0 items-center
+                        justify-center rounded-2xl
+                        bg-primary text-white
+                    "
                 >
                     <MessageCircle className="h-5 w-5" />
-                </div>
+                </motion.div>
 
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">
@@ -349,11 +417,15 @@ function ContactCTA() {
                     </h3>
 
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                        Tim PlayPro Academy siap membantu Anda mendapatkan informasi terbaik
-                        untuk anak.
+                        Tim PlayPro Academy siap membantu Anda mendapatkan
+                        informasi terbaik untuk anak.
                     </p>
 
-                    <Button size="lg" className="mt-5" asChild>
+                    <Button
+                        size="lg"
+                        className="mt-5"
+                        asChild
+                    >
                         <Link
                             href="https://wa.me/62812XXXXXXXX"
                             target="_blank"
@@ -363,7 +435,7 @@ function ContactCTA() {
                     </Button>
                 </div>
             </div>
-        </div>
+        </motion.div>
     )
 }
 
@@ -372,15 +444,40 @@ export default function FAQSection() {
         <section className="relative overflow-hidden py-24">
             {/* Background */}
             <div className="absolute inset-0 -z-10">
-                <div className="absolute right-[-120px] top-[-120px] h-[320px] w-[320px] rounded-full bg-secondary/10 blur-3xl" />
+                <motion.div
+                    className="
+        absolute right-[-120px] top-[-120px]
+        h-[320px] w-[320px]
+        rounded-full bg-secondary/10 blur-3xl
+    "
+                    animate={{
+                        x: [0, -30, 0],
+                        y: [0, 25, 0],
+                    }}
+                    transition={{
+                        duration: 12,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                />
             </div>
 
             <div className="container mx-auto px-4">
-                <div className="grid items-start gap-14 lg:grid-cols-2">
+                <motion.div
+                    className="grid items-start gap-14 lg:grid-cols-2"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{
+                        once: true,
+                        amount: 0.15,
+                    }}
+                    variants={staggerContainer}
+                >
                     {/* Left Content */}
-                    <div className="w-full">
+                    <motion.div className="w-full" variants={staggerContainer}>
                         {/* Badge */}
-                        <div
+                        <motion.div
+                            variants={fadeUp}
                             className="
                 inline-flex items-center gap-2 rounded-full
                 border border-primary/10 bg-primary/5
@@ -389,10 +486,11 @@ export default function FAQSection() {
                         >
                             <HelpCircle className="h-4 w-4" />
                             Frequently Asked Questions
-                        </div>
+                        </motion.div>
 
                         {/* Heading */}
-                        <h2
+                        <motion.h2
+                            variants={fadeUp}
                             className="
                 mt-5 text-4xl font-extrabold tracking-tight
                 text-slate-900 md:text-5xl
@@ -402,10 +500,11 @@ export default function FAQSection() {
                             <span className="text-primary">
                                 {" "}Sering Ditanyakan
                             </span>
-                        </h2>
+                        </motion.h2>
 
                         {/* Description */}
-                        <p
+                        <motion.p
+                            variants={fadeUp}
                             className="
                 mt-6 text-lg leading-relaxed
                 text-slate-600
@@ -413,11 +512,19 @@ export default function FAQSection() {
                         >
                             Kami memahami bahwa orang tua ingin memastikan anak mendapatkan
                             lingkungan belajar olahraga yang aman, nyaman, dan berkualitas.
-                        </p>
+                        </motion.p>
 
                         {/* Mini Cards */}
                         <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                            <div
+                            <motion.div
+                                variants={faqItemVariant}
+                                whileHover={{
+                                    y: -4,
+                                    scale: 1.02,
+                                }}
+                                transition={{
+                                    duration: 0.2,
+                                }}
                                 className="
                   rounded-2xl border border-slate-200
                   bg-slate-50 p-5
@@ -428,7 +535,7 @@ export default function FAQSection() {
                                 <p className="mt-3 text-sm font-semibold text-slate-900">
                                     Certified Coaches
                                 </p>
-                            </div>
+                            </motion.div>
 
                             <div
                                 className="
@@ -461,43 +568,57 @@ export default function FAQSection() {
                         <div className="mt-10 hidden lg:block">
                             <ContactCTA />
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Right FAQ */}
-                    <div>
+                    <motion.div
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{
+                            once: true,
+                            amount: 0.1,
+                        }}
+                        variants={staggerContainer}
+                    >
                         <Accordion
                             type="single"
                             collapsible
                             className="space-y-4"
                         >
                             {faqs.map((faq, index) => (
-                                <AccordionItem
-                                    key={index}
-                                    value={`item-${index}`}
-                                    className="
-                    overflow-hidden rounded-[1.5rem]
-                    border border-slate-200/80
-                    bg-white px-6 shadow-sm
-                  "
-                                >
-                                    <AccordionTrigger
+                                <motion.div key={index} variants={faqItemVariant}>
+                                    <AccordionItem
+                                        value={`item-${index}`}
                                         className="
+                                        overflow-hidden rounded-[1.5rem]
+                                        border border-slate-200/80
+                                        bg-white px-6 shadow-sm
+
+                                        transition-all duration-300
+                                        hover:border-primary/20
+                                        hover:shadow-lg"
+                                    >
+                                        <AccordionTrigger
+                                            className="
                       py-6 text-left text-base font-semibold
                       text-slate-900 hover:no-underline
                     "
-                                    >
-                                        {faq.question}
-                                    </AccordionTrigger>
+                                        >
+                                            {faq.question}
+                                        </AccordionTrigger>
 
-                                    <AccordionContent
-                                        className="
-                      pb-6 pt-0 text-sm leading-relaxed
-                      text-slate-600
-                    "
-                                    >
-                                        {faq.answer}
-                                    </AccordionContent>
-                                </AccordionItem>
+                                        <AccordionContent
+                                            className="
+                                            overflow-hidden
+                                            pb-6 pt-0
+                                            text-sm leading-relaxed
+                                            text-slate-600
+                                            "
+                                        >
+                                            {faq.answer}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </motion.div>
                             ))}
                         </Accordion>
 
@@ -505,8 +626,8 @@ export default function FAQSection() {
                         <div className="mt-10 block lg:hidden">
                             <ContactCTA />
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             </div>
         </section>
     )

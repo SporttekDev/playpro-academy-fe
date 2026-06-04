@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { motion, Transition } from "framer-motion"
 
 import {
     CalendarDays,
@@ -64,6 +65,44 @@ const articles = [
     },
 ]
 
+const smoothTransition: Transition = {
+    duration: 0.7,
+    ease: "easeOut",
+}
+
+const fadeUp = {
+    hidden: {
+        opacity: 0,
+        y: 40,
+    },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: smoothTransition
+    },
+}
+
+const staggerContainer = {
+    hidden: {},
+    visible: {
+        transition: {
+            staggerChildren: 0.12,
+        },
+    },
+}
+
+const cardVariant = {
+    hidden: {
+        opacity: 0,
+        y: 50,
+    },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: smoothTransition,
+    },
+}
+
 // ─── Card ────────────────────────────────────────────────────────────────────
 
 function ArticleCard({
@@ -82,7 +121,7 @@ function ArticleCard({
       "
         >
             {/* Image */}
-            <div className="relative aspect-[4/5] overflow-hidden">
+            <motion.div className="relative aspect-[4/5] overflow-hidden">
                 <Image
                     src={article.image}
                     alt={article.title}
@@ -94,10 +133,29 @@ function ArticleCard({
                 />
 
                 {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/5" />
+                <motion.div
+                    className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/5"
+                    whileHover={{
+                        opacity: 0.85,
+                    }}
+                />
 
                 {/* Floating Category */}
-                <div className="absolute left-5 top-5 z-10">
+                <motion.div
+                    className="absolute left-5 top-5 z-10"
+                    initial={{
+                        opacity: 0,
+                        y: -10,
+                    }}
+                    whileInView={{
+                        opacity: 1,
+                        y: 0,
+                    }}
+                    transition={{
+                        delay: 0.2,
+                        duration: 0.5,
+                    }}
+                >
                     <div
                         className="
               inline-flex items-center gap-2 rounded-full
@@ -109,8 +167,8 @@ function ArticleCard({
                         <Sparkles className="h-3.5 w-3.5" />
                         {article.category}
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
 
             {/* Content */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-6 md:p-7">
@@ -142,7 +200,11 @@ function ArticleCard({
                 </p>
 
                 {/* Read More */}
-                <div className="mt-5">
+                <motion.div className="mt-5"
+                    whileHover={{
+                        x: 4,
+                    }}
+                >
                     <Link
                         href={article.href}
                         className="
@@ -154,7 +216,7 @@ function ArticleCard({
                         Read Story
                         <ArrowRight className="h-4 w-4" />
                     </Link>
-                </div>
+                </motion.div>
             </div>
         </article>
     )
@@ -170,9 +232,31 @@ export default function ActivitiesSection() {
             <div className="absolute inset-0 -z-10">
 
                 {/* Blur */}
-                <div className="absolute left-[-140px] top-[-140px] h-[360px] w-[360px] rounded-full bg-primary/10 blur-3xl" />
+                <motion.div
+                    className="absolute left-[-140px] top-[-140px] h-[360px] w-[360px] rounded-full bg-primary/10 blur-3xl"
+                    animate={{
+                        x: [0, 30, 0],
+                        y: [0, 20, 0],
+                    }}
+                    transition={{
+                        duration: 12,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                />
 
-                <div className="absolute bottom-[-160px] right-[-160px] h-[380px] w-[380px] rounded-full bg-secondary/10 blur-3xl" />
+                <motion.div
+                    className="absolute bottom-[-160px] right-[-160px] h-[380px] w-[380px] rounded-full bg-secondary/10 blur-3xl"
+                    animate={{
+                        x: [0, -30, 0],
+                        y: [0, -20, 0],
+                    }}
+                    transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                />
 
                 {/* Grid */}
                 <div
@@ -187,9 +271,15 @@ export default function ActivitiesSection() {
             <div className="container mx-auto px-4">
 
                 {/* Header */}
-                <div className="mx-auto max-w-3xl text-center">
+                <motion.div
+                    className="mx-auto max-w-3xl text-center"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.3 }}
+                    variants={staggerContainer}
+                >
 
-                    <div
+                    <motion.div variants={fadeUp}
                         className="
               inline-flex items-center gap-2 rounded-full
               border border-primary/10 bg-primary/5
@@ -198,9 +288,9 @@ export default function ActivitiesSection() {
                     >
                         <Sparkles className="h-4 w-4" />
                         Gallery & Activities
-                    </div>
+                    </motion.div>
 
-                    <h2
+                    <motion.h2 variants={fadeUp}
                         className="
               mt-5 text-4xl font-extrabold tracking-tight
               text-slate-900 md:text-5xl
@@ -210,9 +300,9 @@ export default function ActivitiesSection() {
                         <span className="text-primary">
                             {" "}Aktivitas Terbaru
                         </span>
-                    </h2>
+                    </motion.h2>
 
-                    <p
+                    <motion.p variants={fadeUp}
                         className="
               mt-5 text-lg leading-relaxed text-slate-600
             "
@@ -220,11 +310,21 @@ export default function ActivitiesSection() {
                         Dokumentasi perjalanan, event, dan perkembangan anak-anak
                         bersama PlayPro Academy dalam suasana yang aktif,
                         positif, dan penuh semangat.
-                    </p>
-                </div>
+                    </motion.p>
+                </motion.div>
 
                 {/* Carousel */}
-                <div className="mt-16">
+                <motion.div
+                    className="mt-16"
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{
+                        duration: 0.8,
+                        ease: "easeOut",
+                    }}
+
+                >
 
                     <Carousel
                         opts={{
@@ -261,10 +361,25 @@ export default function ActivitiesSection() {
                             <CarouselNext className="static translate-y-0" />
                         </div>
                     </Carousel>
-                </div>
+                </motion.div>
 
                 {/* CTA */}
-                <div className="mt-16 flex justify-center">
+                <motion.div
+                    className="mt-16 flex justify-center"
+                    initial={{
+                        opacity: 0,
+                        y: 30,
+                    }}
+                    whileInView={{
+                        opacity: 1,
+                        y: 0,
+                    }}
+                    viewport={{ once: true }}
+                    transition={{
+                        duration: 0.7,
+                        ease: "easeOut",
+                    }}
+                >
                     <Button
                         size="lg"
                         className="rounded-2xl px-7"
@@ -275,8 +390,8 @@ export default function ActivitiesSection() {
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                     </Button>
-                </div>
+                </motion.div>
             </div>
-        </section>
+        </section >
     )
 }

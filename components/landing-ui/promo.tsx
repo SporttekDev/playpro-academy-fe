@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { motion, useReducedMotion } from "framer-motion"
 import {
     ArrowRight,
     CalendarDays,
@@ -85,9 +86,18 @@ function TimelineDot({
     icon: LucideIcon
     isLast: boolean
 }) {
+    const reduceMotion = useReducedMotion()
+
     return (
         <div className="relative flex flex-col items-center" aria-hidden="true">
-            <div
+            <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{
+                    duration: 0.25,
+                    ease: "easeOut",
+                }}
                 className={`
           z-10 flex h-10 w-10 shrink-0 items-center justify-center
           rounded-full border-4 border-white shadow-md
@@ -95,8 +105,21 @@ function TimelineDot({
         `}
             >
                 <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${accentText}`} />
-            </div>
-            {!isLast && <div className="mt-1 w-0.5 flex-1 bg-slate-200" />}
+            </motion.div>
+
+            {!isLast && (
+                <motion.div
+                    initial={{ scaleY: 0.2, opacity: 0.4 }}
+                    whileInView={{ scaleY: 1, opacity: 1 }}
+                    viewport={{ once: true, amount: 0.4 }}
+                    transition={{
+                        duration: reduceMotion ? 0 : 0.3,
+                        ease: "easeOut",
+                    }}
+                    style={{ transformOrigin: "top" }}
+                    className="mt-1 w-0.5 flex-1 bg-slate-200"
+                />
+            )}
         </div>
     )
 }
@@ -109,9 +132,27 @@ function TimelineCard({
     isLast: boolean
 }) {
     const Icon = promo.icon
+    const reduceMotion = useReducedMotion()
 
     return (
-        <div className="flex gap-4 sm:gap-6 lg:gap-8">
+        <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{
+                duration: 0.35,
+                ease: "easeOut",
+            }}
+            whileHover={
+                reduceMotion
+                    ? undefined
+                    : {
+                        y: -4,
+                        transition: { duration: 0.16, ease: "easeOut" },
+                    }
+            }
+            className="flex gap-4 sm:gap-6 lg:gap-8"
+        >
             {/* Timeline Dot */}
             <TimelineDot
                 accent={promo.accent}
@@ -126,7 +167,7 @@ function TimelineCard({
           group mb-8 flex flex-1 overflow-hidden
           rounded-[1.5rem] border bg-white shadow-sm
           transition-all duration-300
-          hover:-translate-y-1 hover:shadow-xl
+          hover:shadow-xl
           sm:rounded-[2rem] ${promo.accent}
         `}
             >
@@ -155,6 +196,7 @@ function TimelineCard({
                             <Icon aria-hidden="true" className="h-3 w-3" />
                             {promo.type}
                         </span>
+
                         <span className="flex items-center gap-1 text-xs text-slate-500">
                             <CalendarDays aria-hidden="true" className="h-3 w-3" />
                             {promo.date}
@@ -177,7 +219,10 @@ function TimelineCard({
                             <Button size="sm" asChild>
                                 <Link href={promo.ctaHref ?? "/events"}>
                                     {promo.ctaLabel}
-                                    <ArrowRight aria-hidden="true" className="ml-1.5 h-3.5 w-3.5" />
+                                    <ArrowRight
+                                        aria-hidden="true"
+                                        className="ml-1.5 h-3.5 w-3.5"
+                                    />
                                 </Link>
                             </Button>
                         </div>
@@ -198,26 +243,57 @@ function TimelineCard({
                     )}
                 </div>
             </div>
-        </div>
+        </motion.div>
     )
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PromoSection() {
+    const reduceMotion = useReducedMotion()
+
     return (
-        <section
+        <motion.section
             aria-label="Promo dan Event PlayPro Academy"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.18 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="relative overflow-hidden py-16 sm:py-24"
         >
             {/* Background */}
             <div aria-hidden="true" className="absolute inset-0 -z-10">
-                <div className="absolute bottom-[-120px] right-[-120px] h-[320px] w-[320px] rounded-full bg-secondary/10 blur-3xl" />
+                <motion.div
+                    animate={
+                        reduceMotion
+                            ? undefined
+                            : {
+                                y: [0, -10, 0],
+                                x: [0, 4, 0],
+                            }
+                    }
+                    transition={
+                        reduceMotion
+                            ? undefined
+                            : {
+                                duration: 10,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            }
+                    }
+                    className="absolute bottom-[-120px] right-[-120px] h-[320px] w-[320px] rounded-full bg-secondary/10 blur-3xl"
+                />
             </div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mx-auto max-w-3xl text-center">
+                <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    className="mx-auto max-w-3xl text-center"
+                >
                     <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary sm:px-4 sm:py-2 sm:text-sm">
                         <Sparkles aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         Promo & Events
@@ -232,7 +308,7 @@ export default function PromoSection() {
                         Ikuti berbagai promo spesial dan event menarik dari PlayPro
                         Academy untuk pengalaman olahraga terbaik anak Anda.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Timeline */}
                 <div
@@ -250,6 +326,6 @@ export default function PromoSection() {
                     ))}
                 </div>
             </div>
-        </section>
+        </motion.section>
     )
 }
