@@ -27,7 +27,7 @@ const articles = [
         description:
             "Cabang ke-8 resmi hadir di Bandung dengan program multisport untuk toddler dan junior bersama coach profesional.",
         image:
-            "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1600&auto=format&fit=crop",
+            "/images/galleries/gallery-2.png",
         date: "26 April 2026",
         category: "New Branch",
         href: "/gallery-activities/playpro-bandung",
@@ -37,7 +37,7 @@ const articles = [
         description:
             "Eksplorasi olahraga baru seperti hockey, baseball, hingga handball dalam program Special Class PlayPro Academy.",
         image:
-            "https://images.unsplash.com/photo-1547347298-4074fc3086f0?q=80&w=1600&auto=format&fit=crop",
+            "/images/galleries/gallery-1.png",
         date: "12 May 2026",
         category: "Special Class",
         href: "/gallery-activities/special-class",
@@ -47,7 +47,7 @@ const articles = [
         description:
             "Pendekatan multisport membantu perkembangan motorik, fokus, dan koordinasi anak sejak usia dini.",
         image:
-            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1600&auto=format&fit=crop",
+            "/images/galleries/gallery-4.png",
         date: "08 May 2026",
         category: "Parent Insights",
         href: "/gallery-activities/multisport-toddler",
@@ -57,7 +57,7 @@ const articles = [
         description:
             "Program liburan interaktif penuh aktivitas olahraga menyenangkan untuk meningkatkan teamwork dan confidence anak.",
         image:
-            "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?q=80&w=1600&auto=format&fit=crop",
+            "/images/galleries/gallery-6.png",
         date: "01 June 2026",
         category: "Event",
         href: "/gallery-activities/holiday-camp",

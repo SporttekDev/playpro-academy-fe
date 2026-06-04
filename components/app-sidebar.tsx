@@ -40,6 +40,8 @@ import {
 
 import Cookies from "js-cookie"
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import Image from 'next/image';
 
 const data = {
   navMain: [
@@ -256,15 +258,16 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:!p-1.5 h-16"
             >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-
-                <span className="text-base font-semibold">
-                  Playpro Academy
-                </span>
-              </a>
+              <Link href="/" className="flex items-center gap-2 justify-center">
+                <Image 
+                  src="/images/ppa-logo-inline-fill.png"
+                  alt="Playpro Academy Logo"
+                  width={180}
+                  height={180}
+                />
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

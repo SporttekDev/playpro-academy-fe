@@ -58,37 +58,33 @@ function isAllowed(role: string, pathname: string) {
 
 export function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
-
     const role = getRoleFromCookie(request);
 
-    // BELUM LOGIN
-    if (!role) {
-
-        if (isPublicRoute(pathname)) {
-            return NextResponse.next();
+    // Route publik selalu boleh diakses, baik login maupun belum login
+    if (isPublicRoute(pathname)) {
+        // kalau sudah login dan buka login/register, redirect ke dashboard
+        if (role && AUTH_ROUTES.includes(pathname)) {
+            return NextResponse.redirect(new URL("/dashboard", request.url));
         }
 
-
-        return NextResponse.redirect(
-            new URL("/login", request.url)
-        );
+        return NextResponse.next();
     }
 
-    // SUDAH LOGIN TAPI BUKA LOGIN
+    // Belum login
+    if (!role) {
+        return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Sudah login tapi buka login/register
     if (AUTH_ROUTES.includes(pathname)) {
-        return NextResponse.redirect(
-            new URL("/dashboard", request.url)
-        );
+        return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    // ROLE CHECK
+    // Route non-public tetap dicek role
     const allowed = isAllowed(role, pathname);
 
     if (!allowed) {
-
-        return NextResponse.redirect(
-            new URL("/dashboard", request.url)
-        );
+        return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     return NextResponse.next();

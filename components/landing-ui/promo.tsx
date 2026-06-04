@@ -36,7 +36,7 @@ const promoList: PromoItem[] = [
         title: "Free Trial Class",
         description:
             "Ajak anak mencoba pengalaman latihan seru bersama coach profesional PlayPro Academy secara GRATIS.",
-        image: "https://images.unsplash.com/photo-1680024436315-fb06267264b2?auto=format&fit=crop&fm=jpg&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&ixlib=rb-4.1.0&q=60&w=3000",
+        image: "/images/galleries/gallery-1.png",
         type: "Limited Promo",
         date: "Until 31 May 2026",
         icon: Sparkles,
@@ -49,7 +49,7 @@ const promoList: PromoItem[] = [
     {
         title: "Holiday Sports Camp",
         description: "Aktivitas olahraga seru selama liburan sekolah.",
-        image: "https://images.unsplash.com/photo-1717584146940-118a65525da8?auto=format&fit=crop&fm=jpg&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&ixlib=rb-4.1.0&q=60&w=3000",
+        image: "/images/galleries/gallery-6.png",
         type: "Event",
         date: "15 June 2026",
         icon: Trophy,
@@ -61,7 +61,7 @@ const promoList: PromoItem[] = [
     {
         title: "Early Bird Membership",
         description: "Potongan harga spesial untuk member baru.",
-        image: "https://images.unsplash.com/photo-1633715151359-6fe04c8a0af5?auto=format&fit=crop&fm=jpg&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&ixlib=rb-4.1.0&q=60&w=3000",
+        image: "/images/galleries/gallery-3.png",
         type: "Promo",
         date: "Limited Time",
         icon: TicketPercent,

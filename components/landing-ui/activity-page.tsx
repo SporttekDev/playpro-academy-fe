@@ -23,7 +23,7 @@ const featuredArticle = {
     excerpt:
         "Cabang ke-8 resmi hadir di Kota Bandung dengan program multisport premium untuk anak usia 2–14 tahun.",
     image:
-        "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1400&auto=format&fit=crop",
+        "/images/galleries/gallery-3.png",
     category: "Expansion News",
     date: "26 April 2026",
     readTime: "5 min read",
@@ -35,7 +35,7 @@ const articles = [
         excerpt:
             "Program eksplorasi olahraga baru untuk anak-anak yang ingin mencoba tantangan berbeda.",
         image:
-            "https://images.unsplash.com/photo-1547347298-4074fc3086f0?q=80&w=1200&auto=format&fit=crop",
+            "/images/galleries/gallery-1.png",
         category: "Special Class",
         date: "18 May 2026",
     },
@@ -44,7 +44,7 @@ const articles = [
         excerpt:
             "Fondasi perkembangan motorik, fokus, dan kepercayaan diri anak dimulai dari multisport.",
         image:
-            "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1200&auto=format&fit=crop",
+            "/images/galleries/gallery-4.png",
         category: "Parent Education",
         date: "10 May 2026",
     },
@@ -53,19 +53,25 @@ const articles = [
         excerpt:
             "Program liburan interaktif dengan berbagai aktivitas olahraga seru bersama coach profesional.",
         image:
-            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1200&auto=format&fit=crop",
+            "/images/galleries/gallery-6.png",
         category: "Events",
         date: "02 May 2026",
     },
 ]
 
 const galleryImages = [
-    "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1547347298-4074fc3086f0?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1511886929837-354d827aae26?q=80&w=1200&auto=format&fit=crop",
+    // "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1200&auto=format&fit=crop",
+    // "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1200&auto=format&fit=crop",
+    // "https://images.unsplash.com/photo-1547347298-4074fc3086f0?q=80&w=1200&auto=format&fit=crop",
+    "/images/galleries/gallery-7.png",
+    "/images/galleries/gallery-2.png",
+    "/images/galleries/gallery-3.png",
+    "/images/galleries/gallery-4.png",
+    "/images/galleries/gallery-5.png",
+    "/images/galleries/gallery-1.png",
+    "/images/galleries/gallery-6.png",
+    // "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?q=80&w=1200&auto=format&fit=crop",
+    // "https://images.unsplash.com/photo-1511886929837-354d827aae26?q=80&w=1200&auto=format&fit=crop",
 ]
 
 const timeline = [
@@ -255,7 +261,7 @@ export default function GalleryActivitiesPage() {
                     >
                         <div className="relative aspect-[16/7]">
                             <Image
-                                src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1600&auto=format&fit=crop"
+                                src="/images/galleries/gallery-7.png"
                                 alt="PlayPro Activities"
                                 fill
                                 priority
