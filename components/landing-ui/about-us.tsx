@@ -182,11 +182,11 @@ export default function AboutUsPage() {
                 "
                             >
                                 <Image
-                                    src="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1400&auto=format&fit=crop"
+                                    src="/images/galleries/gallery-9.png"
                                     alt="PlayPro Academy"
                                     width={1200}
                                     height={900}
-                                    className="h-[520px] w-full object-cover"
+                                    className="h-[520px] w-full object-cover object-center"
                                     priority
                                 />
                             </div>
@@ -202,7 +202,7 @@ export default function AboutUsPage() {
                         {/* Image */}
                         <div className="relative overflow-hidden rounded-[2.5rem]">
                             <Image
-                                src="https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1400&auto=format&fit=crop"
+                                src="/images/galleries/gallery-8.png"
                                 alt="Our Story"
                                 width={1200}
                                 height={900}
