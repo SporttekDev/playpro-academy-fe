@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -112,6 +113,46 @@ function SectionBadge({ children }: { children: React.ReactNode }) {
             <Sparkles className="h-4 w-4" />
             {children}
         </motion.div>
+    )
+}
+
+function TrustFeatureCard({
+    item,
+    align = "left",
+}: {
+    item: (typeof trustItems)[number]
+    align?: "left" | "right"
+}) {
+    const Icon = item.icon
+
+    return (
+        <div
+            className={cn(
+                "max-w-xs",
+                align === "right" && "ml-auto text-right"
+            )}
+        >
+            <div
+                className={cn(
+                    "mb-4 flex",
+                    align === "right"
+                        ? "justify-end"
+                        : "justify-start"
+                )}
+            >
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                    <Icon className="h-7 w-7 text-primary" />
+                </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900">
+                {item.title}
+            </h3>
+
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                {item.description}
+            </p>
+        </div>
     )
 }
 
@@ -561,33 +602,111 @@ export default function AboutUsPage() {
             </section>
 
             {/* ───────────────── Trust ───────────────── */}
-            <section className="py-20 lg:py-28">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                    <motion.div
-                        initial={{ opacity: 0, y: 18 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.2 }}
-                        transition={{ duration: 0.45, ease: "easeOut" }}
-                        className="mx-auto max-w-3xl text-center"
-                    >
-                        <SectionBadge>Why Parents Trust Us</SectionBadge>
+            <section className="relative overflow-hidden py-20 lg:py-28">
+                <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-slate-50" />
 
-                        <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                            Kenapa Orang Tua Memilih Play
-                            <span className="text-secondary">Pro</span>{" "}
-                            <span className="text-primary">Academy</span>
-                        </h2>
+                <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
+                    <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+                </div>
 
-                        <p className="mt-5 text-lg leading-relaxed text-slate-600">
-                            Kami menghadirkan pengalaman olahraga anak yang aman, modern, dan
-                            terstruktur untuk mendukung tumbuh kembang terbaik mereka.
-                        </p>
-                    </motion.div>
+                <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="relative z-10">
+                        <motion.div
+                            initial={{ opacity: 0, y: 18 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.2 }}
+                            transition={{ duration: 0.45, ease: "easeOut" }}
+                            className="mx-auto max-w-3xl text-center"
+                        >
+                            <SectionBadge>Why Parents Trust Us</SectionBadge>
 
-                    <div className="mt-16 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                        {trustItems.map((item, index) => (
-                            <TrustCard key={item.title} item={item} index={index} />
-                        ))}
+                            <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
+                                Kenapa Orang Tua Memilih Play
+                                <span className="text-secondary">Pro</span>{" "}
+                                <span className="text-primary">Academy</span>
+                            </h2>
+
+                            <p className="mt-5 text-lg leading-relaxed text-slate-600">
+                                Kami menghadirkan pengalaman olahraga anak yang aman, modern, dan
+                                terstruktur untuk mendukung tumbuh kembang terbaik mereka.
+                            </p>
+                        </motion.div>
+
+                        <div className="relative mt-20 hidden lg:block min-h-[700px]">
+                            {/* Item 1 */}
+                            <div className="absolute left-[10%] top-[5%] max-w-xs">
+                                <TrustFeatureCard
+                                    item={trustItems[0]}
+                                    align="right"
+                                />
+                            </div>
+
+                            {/* Item 2 */}
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 max-w-xs">
+                                <TrustFeatureCard
+                                    item={trustItems[1]}
+                                    align="right"
+                                />
+                            </div>
+
+                            {/* Item 3 */}
+                            <div className="absolute left-[10%] bottom-[5%] max-w-xs">
+                                <TrustFeatureCard
+                                    item={trustItems[2]}
+                                    align="right"
+                                />
+                            </div>
+
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="h-[520px] w-[520px] rounded-full border border-slate-200/70" />
+                                </div>
+
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="h-[420px] w-[420px] rounded-full border border-dashed border-primary/20" />
+                                </div>
+
+                                <div className="relative z-10 w-[360px]">
+
+                                    <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.15)]">
+                                        <div className="relative h-[420px]">
+                                            <Image
+                                                src="/images/ppa-logo-square.png"
+                                                alt="PlayPro Academy"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Item 4 */}
+                            <div className="absolute right-[10%] top-[5%] max-w-xs">
+                                <TrustFeatureCard
+                                    item={trustItems[3]}
+                                    align="left"
+                                />
+                            </div>
+
+                            {/* Item 5 */}
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 max-w-xs">
+                                <TrustFeatureCard
+                                    item={trustItems[4]}
+                                    align="left"
+                                />
+                            </div>
+
+                            {/* Item 6 */}
+                            <div className="absolute right-[10%] bottom-[5%] max-w-xs">
+                                <TrustFeatureCard
+                                    item={trustItems[5]}
+                                    align="left"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -657,50 +776,6 @@ export default function AboutUsPage() {
                             <p className="mt-3 text-sm leading-relaxed text-slate-600">
                                 Coach fokus membantu anak berkembang dari sisi skill, karakter, dan kepercayaan diri.
                             </p>
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
-            {/* ───────────────── CTA ───────────────── */}
-            <section className="relative overflow-hidden py-20 lg:py-28">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-secondary" />
-
-                <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-                    <motion.div
-                        initial={{ opacity: 0, y: 18 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.2 }}
-                        transition={{ duration: 0.45, ease: "easeOut" }}
-                        className="mx-auto max-w-4xl text-center"
-                    >
-                        <h2 className="text-4xl font-extrabold tracking-tight text-white md:text-5xl">
-                            Ready to Start Your Child’s Journey?
-                        </h2>
-
-                        <p className="mt-6 text-lg leading-relaxed text-white/80">
-                            Bergabung bersama PlayPro Academy dan bantu anak tumbuh lebih
-                            aktif, percaya diri, dan sehat melalui olahraga yang menyenangkan.
-                        </p>
-
-                        <div className="mt-10 flex flex-wrap justify-center gap-4">
-                            <Button size="xl" variant="secondary" asChild>
-                                <Link href="/free-trial">
-                                    Book Free Trial
-                                    <ArrowRight className="ml-2 h-5 w-5" />
-                                </Link>
-                            </Button>
-
-                            <Button
-                                size="xl"
-                                variant="outline"
-                                className="
-                                    border-white/20 bg-white/10 text-white
-                                    hover:bg-white hover:text-primary
-                                "
-                                asChild
-                            >
-                                <Link href="/class-programs">Explore Programs</Link>
-                            </Button>
                         </div>
                     </motion.div>
                 </div>
