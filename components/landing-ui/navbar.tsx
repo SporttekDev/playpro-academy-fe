@@ -30,7 +30,7 @@ const menus = [
     { name: "Class Programs", href: "/class-programs" },
     { name: "Schedules Booking", href: "/schedules-booking" },
     { name: "Membership Package", href: "/membership-package" },
-    { name: "Coach List", href: "/coach-list" },
+    // { name: "Coach List", href: "/coach-list" },
     { name: "About Us", href: "/about-us" },
     { name: "Gallery & Activities", href: "/gallery-activities" },
 ]

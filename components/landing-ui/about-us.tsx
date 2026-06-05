@@ -13,6 +13,7 @@ import {
     Sparkles,
     Star,
     Target,
+    Trophy,
     Users,
 } from "lucide-react"
 
@@ -498,7 +499,10 @@ export default function AboutUsPage() {
                             <SectionBadge>Our Story</SectionBadge>
 
                             <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                                Membangun Generasi Aktif dan Percaya Diri
+                                Membangun Generasi{" "}
+                                <span className="text-secondary">Aktif</span>{" "}
+                                dan{" "}
+                                <span className="text-primary">Percaya Diri</span>
                             </h2>
 
                             <div className="mt-6 space-y-5 text-lg leading-relaxed text-slate-600">
@@ -538,7 +542,8 @@ export default function AboutUsPage() {
                         <SectionBadge>Mission & Values</SectionBadge>
 
                         <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                            Nilai yang Menjadi Fondasi Kami
+                            Nilai yang Menjadi{" "}
+                            <span className="text-primary">Fondasi Kami</span>
                         </h2>
 
                         <p className="mt-5 text-lg leading-relaxed text-slate-600">
@@ -568,7 +573,9 @@ export default function AboutUsPage() {
                         <SectionBadge>Why Parents Trust Us</SectionBadge>
 
                         <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                            Kenapa Orang Tua Memilih PlayPro Academy
+                            Kenapa Orang Tua Memilih Play
+                            <span className="text-secondary">Pro</span>{" "}
+                            <span className="text-primary">Academy</span>
                         </h2>
 
                         <p className="mt-5 text-lg leading-relaxed text-slate-600">
@@ -588,44 +595,72 @@ export default function AboutUsPage() {
             {/* ───────────────── Coaches ───────────────── */}
             <section className="bg-slate-50 py-20 lg:py-28">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-end">
+                    <div className="mx-auto max-w-3xl text-center">
                         <motion.div
                             initial={{ opacity: 0, y: 14 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, amount: 0.2 }}
                             transition={{ duration: 0.4, ease: "easeOut" }}
-                            className="max-w-2xl"
                         >
                             <SectionBadge>Our Coaches</SectionBadge>
 
                             <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                                Coach Profesional dan Berpengalaman
+                                <span className="text-primary">Coach</span>{" "}
+                                Profesional dan Berpengalaman
                             </h2>
-                        </motion.div>
 
-                        <motion.div
-                            initial={{ opacity: 0, y: 14 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, amount: 0.2 }}
-                            transition={{ duration: 0.4, ease: "easeOut", delay: 0.05 }}
-                        >
-                            <Button variant="outline" asChild>
-                                <Link href="/coach-list">
-                                    View All Coaches
-                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                </Link>
-                            </Button>
+                            <p className="mt-5 text-lg leading-relaxed text-slate-600">
+                                Setiap sesi dipandu oleh coach yang berpengalaman, sabar, dan memahami
+                                kebutuhan perkembangan anak di setiap tahap usia.
+                            </p>
                         </motion.div>
                     </div>
 
-                    <div className="mt-16 grid gap-6 md:grid-cols-3">
-                        {coaches.map((coach, index) => (
-                            <CoachCard key={coach.name} coach={coach} index={index} />
-                        ))}
-                    </div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 18 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.2 }}
+                        transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
+                        className="mt-14 grid gap-6 md:grid-cols-3"
+                    >
+                        <div className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                                <Trophy className="h-7 w-7 text-primary" />
+                            </div>
+                            <h3 className="mt-5 text-xl font-bold text-slate-900">
+                                Certified Coaches
+                            </h3>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                                Dibimbing oleh coach yang punya pengalaman langsung menangani anak-anak.
+                            </p>
+                        </div>
+
+                        <div className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                                <HeartHandshake className="h-7 w-7 text-primary" />
+                            </div>
+                            <h3 className="mt-5 text-xl font-bold text-slate-900">
+                                Child-Friendly Approach
+                            </h3>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                                Metode latihan dibuat fun, aman, dan nyaman untuk semua kategori usia.
+                            </p>
+                        </div>
+
+                        <div className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                                <Users className="h-7 w-7 text-primary" />
+                            </div>
+                            <h3 className="mt-5 text-xl font-bold text-slate-900">
+                                Focus on Growth
+                            </h3>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                                Coach fokus membantu anak berkembang dari sisi skill, karakter, dan kepercayaan diri.
+                            </p>
+                        </div>
+                    </motion.div>
                 </div>
             </section>
-
             {/* ───────────────── CTA ───────────────── */}
             <section className="relative overflow-hidden py-20 lg:py-28">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-secondary" />
