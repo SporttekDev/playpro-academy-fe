@@ -674,7 +674,7 @@ export default function AboutUsPage() {
                         className="mx-auto max-w-4xl text-center"
                     >
                         <h2 className="text-4xl font-extrabold tracking-tight text-white md:text-5xl">
-                            Siap Memulai Perjalanan Olahraga Anak Anda?
+                            Ready to Start Your Child’s Journey?
                         </h2>
 
                         <p className="mt-6 text-lg leading-relaxed text-white/80">

@@ -277,7 +277,7 @@ export default function ScheduleBookingPage() {
     )
 
     return (
-        <main className="relative overflow-hidden bg-slate-50">
+        <main className="relative overflow-hidden bg-background">
             {/* Background */}
             <div className="absolute inset-0 -z-10">
                 <motion.div
