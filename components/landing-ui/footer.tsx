@@ -69,19 +69,19 @@ export default function Footer() {
     return (
         <footer className="border-t">
             {/* CTA */}
-            <section className="border-b bg-gray-50">
+            <section className="border-b bg-gray-50 bg-gradient-to-br from-primary via-primary/95 to-secondary">
                 <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-4 py-12 text-center lg:flex-row lg:text-left">
                     <div className="max-w-2xl">
-                        <span className="text-sm font-semibold uppercase tracking-widest text-primary">
+                        <span className="text-sm font-semibold uppercase tracking-widest text-secondary">
                             Be Pro Player With PlayPro Academy
                         </span>
 
-                        <h2 className="mt-3 text-3xl font-bold leading-tight md:text-4xl">
+                        <h2 className="mt-3 text-3xl font-bold leading-tight md:text-4xl text-white">
                             Develop Your Skills Through Professional
                             Multisport Training
                         </h2>
 
-                        <p className="mt-4 text-sm leading-relaxed text-gray-600 md:text-base">
+                        <p className="mt-4 text-sm leading-relaxed text-slate-50 md:text-base">
                             Learn with national certified coaches through
                             structured and fun training programs for kids and
                             young athletes.
@@ -89,16 +89,16 @@ export default function Footer() {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-center gap-3">
-                        <Button size={"lg"} asChild>
+                        <Button size={"lg"} variant={"secondary"} asChild>
                             <Link
-                                href="/free-trial"
+                                href="#"
                             // className="rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                             >
                                 Get Free Trial
                             </Link>
                         </Button>
 
-                        <Button size={"lg"} variant={"outline"} asChild>
+                        <Button size={"lg"} variant={"outline"} className="border-white/20 bg-white/10 text-white hover:bg-white hover:text-primary" asChild>
                             <Link
                                 href="/class-programs"
                             // className="rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold transition hover:bg-gray-100"
