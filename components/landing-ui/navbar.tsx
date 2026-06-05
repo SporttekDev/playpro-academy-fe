@@ -93,7 +93,6 @@ export default function Navbar() {
                         {isLoggedIn ? (
                             <Button
                                 size="sm"
-                                className="rounded-xl"
                                 asChild
                             >
                                 <Link
@@ -107,7 +106,6 @@ export default function Navbar() {
                         ) : (
                             <Button
                                 size="sm"
-                                className="rounded-xl"
                                 asChild
                             >
                                 <Link href="/login">
@@ -119,7 +117,6 @@ export default function Navbar() {
                         <Button
                             variant="secondary"
                             size="sm"
-                            className="rounded-xl"
                             asChild
                         >
                             <Link href="/free-trial">
