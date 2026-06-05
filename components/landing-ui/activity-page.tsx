@@ -736,55 +736,6 @@ export default function GalleryActivitiesPage() {
                     </div>
                 </div>
             </section>
-
-            {/* CTA */}
-            <section className="pb-24">
-                <div className="container mx-auto px-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 18, scale: 0.98 }}
-                        whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                        viewport={{ once: true, amount: 0.2 }}
-                        transition={{ duration: 0.45, ease: "easeOut" }}
-                        className="
-                            relative overflow-hidden rounded-[3rem]
-                            bg-gradient-to-br from-primary to-secondary
-                            px-8 py-16 text-center text-white
-                        "
-                    >
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_35%)]" />
-
-                        <div className="relative z-10">
-                            <h2 className="text-4xl font-extrabold md:text-5xl">
-                                Ready to Start Your Child’s Journey?
-                            </h2>
-
-                            <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
-                                Bergabunglah bersama PlayPro Academy dan bantu anak tumbuh aktif,
-                                percaya diri, dan bahagia melalui olahraga.
-                            </p>
-
-                            <div className="mt-8 flex flex-wrap justify-center gap-4">
-                                <Button size="lg" variant="secondary" asChild>
-                                    <Link href="/free-trial">Book Free Trial</Link>
-                                </Button>
-
-                                <Button
-                                    size="lg"
-                                    variant="outline"
-                                    className="
-                                        border-white/20 bg-white/10
-                                        text-white hover:bg-white
-                                        hover:text-primary
-                                    "
-                                    asChild
-                                >
-                                    <Link href="/programs">Explore Programs</Link>
-                                </Button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
         </main>
     )
 }

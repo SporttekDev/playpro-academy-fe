@@ -1451,44 +1451,6 @@ export default function MembershipPage() {
                     </div>
                 </div>
             </section>
-
-            <section className="relative overflow-hidden py-20 lg:py-28">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-secondary" />
-                <div className="container relative z-10 mx-auto px-6 sm:px-6 lg:px-8">
-                    <motion.div
-                        initial={{ opacity: 0, y: 18 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.2 }}
-                        transition={{ duration: 0.45, ease: "easeOut" }}
-                        className="mx-auto max-w-4xl text-center"
-                    >
-                        <h2 className="text-4xl font-extrabold tracking-tight text-white md:text-5xl">
-                            Ready to Start Your Child’s Journey?
-                        </h2>
-
-                        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/80">
-                            Bergabung bersama ribuan keluarga yang telah
-                            mempercayakan perjalanan olahraga anak mereka kepada
-                            PlayPro Academy.
-                        </p>
-
-                        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-                            <Button size="lg" variant="secondary" asChild>
-                                <Link href="/free-trial">Book Free Trial</Link>
-                            </Button>
-
-                            <Button
-                                size="lg"
-                                variant="outline"
-                                className="border-white/20 bg-white/10 text-white hover:bg-white hover:text-primary"
-                                asChild
-                            >
-                                <Link href="/contact">Contact Us</Link>
-                            </Button>
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
         </main>
     )
 }
