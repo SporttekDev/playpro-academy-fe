@@ -9,6 +9,7 @@ import {
     BookOpen,
     Goal,
     HeartHandshake,
+    LucideIcon,
     ShieldCheck,
     Sparkles,
     Star,
@@ -19,6 +20,14 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { WhatsAppButton } from "./whatsapp-button"
+
+interface TrustItem {
+    title: string
+    description: string
+    icon: LucideIcon
+}
+
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -43,7 +52,7 @@ const values = [
     },
 ]
 
-const trustItems = [
+const trustItems: TrustItem[] = [
     {
         title: "Certified Coaches",
         description: "Coach profesional dan berpengalaman menangani anak-anak.",
@@ -76,6 +85,7 @@ const trustItems = [
     },
 ]
 
+
 const coaches = [
     {
         name: "Coach Adrian",
@@ -96,6 +106,19 @@ const coaches = [
             "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop",
     },
 ]
+
+// Kiri: index 0,1,2 — Kanan: index 3,4,5
+const RADIAL_POSITIONS: {
+    style: React.CSSProperties
+    align: "left" | "right"
+}[] = [
+        { style: { left: "10%", top: "5%" }, align: "right" },
+        { style: { left: "0%", top: "50%", transform: "translateY(-50%)" }, align: "right" },
+        { style: { left: "10%", bottom: "5%" }, align: "right" },
+        { style: { right: "10%", top: "5%" }, align: "left" },
+        { style: { right: "0%", top: "50%", transform: "translateY(-50%)" }, align: "left" },
+        { style: { right: "10%", bottom: "5%" }, align: "left" },
+    ]
 
 function SectionBadge({ children }: { children: React.ReactNode }) {
     return (
@@ -120,38 +143,43 @@ function TrustFeatureCard({
     item,
     align = "left",
 }: {
-    item: (typeof trustItems)[number]
+    item: TrustItem
     align?: "left" | "right"
 }) {
     const Icon = item.icon
 
     return (
-        <div
-            className={cn(
-                "max-w-xs",
-                align === "right" && "ml-auto text-right"
-            )}
-        >
-            <div
-                className={cn(
-                    "mb-4 flex",
-                    align === "right"
-                        ? "justify-end"
-                        : "justify-start"
-                )}
-            >
+        <div className={cn("max-w-xs", align === "right" && "ml-auto text-right")}>
+            <div className={cn("mb-4 flex", align === "right" ? "justify-end" : "justify-start")}>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                    <Icon className="h-7 w-7 text-primary" />
+                    <Icon aria-hidden="true" className="h-7 w-7 text-primary" />
                 </div>
             </div>
+            <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.description}</p>
+        </div>
+    )
+}
 
-            <h3 className="text-xl font-bold text-slate-900">
-                {item.title}
-            </h3>
+function TrustGridCard({ item }: { item: TrustItem }) {
+    const Icon = item.icon
 
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                {item.description}
-            </p>
+    return (
+        <div className="
+        group rounded-[1.5rem] border border-slate-200/70
+        bg-white p-5 shadow-sm
+        transition-all duration-300
+        hover:-translate-y-1 hover:shadow-xl
+        sm:p-6
+      ">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 transition-colors duration-300 group-hover:bg-primary sm:h-14 sm:w-14">
+                <Icon
+                    aria-hidden="true"
+                    className="h-5 w-5 text-primary transition-colors duration-300 group-hover:text-white sm:h-7 sm:w-7"
+                />
+            </div>
+            <h3 className="mt-4 text-base font-bold text-slate-900 sm:text-lg">{item.title}</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">{item.description}</p>
         </div>
     )
 }
@@ -408,12 +436,18 @@ export default function AboutUsPage() {
                                 transition={{ duration: 0.45, ease: "easeOut", delay: 0.15 }}
                                 className="mt-10 flex flex-wrap gap-4"
                             >
-                                <Button size="xl" asChild>
+                                <WhatsAppButton
+                                    phone="+6282131111549"
+                                    message={`Halo admin PlayPro Academy, saya ingin mendapatkan free trial untuk anak saya. Mohon info program, jadwal, dan cara pendaftarannya. Terima kasih!`}
+                                    size="xl"
+                                    label="Book Free Trial"
+                                />
+                                {/* <Button size="xl" asChild>
                                     <Link href="/free-trial">
                                         Book Free Trial
                                         <ArrowRight className="ml-2 h-5 w-5" />
                                     </Link>
-                                </Button>
+                                </Button> */}
 
                                 <Button size="xl" variant="outline" asChild>
                                     <Link href="/class-programs">Explore Programs</Link>
@@ -602,112 +636,115 @@ export default function AboutUsPage() {
             </section>
 
             {/* ───────────────── Trust ───────────────── */}
-            <section className="relative overflow-hidden py-20 lg:py-28">
-                <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-slate-50" />
-
-                <div className="pointer-events-none absolute inset-0">
+            <section
+                aria-label="Kenapa orang tua memilih PlayPro Academy"
+                className="relative overflow-hidden py-16 sm:py-20 lg:py-28"
+            >
+                {/* Background */}
+                <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-white via-white to-slate-50" />
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0">
                     <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
                     <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
                 </div>
 
                 <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="relative z-10">
-                        <motion.div
-                            initial={{ opacity: 0, y: 18 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, amount: 0.2 }}
-                            transition={{ duration: 0.45, ease: "easeOut" }}
-                            className="mx-auto max-w-3xl text-center"
-                        >
-                            <SectionBadge>Why Parents Trust Us</SectionBadge>
 
-                            <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
-                                Kenapa Orang Tua Memilih Play
-                                <span className="text-secondary">Pro</span>{" "}
-                                <span className="text-primary">Academy</span>
-                            </h2>
+                    {/* Header */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 18 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.2 }}
+                        transition={{ duration: 0.45, ease: "easeOut" }}
+                        className="mx-auto max-w-3xl text-center"
+                    >
+                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary sm:px-4 sm:py-2 sm:text-sm">
+                            <Sparkles aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            Why Parents Trust Us
+                        </div>
 
-                            <p className="mt-5 text-lg leading-relaxed text-slate-600">
-                                Kami menghadirkan pengalaman olahraga anak yang aman, modern, dan
-                                terstruktur untuk mendukung tumbuh kembang terbaik mereka.
-                            </p>
-                        </motion.div>
+                        <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:mt-5 sm:text-4xl md:text-5xl">
+                            Kenapa Orang Tua Memilih Play
+                            <span className="text-secondary">Pro</span>{" "}
+                            <span className="text-primary">Academy</span>
+                        </h2>
 
-                        <div className="relative mt-20 hidden lg:block min-h-[700px]">
-                            {/* Item 1 */}
-                            <div className="absolute left-[10%] top-[5%] max-w-xs">
-                                <TrustFeatureCard
-                                    item={trustItems[0]}
-                                    align="right"
-                                />
+                        <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:mt-5 sm:text-base md:text-lg">
+                            Kami menghadirkan pengalaman olahraga anak yang aman, modern, dan
+                            terstruktur untuk mendukung tumbuh kembang terbaik mereka.
+                        </p>
+                    </motion.div>
+
+                    {/* Mobile & Tablet — Grid Cards */}
+                    <div
+                        role="list"
+                        aria-label="Keunggulan PlayPro Academy"
+                        className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:hidden"
+                    >
+                        {trustItems.map((item, i) => (
+                            <motion.div
+                                key={item.title}
+                                role="listitem"
+                                initial={{ opacity: 0, y: 16 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, amount: 0.1 }}
+                                transition={{ duration: 0.35, delay: i * 0.07, ease: "easeOut" }}
+                            >
+                                <TrustGridCard item={item} />
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Desktop — Radial Layout */}
+                    <div
+                        aria-hidden="true"
+                        className="relative mt-20 hidden min-h-[700px] lg:block"
+                    >
+                        {/* Radial Items */}
+                        {trustItems.map((item, i) => (
+                            <div
+                                key={item.title}
+                                className="absolute max-w-xs"
+                                style={RADIAL_POSITIONS[i].style}
+                            >
+                                <TrustFeatureCard item={item} align={RADIAL_POSITIONS[i].align} />
+                            </div>
+                        ))}
+
+                        {/* Center Image */}
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                            {/* Decorative Rings */}
+                            <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+                                <div className="h-[520px] w-[520px] rounded-full border border-slate-200/70" />
+                            </div>
+                            <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+                                <div className="h-[420px] w-[420px] rounded-full border border-dashed border-primary/20" />
                             </div>
 
-                            {/* Item 2 */}
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 max-w-xs">
-                                <TrustFeatureCard
-                                    item={trustItems[1]}
-                                    align="right"
-                                />
-                            </div>
-
-                            {/* Item 3 */}
-                            <div className="absolute left-[10%] bottom-[5%] max-w-xs">
-                                <TrustFeatureCard
-                                    item={trustItems[2]}
-                                    align="right"
-                                />
-                            </div>
-
-                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="h-[520px] w-[520px] rounded-full border border-slate-200/70" />
-                                </div>
-
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="h-[420px] w-[420px] rounded-full border border-dashed border-primary/20" />
-                                </div>
-
-                                <div className="relative z-10 w-[360px]">
-
-                                    <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.15)]">
-                                        <div className="relative h-[420px]">
-                                            <Image
-                                                src="/images/ppa-logo-square.png"
-                                                alt="PlayPro Academy"
-                                                fill
-                                                className="object-cover"
-                                            />
-                                        </div>
+                            {/* Image Card */}
+                            <div className="relative z-10 w-[360px]">
+                                <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.15)]">
+                                    <div className="relative h-[420px]">
+                                        <Image
+                                            src="/images/ppa-logo-square.png"
+                                            alt="Logo PlayPro Academy"
+                                            fill
+                                            className="object-cover"
+                                        />
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Item 4 */}
-                            <div className="absolute right-[10%] top-[5%] max-w-xs">
-                                <TrustFeatureCard
-                                    item={trustItems[3]}
-                                    align="left"
-                                />
-                            </div>
-
-                            {/* Item 5 */}
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 max-w-xs">
-                                <TrustFeatureCard
-                                    item={trustItems[4]}
-                                    align="left"
-                                />
-                            </div>
-
-                            {/* Item 6 */}
-                            <div className="absolute right-[10%] bottom-[5%] max-w-xs">
-                                <TrustFeatureCard
-                                    item={trustItems[5]}
-                                    align="left"
-                                />
-                            </div>
                         </div>
                     </div>
+
+                    {/* Screen reader list for desktop radial (hidden visually) */}
+                    <ul className="sr-only">
+                        {trustItems.map((item) => (
+                            <li key={item.title}>
+                                <strong>{item.title}</strong>: {item.description}
+                            </li>
+                        ))}
+                    </ul>
+
                 </div>
             </section>
 
