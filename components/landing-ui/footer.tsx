@@ -13,6 +13,7 @@ import {
     Building2,
 } from "lucide-react"
 import { Button } from "../ui/button"
+import { WhatsAppButton } from "./whatsapp-button"
 
 const footerLinks = {
     academy: [
@@ -89,14 +90,20 @@ export default function Footer() {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-center gap-3">
-                        <Button size={"lg"} variant={"secondary"} asChild>
+                        <WhatsAppButton
+                            variant="secondary"
+                            phone="+6282131111549"
+                            message="Halo admin PlayPro Academy, saya ingin mendapatkan free trial untuk anak saya. Mohon info program, jadwal, dan cara pendaftarannya."
+                            label="Get Free Trial"
+                        />
+                        {/* <Button size={"lg"} variant={"secondary"} asChild>
                             <Link
                                 href="#"
                             // className="rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                             >
                                 Get Free Trial
                             </Link>
-                        </Button>
+                        </Button> */}
 
                         <Button size={"lg"} variant={"outline"} className="border-white/20 bg-white/10 text-white hover:bg-white hover:text-primary" asChild>
                             <Link

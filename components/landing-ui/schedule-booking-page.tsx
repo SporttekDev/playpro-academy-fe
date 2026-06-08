@@ -15,6 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { WhatsAppButton } from './whatsapp-button';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -510,7 +511,23 @@ export default function ScheduleBookingPage() {
                                         </div>
 
                                         <div className="mt-6 space-y-3">
-                                            <Button
+                                            <WhatsAppButton
+                                                label="Book This Schedule"
+                                                phone="+6282131111549"
+                                                message={`Halo admin PlayPro Academy, saya tertarik untuk booking jadwal ${selectedSchedule.sport} untuk anak saya. Mohon info langkah pendaftarannya dan ketersediaan slotnya. Terima kasih!`}
+                                                className="w-full"
+                                                disabled={selectedSchedule.status === "Full"}
+                                            />
+
+                                            <WhatsAppButton
+                                                variant="outline"
+                                                label="Free Trial First"
+                                                phone="+6282131111549"
+                                                message={`Halo admin PlayPro Academy, saya tertarik untuk mencoba free trial sebelum booking jadwal ${selectedSchedule.sport} untuk anak saya. Mohon info jadwal free trial yang tersedia dan cara daftarnya. Terima kasih!`}
+                                                className="w-full"
+                                            />
+
+                                            {/* <Button
                                                 size="lg"
                                                 className="w-full"
                                                 disabled={selectedSchedule.status === "Full"}
@@ -518,9 +535,8 @@ export default function ScheduleBookingPage() {
                                                 {selectedSchedule.status === "Full"
                                                     ? "Class Full"
                                                     : "Book This Schedule"}
-                                            </Button>
-
-                                            <Button
+                                            </Button> */}
+                                            {/* <Button
                                                 size="lg"
                                                 variant="outline"
                                                 className="w-full"
@@ -530,7 +546,7 @@ export default function ScheduleBookingPage() {
                                                     Free Trial First
                                                     <ArrowRight className="ml-2 h-4 w-4" />
                                                 </Link>
-                                            </Button>
+                                            </Button> */}
                                         </div>
                                     </motion.div>
                                 ) : (

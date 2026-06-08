@@ -16,6 +16,7 @@ import {
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { WhatsAppButton } from "./whatsapp-button"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ interface TabContent {
     ctaLabel: string
     image: string
     imageAlt: string
+    message: string
 }
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -56,6 +58,7 @@ const tabs: TabContent[] = [
         image: "/images/toddler.png",
         imageAlt:
             "Ilustrasi anak toddler sedang berlatih olahraga di PlayPro Academy",
+        message: "Halo admin PlayPro Academy, saya ingin booking free trial untuk program Toddler. Mohon info jadwal yang tersedia dan langkah pendaftarannya."
     },
     {
         value: "junior",
@@ -74,6 +77,7 @@ const tabs: TabContent[] = [
         image: "/images/junior.png",
         imageAlt:
             "Ilustrasi anak junior sedang berlatih olahraga di PlayPro Academy",
+        message: "Halo admin PlayPro Academy, saya ingin booking free trial untuk program Junior. Mohon info jadwal yang tersedia dan langkah pendaftarannya."
     },
 ]
 
@@ -252,9 +256,14 @@ function ProgramTab({ tab }: { tab: TabContent }) {
                         transition={{ duration: 0.35, ease: "easeOut", delay: 0.2 }}
                         className="mt-6 flex flex-wrap gap-3 sm:mt-8 sm:gap-4"
                     >
-                        <Button asChild size="lg">
-                            <Link href="/free-trial">{tab.ctaLabel}</Link>
-                        </Button>
+                        <WhatsAppButton
+                            phone="+6282131111549"
+                            message={tab.message}
+                            label={tab.ctaLabel}
+                        />
+                        {/* <Button asChild size="lg">
+                            <Link href="/free-trial"></Link>
+                        </Button> */}
                         <Button asChild variant="outline" size="lg">
                             <Link href="/class-programs">See Program&apos;s Detail</Link>
                         </Button>

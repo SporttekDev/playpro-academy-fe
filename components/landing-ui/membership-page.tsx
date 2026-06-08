@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { WhatsAppButton } from "./whatsapp-button"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -726,7 +727,25 @@ function PricingSummary({ s }: { s: SummaryState }) {
                         </div>
 
                         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                            <Button className="w-full" size="lg" asChild>
+                            <WhatsAppButton
+                                phone="+6282131111549"
+                                message={`Halo, saya tertarik dengan program ${s.program === "toddler" ? "Toddler" : "Junior"
+                                    } dengan membership ${s.membershipOption?.title ?? "—"} dan paket session ${s.sessionPackage?.title ?? "—"
+                                    }. Bisa bantu saya untuk informasi lebih lanjut?`}
+                                className="w-full"
+                                size="lg"
+                                label="Daftar sekarang"
+                            />
+
+                            <WhatsAppButton
+                                phone="+6282131111549"
+                                message={`Halo, saya ingin mencoba free trial untuk program ${s.program === "toddler" ? "Toddler" : "Junior"
+                                    }. Bisa bantu saya untuk informasi lebih lanjut?`}
+                                size="lg"
+                                variant="outline"
+                                label="Book Free Trial"
+                            />
+                            {/* <Button className="w-full" size="lg" asChild>
                                 <Link href="/contact">
                                     Daftar sekarang
                                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -735,7 +754,7 @@ function PricingSummary({ s }: { s: SummaryState }) {
 
                             <Button size="lg" variant="outline" asChild>
                                 <Link href="/free-trial">Book Free Trial</Link>
-                            </Button>
+                            </Button> */}
                         </div>
                     </>
                 )}
@@ -1244,7 +1263,20 @@ export default function MembershipPage() {
                             variants={fadeUp}
                             className="mt-10 flex flex-wrap justify-center gap-4"
                         >
-                            <Button size="lg" asChild>
+                            <WhatsAppButton
+                                phone="+6282131111549"
+                                message={`Halo admin PlayPro Academy, saya ingin mendapatkan free trial untuk anak saya. Mohon info program, jadwal, dan cara pendaftarannya. Terima kasih!`}
+                                size="lg"
+                                label="Book Free Trial"
+                            />
+                            <WhatsAppButton
+                                phone="+6282131111549"
+                                message={`Halo admin PlayPro Academy, saya ingin menanyakan beberapa hal tentang PlayPro Academy. Mohon bantuannya, terima kasih.`}
+                                size="lg"
+                                variant="outline"
+                                label="Contact Admin"
+                            />
+                            {/* <Button size="lg" asChild>
                                 <Link href="/free-trial">
                                     Book Free Trial
                                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -1253,7 +1285,7 @@ export default function MembershipPage() {
 
                             <Button size="lg" variant="outline" asChild>
                                 <Link href="/contact">Contact Admin</Link>
-                            </Button>
+                            </Button> */}
                         </motion.div>
 
                         <div className="mt-10 grid gap-4 sm:grid-cols-3">

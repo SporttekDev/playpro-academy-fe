@@ -245,7 +245,7 @@ function ArticleCard({
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
                     {article.excerpt}
                 </p>
-
+{/* 
                 <motion.div
                     whileHover={reduceMotion ? undefined : { x: 4 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
@@ -261,7 +261,7 @@ function ArticleCard({
                         Read Article
                         <ArrowRight className="h-4 w-4" />
                     </Link>
-                </motion.div>
+                </motion.div> */}
             </div>
         </motion.article>
     )
@@ -554,7 +554,7 @@ export default function GalleryActivitiesPage() {
                                 {featuredArticle.excerpt}
                             </p>
 
-                            <motion.div
+                            {/* <motion.div
                                 initial={{ opacity: 0, y: 12 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true, amount: 0.2 }}
@@ -567,7 +567,7 @@ export default function GalleryActivitiesPage() {
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Link>
                                 </Button>
-                            </motion.div>
+                            </motion.div> */}
                         </div>
                     </motion.div>
                 </div>
