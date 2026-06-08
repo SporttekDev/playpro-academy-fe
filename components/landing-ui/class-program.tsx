@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { WhatsAppButton } from './whatsapp-button';
 
 // ─────────────────────────────────────────────
 // Types
@@ -536,10 +537,18 @@ function ExpandedProgram({
                             transition={{ duration: 0.35, delay: 0.3 }}
                             className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row"
                         >
-                            <Button size="xl" className="w-full sm:w-auto">
+                            <WhatsAppButton
+                                phone="+6282131111549"
+                                message={`Halo admin PlayPro Academy, saya tertarik dengan ${program.label} untuk anak saya yang berusia ${currentAgeGroup.label}. Mohon info lebih lanjut tentang program, jadwal, dan cara pendaftarannya. Terima kasih!`}
+                                label="Hubungi Kami"
+                                size="xl"
+                                variant="default"
+                                className="w-full sm:w-auto"
+                            />
+                            {/* <Button size="xl" className="w-full sm:w-auto">
                                 {program.ctaLabel}
                                 <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
+                            </Button> */}
 
                             <Button size="xl" variant="outline" className="w-full sm:w-auto">
                                 Lihat Jadwal
