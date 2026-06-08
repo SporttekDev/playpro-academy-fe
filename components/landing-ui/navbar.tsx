@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/navigation-menu"
 
 import { Button } from "@/components/ui/button"
+import { WhatsAppButton } from './whatsapp-button';
 
 import {
     Sheet,
@@ -114,7 +115,16 @@ export default function Navbar() {
                             </Button>
                         )}
 
-                        <Button
+                        <WhatsAppButton
+                            variant="secondary"
+                            phone="+6282131111549"
+                            message={`Halo admin PlayPro Academy, saya ingin mendapatkan free trial untuk anak saya. Mohon info program, jadwal, dan cara pendaftarannya. Terima kasih!`}
+                            size="sm"
+                            label="Get Free Trial"
+
+                        />
+
+                        {/* <Button
                             variant="secondary"
                             size="sm"
                             asChild
@@ -122,7 +132,7 @@ export default function Navbar() {
                             <Link href="/free-trial">
                                 Get Free Trial
                             </Link>
-                        </Button>
+                        </Button> */}
                     </div>
                 </div>
 
