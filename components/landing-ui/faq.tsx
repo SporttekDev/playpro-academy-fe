@@ -15,6 +15,7 @@ import {
 import { motion, Transition } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
+import { WhatsAppButton } from './whatsapp-button';
 
 import {
     Accordion,
@@ -421,7 +422,7 @@ function ContactCTA() {
                         informasi terbaik untuk anak.
                     </p>
 
-                    <Button
+                    {/* <Button
                         size="lg"
                         className="mt-5"
                         asChild
@@ -432,7 +433,13 @@ function ContactCTA() {
                         >
                             Contact Admin
                         </Link>
-                    </Button>
+                    </Button> */}
+                    <WhatsAppButton
+                        className="mt-5"
+                        phone="+6282131111549"
+                        message="Halo admin PlayPro Academy, saya ingin menanyakan beberapa hal tentang PlayPro Academy. Mohon bantuannya, terima kasih."
+                        label="Contact Admin"
+                    />
                 </div>
             </div>
         </motion.div>

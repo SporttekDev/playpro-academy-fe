@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { WhatsAppButton } from "./whatsapp-button"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ const promoList: PromoItem[] = [
         accent: "bg-amber-50 border-amber-200",
         accentText: "text-amber-600",
         ctaLabel: "Learn More",
-        ctaHref: "/events",
+        ctaHref: "#",
     },
     {
         title: "Early Bird Membership",
@@ -69,7 +70,7 @@ const promoList: PromoItem[] = [
         accent: "bg-emerald-50 border-emerald-200",
         accentText: "text-emerald-600",
         ctaLabel: "Learn More",
-        ctaHref: "/events",
+        ctaHref: "#",
     },
 ]
 
@@ -216,15 +217,12 @@ function TimelineCard({
                     {/* CTA */}
                     {promo.isFeatured ? (
                         <div className="mt-3 sm:mt-4">
-                            <Button size="sm" asChild>
-                                <Link href={promo.ctaHref ?? "/events"}>
-                                    {promo.ctaLabel}
-                                    <ArrowRight
-                                        aria-hidden="true"
-                                        className="ml-1.5 h-3.5 w-3.5"
-                                    />
-                                </Link>
-                            </Button>
+                            <WhatsAppButton
+                                size="sm"
+                                phone="+6282131111549"
+                                message="Halo admin PlayPro Academy, saya tertarik mendaftar promo free trial yang sedang tersedia. Mohon info detail dan cara daftarnya."
+                                label="Register Now"
+                            />
                         </div>
                     ) : (
                         <Link

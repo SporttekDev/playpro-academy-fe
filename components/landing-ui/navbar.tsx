@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/navigation-menu"
 
 import { Button } from "@/components/ui/button"
+import { WhatsAppButton } from './whatsapp-button';
 
 import {
     Sheet,
@@ -30,7 +31,7 @@ const menus = [
     { name: "Class Programs", href: "/class-programs" },
     { name: "Schedules Booking", href: "/schedules-booking" },
     { name: "Membership Package", href: "/membership-package" },
-    { name: "Coach List", href: "/coach-list" },
+    // { name: "Coach List", href: "/coach-list" },
     { name: "About Us", href: "/about-us" },
     { name: "Gallery & Activities", href: "/gallery-activities" },
 ]
@@ -93,7 +94,6 @@ export default function Navbar() {
                         {isLoggedIn ? (
                             <Button
                                 size="sm"
-                                className="rounded-xl"
                                 asChild
                             >
                                 <Link
@@ -107,7 +107,6 @@ export default function Navbar() {
                         ) : (
                             <Button
                                 size="sm"
-                                className="rounded-xl"
                                 asChild
                             >
                                 <Link href="/login">
@@ -116,16 +115,24 @@ export default function Navbar() {
                             </Button>
                         )}
 
-                        <Button
+                        <WhatsAppButton
+                            variant="secondary"
+                            phone="+6282131111549"
+                            message={`Halo admin PlayPro Academy, saya ingin mendapatkan free trial untuk anak saya. Mohon info program, jadwal, dan cara pendaftarannya. Terima kasih!`}
+                            size="sm"
+                            label="Get Free Trial"
+
+                        />
+
+                        {/* <Button
                             variant="secondary"
                             size="sm"
-                            className="rounded-xl"
                             asChild
                         >
                             <Link href="/free-trial">
                                 Get Free Trial
                             </Link>
-                        </Button>
+                        </Button> */}
                     </div>
                 </div>
 

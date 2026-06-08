@@ -382,7 +382,6 @@ export default function ActivitiesSection() {
                 >
                     <Button
                         size="lg"
-                        className="rounded-2xl px-7"
                         asChild
                     >
                         <Link href="/gallery-activities">
