@@ -136,7 +136,7 @@ export default function Footer() {
                             </h3>
 
                             <p className="text-sm text-gray-500">
-                                One Stop Solution for Sports & Leisure
+                                Be Pro Player With PlayPro Academy
                             </p>
                         </div>
                     </Link>
