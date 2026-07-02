@@ -91,7 +91,7 @@ interface Session {
 }
 
 const MIN_CHARS = 200
-const MAX_CHARS = 500
+const MAX_CHARS = 650
 
 function AttendanceReportFormContent() {
     const { id } = useParams()
@@ -150,8 +150,12 @@ function AttendanceReportFormContent() {
             if (!response.ok) throw new Error('Failed to fetch report')
 
             const { data } = await response.json()
-            setReport(data)
-            setDefaultReport(data)
+            const reportData = {
+                ...data,
+                attendance: 1
+            }
+            setReport(reportData)
+            setDefaultReport(reportData)
             setSession(sessionKey)
         } catch (error) {
             console.error('Error : ', error)
@@ -415,7 +419,7 @@ function AttendanceReportFormContent() {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Assessment</CardTitle>
+                                <CardTitle>Assesment</CardTitle>
                                 <CardDescription>
                                     {isPresent
                                         ? 'Fill in Motorik, Locomotor, Body Control notes and Overall rating.'
