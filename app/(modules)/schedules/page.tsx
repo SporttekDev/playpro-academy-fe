@@ -1121,25 +1121,23 @@ export default function SchedulesPage() {
                                 <div className="grid gap-4">
                                     <div className="space-y-1">
                                         <Label>Coach</Label>
-                                        <Select
+                                        <SearchableSelect
                                             value={coachScheduleFormData.coach_id}
                                             onValueChange={(value) =>
-                                                setCoachScheduleFormData((prev) => ({ ...prev, coach_id: value }))
+                                                setCoachScheduleFormData((prev) => ({
+                                                    ...prev,
+                                                    coach_id: value,
+                                                }))
                                             }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Choose coach" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {coaches.length > 0 ? (
-                                                    coaches.map((coach) => (
-                                                        <SelectItem key={coach.id} value={coach.id.toString()}>{coach.name}</SelectItem>
-                                                    ))
-                                                ) : (
-                                                    <SelectItem value="0" disabled>No coaches available</SelectItem>
-                                                )}
-                                            </SelectContent>
-                                        </Select>
+                                            options={coaches.map((coach) => ({
+                                                value: coach.id.toString(),
+                                                label: coach.name,
+                                            }))}
+                                            placeholder="Choose coach"
+                                            searchPlaceholder="Search coach..."
+                                            emptyText="No coaches available"
+                                            disabled={coaches.length === 0}
+                                        />
                                     </div>
                                     <div className="space-y-1">
                                         <Label>Is Head Coach</Label>

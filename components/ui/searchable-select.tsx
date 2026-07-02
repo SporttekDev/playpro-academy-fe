@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronDown, ChevronsDown, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronDown} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -68,7 +68,11 @@ export function SearchableSelect({
                 </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+            <PopoverContent
+                align="start"
+                className="p-0"
+                style={{ width: "var(--radix-popover-trigger-width)" }}
+            >
                 <Command>
                     <CommandInput placeholder={searchPlaceholder} />
                     <CommandList>
