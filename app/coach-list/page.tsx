@@ -1,13 +1,10 @@
 import CoachesPage from "@/components/landing-ui/coach-list-page";
-import Footer from "@/components/landing-ui/footer";
-import Navbar from "@/components/landing-ui/navbar";
+import PublicPage from "@/components/landing-ui/public-page";
 
 export default function Coaches() {
     return (
-        <>
-            <Navbar />
+        <PublicPage>
             <CoachesPage />
-            <Footer />
-        </>
+        </PublicPage>
     )
 }
