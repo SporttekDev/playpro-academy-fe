@@ -13,47 +13,12 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useArticles } from "@/lib/content/article/hooks"
+import { Article } from "@/lib/content/article/types"
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Data
+// Static data (belum dari CMS)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const featuredArticle = {
-    title: "PlayPro Academy Hadir di Bandung!",
-    excerpt:
-        "Cabang ke-8 resmi hadir di Kota Bandung dengan program multisport premium untuk anak usia 2–14 tahun.",
-    image: "/images/galleries/gallery-3.png",
-    category: "Expansion News",
-    date: "26 April 2026",
-    readTime: "5 min read",
-}
-
-const articles = [
-    {
-        title: "Special Class Kini Hadir dengan Handball",
-        excerpt:
-            "Program eksplorasi olahraga baru untuk anak-anak yang ingin mencoba tantangan berbeda.",
-        image: "/images/galleries/gallery-1.png",
-        category: "Special Class",
-        date: "18 May 2026",
-    },
-    {
-        title: "Mengapa Toddler Butuh Multisport?",
-        excerpt:
-            "Fondasi perkembangan motorik, fokus, dan kepercayaan diri anak dimulai dari multisport.",
-        image: "/images/galleries/gallery-4.png",
-        category: "Parent Education",
-        date: "10 May 2026",
-    },
-    {
-        title: "Holiday Sports Camp 2026",
-        excerpt:
-            "Program liburan interaktif dengan berbagai aktivitas olahraga seru bersama coach profesional.",
-        image: "/images/galleries/gallery-6.png",
-        category: "Events",
-        date: "02 May 2026",
-    },
-]
 
 const galleryImages = [
     "/images/galleries/gallery-7.png",
@@ -150,17 +115,61 @@ function SectionBadge({ children }: { children: React.ReactNode }) {
     )
 }
 
+function CategoryFilter({
+    categories,
+    activeCategory,
+    onSelect,
+}: {
+    categories: string[]
+    activeCategory: string | null
+    onSelect: (category: string | null) => void
+}) {
+    return (
+        <div className="mt-6 flex flex-wrap gap-2">
+            <button
+                onClick={() => onSelect(null)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === null
+                        ? "bg-primary text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+            >
+                All
+            </button>
+            {categories.map((category) => (
+                <button
+                    key={category}
+                    onClick={() => onSelect(category)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium capitalize transition-colors ${activeCategory === category
+                            ? "bg-primary text-white"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                >
+                    {category.replace(/-/g, " ")}
+                </button>
+            ))}
+        </div>
+    )
+}
+
+function ArticleCardSkeleton() {
+    return (
+        <div className="animate-pulse overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white">
+            <div className="aspect-[4/3] bg-slate-200" />
+            <div className="space-y-3 p-6">
+                <div className="h-3 w-1/3 rounded bg-slate-200" />
+                <div className="h-5 w-full rounded bg-slate-200" />
+                <div className="h-3 w-full rounded bg-slate-200" />
+                <div className="h-3 w-2/3 rounded bg-slate-200" />
+            </div>
+        </div>
+    )
+}
+
 function ArticleCard({
     article,
     index,
 }: {
-    article: {
-        title: string
-        excerpt: string
-        image: string
-        category: string
-        date: string
-    }
+    article: Article
     index: number
 }) {
     const reduceMotion = useReducedMotion()
@@ -204,7 +213,7 @@ function ArticleCard({
                     className="absolute inset-0"
                 >
                     <Image
-                        src={article.image}
+                        src={article.cover_image_url}
                         alt={article.title}
                         fill
                         className="object-cover"
@@ -227,7 +236,7 @@ function ArticleCard({
                             backdrop-blur-md
                         "
                     >
-                        {article.category}
+                        {article.categoryLabel}
                     </span>
                 </motion.div>
             </div>
@@ -235,7 +244,7 @@ function ArticleCard({
             <div className="p-6">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                     <CalendarDays className="h-4 w-4" />
-                    {article.date}
+                    {article.publishedAtLabel}
                 </div>
 
                 <h3 className="mt-4 text-xl font-bold leading-tight text-slate-900">
@@ -245,13 +254,13 @@ function ArticleCard({
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
                     {article.excerpt}
                 </p>
-{/* 
+
                 <motion.div
                     whileHover={reduceMotion ? undefined : { x: 4 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
                 >
                     <Link
-                        href="/activities"
+                        href={`/activities/${article.slug}`}
                         className="
                             mt-5 inline-flex items-center gap-2
                             text-sm font-semibold text-primary
@@ -261,7 +270,7 @@ function ArticleCard({
                         Read Article
                         <ArrowRight className="h-4 w-4" />
                     </Link>
-                </motion.div> */}
+                </motion.div>
             </div>
         </motion.article>
     )
@@ -376,6 +385,17 @@ function BenefitCard({
 
 export default function GalleryActivitiesPage() {
     const reduceMotion = useReducedMotion()
+    const {
+        featured,
+        articles: restArticles,
+        categories,
+        activeCategory,
+        setCategory,
+        isLoading,
+        error,
+        hasMore,
+        loadMore,
+    } = useArticles()
 
     return (
         <main className="relative overflow-hidden bg-white">
@@ -504,74 +524,76 @@ export default function GalleryActivitiesPage() {
             </section>
 
             {/* Featured Article */}
-            <section className="py-10">
-                <div className="container mx-auto px-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 18 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.18 }}
-                        transition={{ duration: 0.45, ease: "easeOut" }}
-                        className="
-                            grid overflow-hidden rounded-[3rem]
-                            border border-slate-200/70 bg-white
-                            shadow-[0_20px_80px_rgba(15,23,42,0.08)]
-                            lg:grid-cols-2
-                        "
-                    >
+            {featured && (
+                <section className="py-10">
+                    <div className="container mx-auto px-4">
                         <motion.div
-                            whileHover={reduceMotion ? undefined : { scale: 1.01 }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="relative min-h-[420px]"
+                            initial={{ opacity: 0, y: 18 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.18 }}
+                            transition={{ duration: 0.45, ease: "easeOut" }}
+                            className="
+                                grid overflow-hidden rounded-[3rem]
+                                border border-slate-200/70 bg-white
+                                shadow-[0_20px_80px_rgba(15,23,42,0.08)]
+                                lg:grid-cols-2
+                            "
                         >
-                            <Image
-                                src={featuredArticle.image}
-                                alt={featuredArticle.title}
-                                fill
-                                className="object-cover"
-                            />
-                        </motion.div>
-
-                        <div className="flex flex-col justify-center p-8 md:p-12">
-                            <SectionBadge>Featured Article</SectionBadge>
-
-                            <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                                <div className="flex items-center gap-2">
-                                    <CalendarDays className="h-4 w-4" />
-                                    {featuredArticle.date}
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Clock3 className="h-4 w-4" />
-                                    {featuredArticle.readTime}
-                                </div>
-                            </div>
-
-                            <h2 className="mt-6 text-4xl font-extrabold leading-tight text-slate-900">
-                                {featuredArticle.title}
-                            </h2>
-
-                            <p className="mt-5 text-lg leading-relaxed text-slate-600">
-                                {featuredArticle.excerpt}
-                            </p>
-
-                            {/* <motion.div
-                                initial={{ opacity: 0, y: 12 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, amount: 0.2 }}
-                                transition={{ duration: 0.35, ease: "easeOut", delay: 0.08 }}
-                                className="mt-8"
+                            <motion.div
+                                whileHover={reduceMotion ? undefined : { scale: 1.01 }}
+                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                className="relative min-h-[420px]"
                             >
-                                <Button size="lg" asChild>
-                                    <Link href="/activities">
-                                        Read Full Article
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            </motion.div> */}
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
+                                <Image
+                                    src={featured.cover_image_url}
+                                    alt={featured.title}
+                                    fill
+                                    className="object-cover"
+                                />
+                            </motion.div>
+
+                            <div className="flex flex-col justify-center p-8 md:p-12">
+                                <SectionBadge>Featured Article</SectionBadge>
+
+                                <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                                    <div className="flex items-center gap-2">
+                                        <CalendarDays className="h-4 w-4" />
+                                        {featured.publishedAtLabel}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <Clock3 className="h-4 w-4" />
+                                        {featured.readTimeMinutes} min read
+                                    </div>
+                                </div>
+
+                                <h2 className="mt-6 text-4xl font-extrabold leading-tight text-slate-900">
+                                    {featured.title}
+                                </h2>
+
+                                <p className="mt-5 text-lg leading-relaxed text-slate-600">
+                                    {featured.excerpt}
+                                </p>
+
+                                <motion.div
+                                    initial={{ opacity: 0, y: 12 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, amount: 0.2 }}
+                                    transition={{ duration: 0.35, ease: "easeOut", delay: 0.08 }}
+                                    className="mt-8"
+                                >
+                                    <Button size="lg" asChild>
+                                        <Link href={`/activities/${featured.slug}`}>
+                                            Read Full Article
+                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                </motion.div>
+                            </div>
+                        </motion.div>
+                    </div>
+                </section>
+            )}
 
             {/* Articles */}
             <section className="py-24">
@@ -592,18 +614,52 @@ export default function GalleryActivitiesPage() {
                             >
                                 Insights & Activities
                             </motion.h2>
+
+                            <CategoryFilter
+                                categories={categories}
+                                activeCategory={activeCategory}
+                                onSelect={setCategory}
+                            />
                         </div>
                     </motion.div>
 
-                    <div className="mt-14 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-                        {articles.map((article, index) => (
-                            <ArticleCard
-                                key={article.title}
-                                article={article}
-                                index={index}
-                            />
-                        ))}
-                    </div>
+                    {isLoading ? (
+                        <div className="mt-14 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <ArticleCardSkeleton key={i} />
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            {error && (
+                                <p className="mt-14 text-center text-red-500">{error}</p>
+                            )}
+
+                            {!error && restArticles.length === 0 && (
+                                <p className="mt-14 text-center text-slate-500">
+                                    Belum ada artikel untuk kategori ini.
+                                </p>
+                            )}
+
+                            <div className="mt-14 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+                                {restArticles.map((article, index) => (
+                                    <ArticleCard
+                                        key={article.id}
+                                        article={article}
+                                        index={index}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+
+                    {hasMore && (
+                        <div className="mt-12 flex justify-center">
+                            <Button variant="outline" size="lg" onClick={loadMore}>
+                                Load More
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </section>
 
