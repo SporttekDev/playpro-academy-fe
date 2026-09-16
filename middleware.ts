@@ -8,7 +8,13 @@ type SessionShape = {
         role?: string;
     };
 };
+
+// Route yang match EXACT saja
 const PUBLIC_ROUTES = ["/", "/login", "/register", "/class-programs", "/about-us", "/membership-package", "/schedules-booking", "/coach-list", "/gallery-activities"];
+
+// Route yang boleh punya sub-path/dynamic segment (prefix match)
+const PUBLIC_PREFIX_ROUTES = ["/activities"];
+
 const AUTH_ROUTES = ["/login", "/register"];
 const SESSION_COOKIE = "session_key";
 
@@ -30,7 +36,10 @@ function getRoleFromCookie(request: NextRequest): string | null {
 }
 
 function isPublicRoute(pathname: string) {
-    return PUBLIC_ROUTES.some((route) => pathname === route);
+    return (
+        PUBLIC_ROUTES.some((route) => pathname === route) ||
+        PUBLIC_PREFIX_ROUTES.some((route) => pathname.startsWith(route))
+    );
 }
 
 function isAllowed(role: string, pathname: string) {
