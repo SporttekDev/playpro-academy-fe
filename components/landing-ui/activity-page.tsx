@@ -15,20 +15,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { useArticles } from "@/lib/content/article/hooks"
 import { Article } from "@/lib/content/article/types"
+import { useGalleryPhotos } from "@/lib/content/gallery/hooks"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static data (belum dari CMS)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const galleryImages = [
-    "/images/galleries/gallery-7.png",
-    "/images/galleries/gallery-2.png",
-    "/images/galleries/gallery-3.png",
-    "/images/galleries/gallery-4.png",
-    "/images/galleries/gallery-5.png",
-    "/images/galleries/gallery-1.png",
-    "/images/galleries/gallery-6.png",
-]
 
 const timeline = [
     {
@@ -129,8 +120,8 @@ function CategoryFilter({
             <button
                 onClick={() => onSelect(null)}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === null
-                        ? "bg-primary text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-primary text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
             >
                 All
@@ -140,8 +131,8 @@ function CategoryFilter({
                     key={category}
                     onClick={() => onSelect(category)}
                     className={`rounded-full px-4 py-2 text-sm font-medium capitalize transition-colors ${activeCategory === category
-                            ? "bg-primary text-white"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        ? "bg-primary text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         }`}
                 >
                     {category.replace(/-/g, " ")}
@@ -384,6 +375,7 @@ function BenefitCard({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function GalleryActivitiesPage() {
+    const { photos: galleryPhotos, isLoading: isGalleryLoading } = useGalleryPhotos()
     const reduceMotion = useReducedMotion()
     const {
         featured,
@@ -674,7 +666,6 @@ export default function GalleryActivitiesPage() {
                         className="text-center"
                     >
                         <SectionBadge>Activities Gallery</SectionBadge>
-
                         <motion.h2
                             variants={fadeUp}
                             className="mt-5 text-4xl font-extrabold text-slate-900"
@@ -683,40 +674,41 @@ export default function GalleryActivitiesPage() {
                         </motion.h2>
                     </motion.div>
 
-                    <div className="mt-14 columns-1 gap-6 sm:columns-2 lg:columns-3">
-                        {galleryImages.map((image, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, y: 18 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, amount: 0.2 }}
-                                transition={{
-                                    duration: 0.35,
-                                    delay: index * 0.03,
-                                    ease: "easeOut",
-                                }}
-                                whileHover={reduceMotion ? undefined : { y: -4 }}
-                                className="
-                                    mb-6 overflow-hidden rounded-[2rem]
-                                    shadow-sm
-                                "
-                            >
-                                <div className="relative">
-                                    <Image
-                                        src={image}
-                                        alt="Gallery"
-                                        width={800}
-                                        height={1000}
-                                        className="
-                                            h-auto w-full object-cover
-                                            transition-transform duration-700
-                                            hover:scale-105
-                                        "
-                                    />
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
+                    {isGalleryLoading ? (
+                        <div className="mt-14 columns-1 gap-6 sm:columns-2 lg:columns-3">
+                            {Array.from({ length: 7 }).map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="mb-6 animate-pulse overflow-hidden rounded-[2rem] bg-slate-200"
+                                    style={{ height: `${240 + (i % 3) * 80}px` }}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="mt-14 columns-1 gap-6 sm:columns-2 lg:columns-3">
+                            {galleryPhotos.map((photo) => (
+                                <motion.div
+                                    key={photo.id}
+                                    initial={{ opacity: 0, y: 18 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, amount: 0.2 }}
+                                    transition={{ duration: 0.35, ease: "easeOut" }}
+                                    whileHover={reduceMotion ? undefined : { y: -4 }}
+                                    className="mb-6 overflow-hidden rounded-[2rem] shadow-sm"
+                                >
+                                    <div className="relative">
+                                        <Image
+                                            src={photo.imageUrl}
+                                            alt={photo.title}
+                                            width={800}
+                                            height={1000}
+                                            className="h-auto w-full object-cover transition-transform duration-700 hover:scale-105"
+                                        />
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </section>
 

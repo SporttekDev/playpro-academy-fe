@@ -1,10 +1,9 @@
 import { ContentItem } from "../client";
 import { Article, ArticleAttributes } from "./types";
+import { resolveImageUrl } from "../resolve-image-url";
 
 const WORDS_PER_MINUTE = 200;
 const EXCERPT_FALLBACK_LENGTH = 160;
-const FALLBACK_IMAGE = "/images/galleries/gallery-1.png"; // sesuaikan asset placeholder
-const ASSET_BASE_URL = process.env.NEXT_PUBLIC_CONTENT_ASSET_URL ?? "";
 
 function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -31,17 +30,6 @@ function toDisplayCategory(slug?: string): string {
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
 }
-
-function resolveImageUrl(path: string | null): string {
-    if (!path) return FALLBACK_IMAGE;
-    // sudah absolute URL atau path lokal Next.js
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("/")) {
-        return path;
-    }
-    // path relatif dari storage Laravel, contoh: "article/slug/file.webp"
-    return `${ASSET_BASE_URL}/storage/${path}`;
-}
-
 
 export function mapContentToArticle(content: ContentItem): Article {
     const attrs = (content.attributes ?? {}) as ArticleAttributes;

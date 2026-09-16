@@ -7,6 +7,7 @@ import TestimonialSection from "@/components/landing-ui/testimoni";
 import ActivitiesSection from "@/components/landing-ui/activity";
 import FAQSection from "@/components/landing-ui/faq";
 import LocationsSection from "@/components/landing-ui/location";
+import WhatsAppCTA from "@/components/landing-ui/whatsapp-cta";
 
 export default function Home() {
   return (
@@ -20,6 +21,7 @@ export default function Home() {
       <ActivitiesSection />
       <FAQSection />
       <Footer />
+      <WhatsAppCTA />
     </>
   );
 }

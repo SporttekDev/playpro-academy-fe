@@ -1,13 +1,10 @@
 import AboutUsPage from "@/components/landing-ui/about-us";
-import Footer from "@/components/landing-ui/footer";
-import Navbar from "@/components/landing-ui/navbar";
+import PublicPage from "@/components/landing-ui/public-page";
 
 export default function AboutUs() {
     return (
-        <>
-            <Navbar />
+        <PublicPage>
             <AboutUsPage />
-            <Footer />
-        </>
+        </PublicPage>
     )
 }
