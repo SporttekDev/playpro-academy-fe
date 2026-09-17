@@ -68,20 +68,20 @@ const TODDLER_MEMBERSHIPS: MembershipOption[] = [
 
 const TODDLER_SESSIONS: SessionPackage[] = [
     { id: "t1", title: "1 Month", sub: "4x Session", price: 500_000, badge: "+ Free 1 Month" },
-    { id: "t3", title: "3 Months", sub: "12x Session", price: 1_400_000, badge: "+ Free 2 Month" },
+    { id: "t3", title: "3 Months", sub: "12x Session", price: 1_400_000, badge: "+ Free 1 Month" },
     {
         id: "t6",
         title: "6 Months",
         sub: "24x Session",
         price: 2_800_000,
-        badge: "+ Free 2 Month",
+        badge: "+ Free 1 Month",
     },
     {
         id: "t12",
         title: "12 Months",
         sub: "48x Session",
         price: 5_800_000,
-        badge: "+ Free 3 Months",
+        badge: "+ Free 1 Months",
     },
 ]
 
@@ -192,7 +192,7 @@ const TODDLER_PERKS = [
     "Akses multisport untuk 4 cabang olahraga sekaligus",
     "Cocok untuk fase eksplorasi dan motorik anak usia dini",
     "Program fun learning dengan pendekatan aman dan terarah",
-    "Monitoring perkembangan dilakukan secara berkala",
+    "Get 1 month free masa aktif membership untuk semua session package",
 ]
 
 const JUNIOR_PERKS = [
