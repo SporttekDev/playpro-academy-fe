@@ -320,7 +320,99 @@ export default function ScheduleBookingPage() {
                             )}
                         </div>
 
-                        {/* Booking Summary tetap sama seperti sebelumnya */}
+                        {/* Booking Summary */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.2 }}
+                            transition={{ duration: 0.45, ease: "easeOut" }}
+                            className="sticky top-28 h-fit overflow-hidden rounded-[2rem] border border-primary/15 bg-gradient-to-br from-primary/5 via-white to-secondary/5 p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)]"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                                    Booking Summary
+                                </div>
+                                <div className="h-2 w-2 rounded-full bg-primary" />
+                            </div>
+
+                            <AnimatePresence mode="wait">
+                                {selectedSchedule ? (
+                                    <motion.div
+                                        key={selectedSchedule.id}
+                                        initial={{ opacity: 0, y: 12 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        transition={{ duration: 0.28, ease: "easeOut" }}
+                                    >
+                                        <div className="mt-6">
+                                            <h3 className="text-3xl font-extrabold text-slate-900">
+                                                {selectedSchedule.sportName}
+                                            </h3>
+                                            <p className="mt-2 text-sm font-medium text-slate-500">
+                                                {selectedSchedule.ageRange ?? selectedSchedule.categoryName}
+                                            </p>
+                                        </div>
+
+                                        <div className="mt-8 rounded-2xl border border-slate-200/70 bg-white p-5">
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Schedule</p>
+                                                    <p className="mt-1 text-sm font-medium text-slate-900">{selectedSchedule.dateLabel}</p>
+                                                    <p className="text-sm text-slate-600">{selectedSchedule.startTime} - {selectedSchedule.endTime}</p>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location</p>
+                                                    <p className="mt-1 text-sm font-medium text-slate-900">{selectedSchedule.venueName}</p>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Coach</p>
+                                                    <p className="mt-1 text-sm font-medium text-slate-900">
+                                                        {selectedSchedule.coachName ?? "Belum ditentukan"}
+                                                    </p>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Remaining Slots</p>
+                                                    <p className="mt-1 text-sm font-medium text-slate-900">
+                                                        {selectedSchedule.slotsRemaining} Slots Available
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-6 space-y-3">
+                                            <WhatsAppButton
+                                                label="Book This Schedule"
+                                                phone="+6282131111549"
+                                                message={`Halo admin PlayPro Academy, saya tertarik untuk booking jadwal ${selectedSchedule.sportName} (${selectedSchedule.className}) pada ${selectedSchedule.dateLabel}. Mohon info langkah pendaftarannya dan ketersediaan slotnya. Terima kasih!`}
+                                                className="w-full"
+                                                disabled={selectedSchedule.status === "Full"}
+                                            />
+
+                                            <WhatsAppButton
+                                                variant="outline"
+                                                label="Free Trial First"
+                                                phone="+6282131111549"
+                                                message={`Halo admin PlayPro Academy, saya tertarik untuk mencoba free trial sebelum booking jadwal ${selectedSchedule.sportName} untuk anak saya. Mohon info jadwal free trial yang tersedia dan cara daftarnya. Terima kasih!`}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    <motion.p
+                                        key="empty"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="mt-5 text-sm text-slate-500"
+                                    >
+                                        Select a schedule first.
+                                    </motion.p>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
                     </div>
                 </div>
             </section>
