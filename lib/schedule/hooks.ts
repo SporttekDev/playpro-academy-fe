@@ -34,5 +34,11 @@ export function useSchedules() {
         return Array.from(unique.entries()).map(([key, label]) => ({ key, label }));
     }, [schedules]);
 
-    return { schedules, categories, isLoading, error, refetch: fetchSchedules };
+    const branches = useMemo(() => {
+        const unique = new Map<string, string>();
+        schedules.forEach((s) => unique.set(s.branchName.toLowerCase(), s.branchName));
+        return Array.from(unique.entries()).map(([key, label]) => ({ key, label }));
+    }, [schedules]);
+
+    return { schedules, categories, branches, isLoading, error, refetch: fetchSchedules };
 }
