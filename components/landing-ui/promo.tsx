@@ -14,65 +14,11 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { WhatsAppButton } from "./whatsapp-button"
+import { usePromos } from "@/lib/content/promo/hooks"
+import { PromoItem } from "@/lib/content/promo/types"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface PromoItem {
-    title: string
-    description: string
-    image: string
-    type: string
-    date: string
-    icon: LucideIcon
-    accent: string
-    accentText: string
-    isFeatured?: boolean
-    ctaLabel?: string
-    ctaHref?: string
-}
-
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const promoList: PromoItem[] = [
-    {
-        title: "Free Trial Class",
-        description:
-            "Ajak anak mencoba pengalaman latihan seru bersama coach profesional PlayPro Academy secara GRATIS.",
-        image: "/images/galleries/gallery-1.png",
-        type: "Limited Promo",
-        date: "Until 31 May 2026",
-        icon: Sparkles,
-        accent: "bg-blue-50 border-blue-200",
-        accentText: "text-blue-600",
-        isFeatured: true,
-        ctaLabel: "Register Now",
-        ctaHref: "/free-trial",
-    },
-    {
-        title: "Holiday Sports Camp",
-        description: "Aktivitas olahraga seru selama liburan sekolah.",
-        image: "/images/galleries/gallery-6.png",
-        type: "Event",
-        date: "15 June 2026",
-        icon: Trophy,
-        accent: "bg-amber-50 border-amber-200",
-        accentText: "text-amber-600",
-        ctaLabel: "Learn More",
-        ctaHref: "#",
-    },
-    {
-        title: "Early Bird Membership",
-        description: "Potongan harga spesial untuk member baru.",
-        image: "/images/galleries/gallery-3.png",
-        type: "Promo",
-        date: "Limited Time",
-        icon: TicketPercent,
-        accent: "bg-emerald-50 border-emerald-200",
-        accentText: "text-emerald-600",
-        ctaLabel: "Learn More",
-        ctaHref: "#",
-    },
-]
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -140,42 +86,33 @@ function TimelineCard({
             initial={{ opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
-            transition={{
-                duration: 0.35,
-                ease: "easeOut",
-            }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
             whileHover={
                 reduceMotion
                     ? undefined
-                    : {
-                        y: -4,
-                        transition: { duration: 0.16, ease: "easeOut" },
-                    }
+                    : { y: -4, transition: { duration: 0.16, ease: "easeOut" } }
             }
             className="flex gap-4 sm:gap-6 lg:gap-8"
         >
-            {/* Timeline Dot */}
             <TimelineDot
-                accent={promo.accent}
-                accentText={promo.accentText}
+                accent={promo.theme.card}
+                accentText={promo.theme.badgeText}
                 icon={Icon}
                 isLast={isLast}
             />
 
-            {/* Card */}
             <div
                 className={`
-          group mb-8 flex flex-1 overflow-hidden
-          rounded-[1.5rem] border bg-white shadow-sm
-          transition-all duration-300
-          hover:shadow-xl
-          sm:rounded-[2rem] ${promo.accent}
-        `}
+                    group mb-8 flex flex-1 overflow-hidden
+                    rounded-[1.5rem] border bg-white shadow-sm
+                    transition-all duration-300
+                    hover:shadow-xl
+                    sm:rounded-[2rem] ${promo.theme.card}
+                `}
             >
-                {/* Image */}
                 <div className="relative hidden w-36 shrink-0 overflow-hidden sm:block sm:w-44 md:w-56">
                     <Image
-                        src={promo.image}
+                        src={promo.imageUrl}
                         alt={promo.title}
                         fill
                         priority={promo.isFeatured}
@@ -183,57 +120,54 @@ function TimelineCard({
                     />
                 </div>
 
-                {/* Content */}
                 <div className="flex flex-1 flex-col justify-center p-4 sm:p-6">
-                    {/* Meta */}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <span
                             className={`
-                inline-flex items-center gap-1.5 rounded-full
-                border px-2.5 py-1 text-xs font-semibold
-                ${promo.accent} ${promo.accentText}
-              `}
+                                inline-flex items-center gap-1.5 rounded-full
+                                border px-2.5 py-1 text-xs font-semibold
+                                ${promo.theme.badge} ${promo.theme.badgeText}
+                            `}
                         >
                             <Icon aria-hidden="true" className="h-3 w-3" />
-                            {promo.type}
+                            {promo.isFeatured ? "Limited Promo" : "Promo"}
                         </span>
 
-                        <span className="flex items-center gap-1 text-xs text-slate-500">
-                            <CalendarDays aria-hidden="true" className="h-3 w-3" />
-                            {promo.date}
-                        </span>
+                        {promo.dateLabel && (
+                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                                <CalendarDays aria-hidden="true" className="h-3 w-3" />
+                                {promo.dateLabel}
+                            </span>
+                        )}
                     </div>
 
-                    {/* Title */}
                     <h3 className="mt-2.5 text-base font-bold text-slate-900 sm:mt-3 sm:text-lg md:text-xl">
                         {promo.title}
                     </h3>
 
-                    {/* Description */}
                     <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:mt-1.5 sm:text-sm">
                         {promo.description}
                     </p>
 
-                    {/* CTA */}
-                    {promo.isFeatured ? (
+                    {promo.ctaType === "whatsapp" ? (
                         <div className="mt-3 sm:mt-4">
                             <WhatsAppButton
                                 size="sm"
                                 phone="+6282131111549"
-                                message="Halo admin PlayPro Academy, saya tertarik mendaftar promo free trial yang sedang tersedia. Mohon info detail dan cara daftarnya."
-                                label="Register Now"
+                                message={promo.whatsappMessage}
+                                label={promo.ctaLabel}
                             />
                         </div>
                     ) : (
                         <Link
-                            href={promo.ctaHref ?? "/events"}
+                            href={promo.ctaHref}
                             aria-label={`Pelajari lebih lanjut tentang ${promo.title}`}
                             className={`
-                mt-3 inline-flex w-fit items-center gap-1.5
-                text-xs font-semibold transition-all duration-300
-                hover:gap-2.5 sm:mt-4 sm:text-sm
-                ${promo.accentText}
-              `}
+                                mt-3 inline-flex w-fit items-center gap-1.5
+                                text-xs font-semibold transition-all duration-300
+                                hover:gap-2.5 sm:mt-4 sm:text-sm
+                                ${promo.theme.badgeText}
+                            `}
                         >
                             {promo.ctaLabel}
                             <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
@@ -245,10 +179,30 @@ function TimelineCard({
     )
 }
 
+function PromoCardSkeleton({ isLast }: { isLast: boolean }) {
+    return (
+        <div className="flex animate-pulse gap-4 sm:gap-6 lg:gap-8">
+            <div className="flex flex-col items-center">
+                <div className="h-10 w-10 rounded-full bg-slate-200 sm:h-12 sm:w-12" />
+                {!isLast && <div className="mt-1 w-0.5 flex-1 bg-slate-100" />}
+            </div>
+            <div className="mb-8 flex flex-1 overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white sm:rounded-[2rem]">
+                <div className="hidden w-36 shrink-0 bg-slate-200 sm:block sm:w-44 md:w-56" />
+                <div className="flex flex-1 flex-col justify-center gap-2 p-4 sm:p-6">
+                    <div className="h-4 w-24 rounded-full bg-slate-200" />
+                    <div className="h-5 w-40 rounded bg-slate-200" />
+                    <div className="h-3 w-full rounded bg-slate-200" />
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PromoSection() {
     const reduceMotion = useReducedMotion()
+    const { promos, isLoading, error } = usePromos()
 
     return (
         <motion.section
@@ -308,20 +262,29 @@ export default function PromoSection() {
                     </p>
                 </motion.div>
 
-                {/* Timeline */}
                 <div
                     role="list"
                     aria-label="Daftar promo dan event"
                     className="mx-auto mt-12 max-w-4xl sm:mt-16"
                 >
-                    {promoList.map((promo, index) => (
-                        <div key={promo.title} role="listitem">
-                            <TimelineCard
-                                promo={promo}
-                                isLast={index === promoList.length - 1}
-                            />
-                        </div>
-                    ))}
+                    {isLoading ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                            <PromoCardSkeleton key={i} isLast={i === 2} />
+                        ))
+                    ) : error ? (
+                        <p className="text-center text-red-500">{error}</p>
+                    ) : promos.length === 0 ? (
+                        <p className="text-center text-slate-500">Belum ada promo saat ini.</p>
+                    ) : (
+                        promos.map((promo, index) => (
+                            <div key={promo.id} role="listitem">
+                                <TimelineCard
+                                    promo={promo}
+                                    isLast={index === promos.length - 1}
+                                />
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </motion.section>
