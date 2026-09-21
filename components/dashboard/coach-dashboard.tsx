@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import MetricCard from "./metric-card"
 import { SectionTitle } from "./section-title"
 import ScheduleRow from "./schedule-row"
+import { useRouter } from "next/navigation"
 
 // ─────────────────────────────────────────────
 // Types
@@ -116,6 +117,8 @@ export default function CoachDashboard({ name }: { name: string }) {
     const [data, setData] = React.useState<CoachDashboardResponse | null>(null)
     const [loading, setLoading] = React.useState(true)
     const [error, setError] = React.useState("")
+
+    const router = useRouter()
 
     React.useEffect(() => {
         const controller = new AbortController()
@@ -228,7 +231,13 @@ export default function CoachDashboard({ name }: { name: string }) {
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <Button size="lg" variant="secondary" className="rounded-2xl">
+                            <Button
+                                size="lg"
+                                variant="secondary"
+                                className="rounded-2xl"
+                                onClick={() => topSchedule && router.push(`/attendance-checkin/${topSchedule.id}`)}
+                                disabled={!topSchedule}
+                            >
                                 Start Attendance
                             </Button>
                             <Button
@@ -302,7 +311,12 @@ export default function CoachDashboard({ name }: { name: string }) {
                                         </div>
 
                                         <div className="flex flex-wrap gap-3">
-                                            <Button className="rounded-2xl">Take Attendance</Button>
+                                            <Button
+                                                className="rounded-2xl"
+                                                onClick={() => router.push(`/attendance-checkin/${ongoingClass.id}`)}
+                                            >
+                                                Take Attendance
+                                            </Button>
                                             <Button variant="outline" className="rounded-2xl">
                                                 Open Roster
                                             </Button>
@@ -329,15 +343,24 @@ export default function CoachDashboard({ name }: { name: string }) {
                         <CardContent className="space-y-4 p-6 pt-0">
                             {data.today_classes.length > 0 ? (
                                 data.today_classes.map((item) => (
-                                    <ScheduleRow
-                                        key={item.id}
-                                        time={`${item.time} - ${item.end_time}`}
-                                        title={item.title}
-                                        meta={item.meta}
-                                        coach={item.coach}
-                                        students={item.students}
-                                        status={item.status}
-                                    />
+                                    <div key={item.id} className="flex items-center gap-3">
+                                        <ScheduleRow
+                                            time={`${item.time} - ${item.end_time}`}
+                                            title={item.title}
+                                            meta={item.meta}
+                                            coach={item.coach}
+                                            students={item.students}
+                                            status={item.status}
+                                        />
+                                        <Button
+                                            size="sm"
+                                            variant={item.status === "ongoing" ? "default" : "outline"}
+                                            className="rounded-xl shrink-0"
+                                            onClick={() => router.push(`/attendance-checkin/${item.id}`)}
+                                        >
+                                            Absen
+                                        </Button>
+                                    </div>
                                 ))
                             ) : (
                                 <div className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">

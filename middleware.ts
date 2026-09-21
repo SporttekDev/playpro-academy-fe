@@ -53,7 +53,9 @@ function isAllowed(role: string, pathname: string) {
     if (role === "coach") {
         return (
             pathname.startsWith("/dashboard") ||
-            pathname.startsWith("/attendance-reports")
+            pathname.startsWith("/attendance-reports") ||
+            pathname.startsWith("/attendance-checkin") ||
+            pathname.startsWith("/coach-attendance")
         );
     }
 

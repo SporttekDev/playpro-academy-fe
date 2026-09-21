@@ -13,7 +13,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconPencil, IconTrash, IconMapPin } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Cookies from 'js-cookie';
@@ -29,6 +29,8 @@ interface Venue {
     address: string;
     branch_id: string;
     capacity: number;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 interface VenueForm {
@@ -36,6 +38,8 @@ interface VenueForm {
     address: string;
     branch_id: string;
     capacity: number;
+    latitude: string;
+    longitude: string;
 }
 
 interface Branch {
@@ -48,6 +52,8 @@ const defaultForm: VenueForm = {
     address: '',
     branch_id: '',
     capacity: 0,
+    latitude: '',
+    longitude: '',
 };
 
 export default function VenuesPage() {
@@ -82,7 +88,14 @@ export default function VenuesPage() {
             }
 
             const { data } = await response.json();
-            const sorted = [...data].sort((a: Venue, b: Venue) => a.name.localeCompare(b.name));
+
+            const normalizedVenues: Venue[] = data.map((venue: Venue) => ({
+                ...venue,
+                latitude: venue.latitude !== null ? Number(venue.latitude) : null,
+                longitude: venue.longitude !== null ? Number(venue.longitude) : null,
+            }));
+
+            const sorted = normalizedVenues.sort((a, b) => a.name.localeCompare(b.name));
             setVenues(sorted);
         } catch (error) {
             console.error('Fetch venues error:', error);
@@ -132,6 +145,16 @@ export default function VenuesPage() {
             return;
         }
 
+        if (formData.latitude && (isNaN(Number(formData.latitude)) || Number(formData.latitude) < -90 || Number(formData.latitude) > 90)) {
+            toast.error('Latitude must be a valid number between -90 and 90');
+            return;
+        }
+
+        if (formData.longitude && (isNaN(Number(formData.longitude)) || Number(formData.longitude) < -180 || Number(formData.longitude) > 180)) {
+            toast.error('Longitude must be a valid number between -180 and 180');
+            return;
+        }
+
         try {
             setIsLoading(true);
             const method = isEditing ? 'PUT' : 'POST';
@@ -140,6 +163,12 @@ export default function VenuesPage() {
                 : `${process.env.NEXT_PUBLIC_API_URL}/admin/venue`;
             const token = Cookies.get('token');
 
+            const payload = {
+                ...formData,
+                latitude: formData.latitude ? Number(formData.latitude) : null,
+                longitude: formData.longitude ? Number(formData.longitude) : null,
+            };
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -147,7 +176,7 @@ export default function VenuesPage() {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
@@ -212,6 +241,26 @@ export default function VenuesPage() {
         },
         { accessorKey: 'capacity', header: 'Capacity' },
         {
+            header: 'Coordinates',
+            cell: ({ row }) => {
+                const { latitude, longitude } = row.original;
+                if (latitude === null || longitude === null) {
+                    return <span className="text-xs text-red-500">Not set</span>;
+                }
+                return (
+                    <a
+                        href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                        <IconMapPin className="h-3.5 w-3.5" />
+                        {latitude.toFixed(5)}, {longitude.toFixed(5)}
+                    </a>
+                );
+            },
+        },
+        {
             id: 'actions',
             header: 'Actions',
             cell: ({ row }) => {
@@ -229,6 +278,8 @@ export default function VenuesPage() {
                                     address: venue.address,
                                     branch_id: venue.branch_id.toString(),
                                     capacity: venue.capacity,
+                                    latitude: venue.latitude !== null ? String(venue.latitude) : '',
+                                    longitude: venue.longitude !== null ? String(venue.longitude) : '',
                                 });
                                 setIsDialogOpen(true);
                             }}
@@ -251,7 +302,7 @@ export default function VenuesPage() {
         },
     ];
 
-   
+
 
     return (
         <>
@@ -330,6 +381,34 @@ export default function VenuesPage() {
                                     required
                                 />
                             </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label>Latitude</Label>
+                                    <Input
+                                        name="latitude"
+                                        type="number"
+                                        step="any"
+                                        placeholder="-6.2220538"
+                                        value={formData.latitude}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Longitude</Label>
+                                    <Input
+                                        name="longitude"
+                                        type="number"
+                                        step="any"
+                                        placeholder="107.0070896"
+                                        value={formData.longitude}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                            <p className="-mt-2 text-xs text-muted-foreground">
+                                Digunakan untuk validasi lokasi absensi coach. Klik kanan di Google Maps pada titik venue untuk menyalin koordinatnya.
+                            </p>
                         </div>
 
                         <DialogFooter>
