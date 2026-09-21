@@ -26,6 +26,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 
+type CoachRole = 'head_coach' | 'captain_coach' | 'assistant_coach' | 'assistant_coach_vip';
+
+const COACH_ROLES: { value: CoachRole; label: string }[] = [
+    { value: 'head_coach', label: 'Head Coach' },
+    { value: 'captain_coach', label: 'Captain Coach' },
+    { value: 'assistant_coach', label: 'Assistant Coach' },
+    { value: 'assistant_coach_vip', label: 'Assistant Coach VIP' },
+];
+
 
 interface Branch {
     id: string;
@@ -85,12 +94,22 @@ interface CoachSchedule {
     id: number;
     coach_id: number;
     schedule_id: number;
+    role: CoachRole;
+    role_label: string;
     is_head_coach: boolean;
     attendance?: string;
     coach?: {
         id: string;
         name: string;
     };
+}
+
+interface CoachScheduleForm {
+    id?: number;
+    schedule_id: number;
+    coach_id: string;
+    role: CoachRole;
+    attendance?: string;
 }
 
 interface AttendanceReport {
@@ -118,14 +137,6 @@ interface PlayKid {
     id: string;
     name: string;
     gender: string;
-}
-
-interface CoachScheduleForm {
-    id?: number;
-    schedule_id: number;
-    coach_id: string;
-    is_head_coach: boolean;
-    attendance?: string;
 }
 
 interface AttendanceReportForm {
@@ -174,7 +185,7 @@ const defaultForm: ScheduleForm = {
 const defaultCoachScheduleForm: CoachScheduleForm = {
     schedule_id: 0,
     coach_id: '',
-    is_head_coach: false,
+    role: 'assistant_coach',
     attendance: '',
 };
 
@@ -560,7 +571,7 @@ export default function SchedulesPage() {
 
     const handleSaveCoachSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!coachScheduleFormData.coach_id || coachScheduleFormData.is_head_coach === undefined) {
+        if (!coachScheduleFormData.coach_id || coachScheduleFormData.role === undefined) {
             toast.error('Coach and Head Coach status are required');
             return;
         }
@@ -580,7 +591,7 @@ export default function SchedulesPage() {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Accept: 'application/json' },
                 body: JSON.stringify({
                     coach_id: coachScheduleFormData.coach_id,
-                    is_head_coach: coachScheduleFormData.is_head_coach,
+                    role: coachScheduleFormData.role,
                     attendance: coachScheduleFormData.attendance || null,
                 }),
             });
@@ -785,9 +796,9 @@ export default function SchedulesPage() {
             cell: ({ row }) => row.original.coach?.name || 'Unknown',
         },
         {
-            accessorKey: 'is_head_coach',
-            header: 'Head Coach',
-            cell: ({ row }) => (row.original.is_head_coach ? 'Yes' : 'No'),
+            accessorKey: 'role_label',
+            header: 'Role',
+            cell: ({ row }) => row.original.role_label,
         },
         {
             accessorKey: 'attendance',
@@ -812,7 +823,7 @@ export default function SchedulesPage() {
                                             id: cs.id,
                                             schedule_id: cs.schedule_id,
                                             coach_id: cs.coach_id.toString(),
-                                            is_head_coach: cs.is_head_coach,
+                                            role: cs.role,
                                             attendance: cs.attendance || '',
                                         });
                                     }}
@@ -1142,17 +1153,20 @@ export default function SchedulesPage() {
                                     <div className="space-y-1">
                                         <Label>Is Head Coach</Label>
                                         <Select
-                                            value={coachScheduleFormData.is_head_coach ? 'true' : 'false'}
+                                            value={coachScheduleFormData.role}
                                             onValueChange={(value) =>
-                                                setCoachScheduleFormData((prev) => ({ ...prev, is_head_coach: value === 'true' }))
+                                                setCoachScheduleFormData((prev) => ({ ...prev, role: value as CoachRole }))
                                             }
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select option" />
+                                                <SelectValue placeholder="Select role" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="true">Yes</SelectItem>
-                                                <SelectItem value="false">No</SelectItem>
+                                                {COACH_ROLES.map((r) => (
+                                                    <SelectItem key={r.value} value={r.value}>
+                                                        {r.label}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>

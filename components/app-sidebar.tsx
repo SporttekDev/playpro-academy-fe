@@ -12,7 +12,7 @@ import {
   IconFileAi,
   IconFileDescription,
   IconHelp,
-  IconInnerShadowTop,
+  IconCheckupList,
   IconMapPin,
   IconReport,
   IconSearch,
@@ -64,6 +64,11 @@ const data = {
       title: "Attendance Report",
       url: "/attendance-reports",
       icon: IconReport,
+    },
+    {
+      title: "Coach Attendance",
+      url: "/coach-attendance",
+      icon: IconCheckupList,
     },
     {
       title: "Monthly Report",
@@ -233,7 +238,8 @@ export function AppSidebar({
       return data.navMain.filter(
         (item) =>
           item.url === "/dashboard" ||
-          item.url === "/attendance-reports"
+          item.url === "/attendance-reports" ||
+          item.url === "/coach-attendance"
       )
     }
 

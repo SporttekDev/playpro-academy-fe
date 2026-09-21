@@ -16,6 +16,9 @@ import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/date-picker';
+import { Switch } from '@/components/ui/switch';
+import { MultiSelect } from '@/components/multi-select';
+import { Badge } from '@/components/ui/badge';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
@@ -23,24 +26,45 @@ import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
+interface Branch {
+    id: number;
+    name: string;
+}
+
 interface Coach {
     id: number;
     name: string;
     birth_date: string | null;
     description: string | null;
     photo: string | null;
+    has_license: boolean;
+    license_number: string | null;
+    license_type: string | null;
+    license_expiry_date: string | null;
+    branch_ids: number[];
+    branches: Branch[];
 }
 
 interface CoachForm {
     birth_date: string;
     description: string;
     photo: File | null;
+    has_license: boolean;
+    license_number: string;
+    license_type: string;
+    license_expiry_date: string;
+    branch_ids: string[];
 }
 
 const defaultForm: CoachForm = {
     birth_date: '',
     description: '',
     photo: null,
+    has_license: false,
+    license_number: '',
+    license_type: '',
+    license_expiry_date: '',
+    branch_ids: [],
 };
 
 export default function CoachesPage() {
@@ -48,6 +72,7 @@ export default function CoachesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [coaches, setCoaches] = useState<Coach[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [formData, setFormData] = useState<CoachForm>(defaultForm);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [removePhoto, setRemovePhoto] = useState(false);
@@ -82,9 +107,24 @@ export default function CoachesPage() {
         }
     }, []);
 
+    const fetchBranches = useCallback(async () => {
+        try {
+            const token = Cookies.get('token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
+                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+            });
+            if (!response.ok) return;
+            const { data } = await response.json();
+            setBranches(data);
+        } catch (error) {
+            console.error(error);
+        }
+    }, []);
+
     useEffect(() => {
         fetchCoaches();
-    }, [fetchCoaches]);
+        fetchBranches();
+    }, [fetchCoaches, fetchBranches]);
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -113,6 +153,14 @@ export default function CoachesPage() {
             formDataToSend.append('_method', 'PUT');
             formDataToSend.append('birth_date', formData.birth_date);
             formDataToSend.append('description', formData.description);
+            formDataToSend.append('has_license', formData.has_license ? '1' : '0');
+            formDataToSend.append('license_number', formData.license_number);
+            formDataToSend.append('license_type', formData.license_type);
+            formDataToSend.append('license_expiry_date', formData.license_expiry_date);
+
+            formData.branch_ids.forEach((id) => {
+                formDataToSend.append('branch_ids[]', id);
+            });
 
             if (removePhoto) {
                 formDataToSend.append('remove_photo', '1');
@@ -202,6 +250,18 @@ export default function CoachesPage() {
         }
     };
 
+    const handleLicenseExpiryChange = (date: Date | undefined) => {
+        if (date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            setFormData((prev) => ({
+                ...prev,
+                license_expiry_date: `${year}-${month}-${day}`,
+            }));
+        }
+    };
+
     const resetFileInput = () => {
         const input = document.querySelector('input[name="photo"]') as HTMLInputElement;
         if (input) input.value = '';
@@ -241,7 +301,27 @@ export default function CoachesPage() {
         },
         { accessorKey: 'name', header: 'Name' },
         { accessorKey: 'birth_date', header: 'Birth Date' },
-        { accessorKey: 'description', header: 'Description' },
+        {
+            header: 'License',
+            cell: ({ row }) =>
+                row.original.has_license ? (
+                    <Badge className="rounded-full bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/10">
+                        {row.original.license_type || 'Licensed'}
+                    </Badge>
+                ) : (
+                    <Badge className="rounded-full bg-slate-100 text-slate-500 hover:bg-slate-100">
+                        No License
+                    </Badge>
+                ),
+        },
+        {
+            header: 'Branches',
+            cell: ({ row }) => {
+                const names = row.original.branches.map((b) => b.name);
+                if (names.length === 0) return <span className="text-xs text-muted-foreground">-</span>;
+                return <span className="text-sm">{names.join(', ')}</span>;
+            },
+        },
         {
             id: 'actions',
             header: 'Actions',
@@ -260,6 +340,11 @@ export default function CoachesPage() {
                                             birth_date: coach.birth_date || '',
                                             description: coach.description || '',
                                             photo: null,
+                                            has_license: coach.has_license,
+                                            license_number: coach.license_number || '',
+                                            license_type: coach.license_type || '',
+                                            license_expiry_date: coach.license_expiry_date || '',
+                                            branch_ids: coach.branch_ids.map(String),
                                         });
                                         setCurrentPhoto(
                                             coach.photo
@@ -306,7 +391,6 @@ export default function CoachesPage() {
             <DataTable columns={columns} data={coaches} />
 
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                // Prevent closing the Dialog when clicking inside the DatePicker
                 const datePickerPopover = document.querySelector('[data-state="open"]');
                 const handleClick = (e: MouseEvent) => {
                     if (open === false && datePickerPopover?.contains(e.target as Node)) {
@@ -316,7 +400,7 @@ export default function CoachesPage() {
                 };
                 document.addEventListener('click', handleClick, { once: true });
             }}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Coach</DialogTitle>
                         <DialogDescription>Update the coach details below.</DialogDescription>
@@ -341,6 +425,72 @@ export default function CoachesPage() {
                                     required
                                 />
                             </div>
+
+                            <div className="space-y-1">
+                                <Label>Branches</Label>
+                                <MultiSelect
+                                    value={formData.branch_ids}
+                                    onValueChange={(value) =>
+                                        setFormData((prev) => ({ ...prev, branch_ids: value }))
+                                    }
+                                    options={branches.map((b) => ({
+                                        value: b.id.toString(),
+                                        label: b.name,
+                                    }))}
+                                    placeholder="Select branches"
+                                    modalPopover={true}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                    <Label>Has License</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Does this coach hold a coaching license?
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={formData.has_license}
+                                    onCheckedChange={(checked) =>
+                                        setFormData((prev) => ({ ...prev, has_license: checked }))
+                                    }
+                                />
+                            </div>
+
+                            {formData.has_license && (
+                                <>
+                                    <div className="space-y-1">
+                                        <Label>License Number</Label>
+                                        <Input
+                                            value={formData.license_number}
+                                            onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, license_number: e.target.value }))
+                                            }
+                                            placeholder="e.g. BWF-12345"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <Label>License Type</Label>
+                                        <Input
+                                            value={formData.license_type}
+                                            onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, license_type: e.target.value }))
+                                            }
+                                            placeholder="e.g. Badminton World Federation Level 1"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <Label>License Expiry Date</Label>
+                                        <DatePicker
+                                            value={formData.license_expiry_date ? new Date(formData.license_expiry_date) : undefined}
+                                            onChange={handleLicenseExpiryChange}
+                                            modal={true}
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             {/* Photo */}
                             <div className="space-y-1">
