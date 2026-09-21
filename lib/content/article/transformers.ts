@@ -20,6 +20,7 @@ export function formatArticleDate(iso: string | null): string {
         day: "2-digit",
         month: "long",
         year: "numeric",
+        timeZone: "Asia/Jakarta", 
     }).format(new Date(iso));
 }
 

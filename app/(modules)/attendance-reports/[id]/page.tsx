@@ -238,7 +238,7 @@ function AttendanceReportFormContent() {
         setErrors({ motorik: vMotorik, locomotor: vLocomotor, body_control: vBody })
 
         if (vMotorik || vLocomotor || vBody) {
-            toast.error('Please fix the form first (min 200 characters / max 500).')
+            toast.error(`Please fix the form first (min ${MIN_CHARS} characters / max ${MAX_CHARS}).`)
             return
         }
 

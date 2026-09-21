@@ -110,6 +110,7 @@ function formatDate(date: string) {
         weekday: "short",
         day: "numeric",
         month: "short",
+        timeZone: "Asia/Jakarta", 
     }).format(new Date(date))
 }
 
