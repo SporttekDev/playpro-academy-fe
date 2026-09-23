@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Camera, MapPin, RotateCcw, Loader2 } from "lucide-react"
+import { Camera, CheckCircle2, MapPin, RotateCcw, Loader2 } from "lucide-react"
 
 type CaptureResult = {
     photoBlob: Blob
@@ -26,7 +26,7 @@ export function CameraGeoCapture({
 
     const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
     const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
-    const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
+    const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
     const [locationError, setLocationError] = useState<string | null>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [isLocating, setIsLocating] = useState(true)
@@ -60,16 +60,30 @@ export function CameraGeoCapture({
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                console.log("Detected location:", position.coords.latitude, position.coords.longitude, "accuracy:", position.coords.accuracy, "meters")
                 setLocation({
                     lat: position.coords.latitude,
                     lng: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
                 })
                 setIsLocating(false)
             },
-            (err) => {
-                console.error("Geolocation error:", err)
-                setLocationError("Gagal mendapatkan lokasi. Pastikan izin lokasi diaktifkan.")
+            (err: GeolocationPositionError) => {
+                console.error("Geolocation error:", err.code, err.message)
+
+                let message = "Gagal mendapatkan lokasi. Pastikan izin lokasi diaktifkan."
+                switch (err.code) {
+                    case err.PERMISSION_DENIED:
+                        message = "Izin lokasi ditolak. Aktifkan izin lokasi untuk situs ini di pengaturan browser."
+                        break
+                    case err.POSITION_UNAVAILABLE:
+                        message = "Lokasi tidak dapat dideteksi. Pastikan GPS/layanan lokasi perangkat aktif."
+                        break
+                    case err.TIMEOUT:
+                        message = "Waktu mendapatkan lokasi habis. Coba lagi."
+                        break
+                }
+
+                setLocationError(message)
                 setIsLocating(false)
             },
             { enableHighAccuracy: true, timeout: 15000 }
@@ -143,39 +157,82 @@ export function CameraGeoCapture({
                         {cameraError}
                     </div>
                 )}
+
+                {photoDataUrl && location && !locationError && (
+                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full bg-emerald-500/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Lokasi tersimpan
+                    </div>
+                )}
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                {isLocating ? (
-                    <span className="flex items-center gap-2 text-slate-500">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Mendapatkan lokasi...
-                    </span>
-                ) : locationError ? (
-                    <span className="text-red-600">{locationError}</span>
-                ) : location ? (
-                    <span className="text-slate-700">
-                        Lokasi terdeteksi ({location.lat.toFixed(5)}, {location.lng.toFixed(5)})
-                    </span>
-                ) : null}
+            {/* Status lokasi */}
+            <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
+                <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        locationError
+                            ? "bg-rose-100"
+                            : location
+                              ? "bg-emerald-100"
+                              : "bg-primary/10"
+                    }`}
+                >
+                    <MapPin
+                        className={`h-4 w-4 ${
+                            locationError ? "text-rose-600" : location ? "text-emerald-600" : "text-primary"
+                        }`}
+                    />
+                </div>
+
+                <div className="min-w-0">
+                    {isLocating ? (
+                        <span className="flex items-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Mendapatkan lokasi kamu...
+                        </span>
+                    ) : locationError ? (
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-rose-600">Lokasi tidak tersedia</p>
+                                <p className="text-xs text-rose-500">{locationError}</p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
+                                onClick={requestLocation}
+                            >
+                                Coba Lagi
+                            </Button>
+                        </div>
+                    ) : location ? (
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800">Lokasi terdeteksi</p>
+                            <p className="text-xs text-slate-500">Akurasi ±{Math.round(location.accuracy)}m</p>
+                        </div>
+                    ) : null}
+                </div>
             </div>
 
             {photoDataUrl ? (
                 <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={handleRetake} disabled={isSubmitting}>
+                    <Button
+                        variant="outline"
+                        className="flex-1 rounded-2xl"
+                        onClick={handleRetake}
+                        disabled={isSubmitting}
+                    >
                         <RotateCcw className="mr-2 h-4 w-4" />
                         Ambil Ulang
                     </Button>
-                    <Button className="flex-1" onClick={handleSubmit} disabled={!canSubmit}>
-                        {isSubmitting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : null}
+                    <Button className="flex-1 rounded-2xl" onClick={handleSubmit} disabled={!canSubmit}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {actionLabel}
                     </Button>
                 </div>
             ) : (
-                <Button className="w-full" onClick={handleCapturePhoto} disabled={!!cameraError}>
+                <Button className="w-full rounded-2xl" onClick={handleCapturePhoto} disabled={!!cameraError}>
                     <Camera className="mr-2 h-4 w-4" />
                     Ambil Foto
                 </Button>
