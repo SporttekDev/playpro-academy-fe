@@ -34,10 +34,13 @@ export function getSessionFromCookie(cookieKey = 'session_key'): Session {
  */
 export function isAdminSession(session: Session, adminRole = 'admin'): boolean {
     if (!session) return false;
-    // if role is nested (mis. session.user.role) -> sesuaikan sesuai struktur session anda
     const role = (session as any).role ?? (session as any).user?.role;
-    return !!role && String(role).toLowerCase() === adminRole.toLowerCase();
+    if (!role) return false;
+
+    const normalized = String(role).toLowerCase();
+    return normalized === adminRole.toLowerCase() || normalized === 'superadmin';
 }
+
 
 type UseRequireAdminOptions = {
     cookieKey?: string;
@@ -79,4 +82,54 @@ export function useRequireAdmin(options: UseRequireAdminOptions = {}) {
     }, []); // run sekali di mount
 
     return { isChecking, isAdmin };
+}
+
+/**
+ * Cek apakah session mengandung role finance (atau superadmin, yang full access).
+ */
+export function isFinanceSession(session: Session): boolean {
+    if (!session) return false;
+    const role = (session as any).role ?? (session as any).user?.role;
+    if (!role) return false;
+
+    const normalized = String(role).toLowerCase();
+    return normalized === 'finance' || normalized === 'superadmin';
+}
+
+type UseRequireFinanceOptions = {
+    cookieKey?: string;
+    redirectTo?: string;
+    showToastOnFail?: boolean;
+};
+
+/**
+ * Hook untuk membatasi akses halaman hanya untuk finance (atau superadmin) di sisi client.
+ * Dipakai sebagai lapisan kedua di halaman /payroll, selain proteksi di middleware.
+ */
+export function useRequireFinance(options: UseRequireFinanceOptions = {}) {
+    const { cookieKey = 'session_key', redirectTo = '/dashboard', showToastOnFail = true } = options;
+    const router = useRouter();
+
+    const [isChecking, setIsChecking] = useState(true);
+    const [isFinance, setIsFinance] = useState(false);
+
+    useEffect(() => {
+        const session = getSessionFromCookie(cookieKey);
+
+        if (isFinanceSession(session)) {
+            setIsFinance(true);
+            setIsChecking(false);
+            return;
+        }
+
+        if (showToastOnFail) {
+            toast.error('Akses ditolak — hanya untuk finance.');
+        }
+        router.replace(redirectTo);
+        setIsChecking(false);
+        setIsFinance(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return { isChecking, isFinance };
 }

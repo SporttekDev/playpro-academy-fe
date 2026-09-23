@@ -109,6 +109,13 @@ function buildScheduleMeta(item: CoachScheduleItem) {
     return `${item.meta} • ${item.students} students • ${statusLabel}`
 }
 
+// Nama schedule dari backend biasanya sudah lengkap berisi venue + tanggal + jam
+// (mis. "Soccer - Toddler, PSA, 2026-09-23, 09:00-12:00"), padahal jam & venue
+// sudah ditampilkan terpisah di badge/meta. Ambil segmen pertama saja biar tidak dobel.
+function shortenTitle(title: string) {
+    return title.split(",")[0]?.trim() || title
+}
+
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
@@ -203,27 +210,27 @@ export default function CoachDashboard({ name }: { name: string }) {
     return (
         <div className="space-y-6">
             <Card className="overflow-hidden rounded-3xl border-slate-200 bg-gradient-to-br from-primary via-primary/95 to-cyan-500 text-white shadow-[0_20px_60px_rgba(59,130,246,0.18)]">
-                <CardHeader className="p-6 md:p-8">
+                <CardHeader className="p-5 sm:p-6 md:p-8">
                     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-                        <div className="flex items-start gap-4">
-                            <Avatar className="h-16 w-16 border border-white/20">
+                        <div className="flex items-start gap-3 sm:gap-4">
+                            <Avatar className="h-12 w-12 shrink-0 border border-white/20 sm:h-16 sm:w-16">
                                 {coachPhoto ? <AvatarImage src={coachPhoto} /> : null}
                                 <AvatarFallback className="bg-white/15 text-white">
                                     {displayName.slice(0, 1)}
                                 </AvatarFallback>
                             </Avatar>
 
-                            <div>
-                                <Badge className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-4 py-2 text-white">
-                                    <ClipboardList className="mr-2 h-4 w-4" />
+                            <div className="min-w-0">
+                                <Badge className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white sm:px-4 sm:py-2 sm:text-sm">
+                                    <ClipboardList className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                     Coach Dashboard
                                 </Badge>
 
-                                <h1 className="mt-5 text-4xl font-extrabold tracking-tight md:text-5xl">
+                                <h1 className="mt-4 text-2xl font-extrabold tracking-tight sm:mt-5 sm:text-3xl md:text-4xl lg:text-5xl">
                                     Morning Coach, {displayName}
                                 </h1>
 
-                                <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/80 md:text-lg">
+                                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/80 sm:mt-4 sm:text-base md:text-lg">
                                     Focus on today&apos;s classes, attendance, and student follow-up in one
                                     action-oriented workspace.
                                 </p>
@@ -252,7 +259,7 @@ export default function CoachDashboard({ name }: { name: string }) {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                 <MetricCard
                     title="Classes Today"
                     value={`${data.metrics.classes_today}`}
@@ -297,27 +304,27 @@ export default function CoachDashboard({ name }: { name: string }) {
                         <CardContent className="p-6 pt-0">
                             {ongoingClass ? (
                                 <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-                                    <div className="flex flex-wrap items-start justify-between gap-4">
-                                        <div>
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="min-w-0">
                                             <p className="text-sm font-semibold text-emerald-700">
                                                 {ongoingClass.time} - {ongoingClass.end_time}
                                             </p>
-                                            <h3 className="mt-2 text-2xl font-extrabold text-slate-900">
-                                                {ongoingClass.title}
+                                            <h3 className="mt-2 line-clamp-2 text-xl font-extrabold text-slate-900 sm:text-2xl">
+                                                {shortenTitle(ongoingClass.title)}
                                             </h3>
                                             <p className="mt-2 text-sm text-slate-600">
                                                 {buildScheduleMeta(ongoingClass)}
                                             </p>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-3">
+                                        <div className="flex flex-wrap gap-3 sm:shrink-0">
                                             <Button
-                                                className="rounded-2xl"
+                                                className="flex-1 rounded-2xl sm:flex-none"
                                                 onClick={() => router.push(`/attendance-checkin/${ongoingClass.id}`)}
                                             >
                                                 Take Attendance
                                             </Button>
-                                            <Button variant="outline" className="rounded-2xl">
+                                            <Button variant="outline" className="flex-1 rounded-2xl sm:flex-none">
                                                 Open Roster
                                             </Button>
                                         </div>
@@ -343,19 +350,24 @@ export default function CoachDashboard({ name }: { name: string }) {
                         <CardContent className="space-y-4 p-6 pt-0">
                             {data.today_classes.length > 0 ? (
                                 data.today_classes.map((item) => (
-                                    <div key={item.id} className="flex items-center gap-3">
-                                        <ScheduleRow
-                                            time={`${item.time} - ${item.end_time}`}
-                                            title={item.title}
-                                            meta={item.meta}
-                                            coach={item.coach}
-                                            students={item.students}
-                                            status={item.status}
-                                        />
+                                    <div
+                                        key={item.id}
+                                        className="flex flex-col gap-3 rounded-2xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:border-0 sm:p-0"
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <ScheduleRow
+                                                time={`${item.time} - ${item.end_time}`}
+                                                title={shortenTitle(item.title)}
+                                                meta={item.meta}
+                                                coach={item.coach}
+                                                students={item.students}
+                                                status={item.status}
+                                            />
+                                        </div>
                                         <Button
                                             size="sm"
                                             variant={item.status === "ongoing" ? "default" : "outline"}
-                                            className="rounded-xl shrink-0"
+                                            className="w-full rounded-xl sm:w-auto sm:shrink-0"
                                             onClick={() => router.push(`/attendance-checkin/${item.id}`)}
                                         >
                                             Absen
@@ -389,7 +401,7 @@ export default function CoachDashboard({ name }: { name: string }) {
                                         className="rounded-2xl border border-slate-200 bg-white p-4"
                                     >
                                         <div className="flex items-start justify-between gap-3">
-                                            <div>
+                                            <div className="min-w-0">
                                                 <p className="font-semibold text-slate-900">
                                                     {item.name}
                                                 </p>
@@ -405,7 +417,7 @@ export default function CoachDashboard({ name }: { name: string }) {
                                                 )}
                                             </div>
 
-                                            <Badge className="rounded-full bg-primary/10 text-primary">
+                                            <Badge className="shrink-0 rounded-full bg-primary/10 text-primary">
                                                 {item.status}
                                             </Badge>
                                         </div>
@@ -451,7 +463,7 @@ export default function CoachDashboard({ name }: { name: string }) {
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     Contact
                                 </p>
-                                <p className="mt-1 font-semibold text-slate-900">
+                                <p className="mt-1 break-words font-semibold text-slate-900">
                                     {data.coach.email}
                                 </p>
                                 <p className="text-sm text-slate-500">

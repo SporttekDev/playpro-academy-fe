@@ -36,7 +36,7 @@ import { Label } from '@/components/ui/label';
 interface Session {
     id: number;
     name: string;
-    role: 'admin' | 'coach' | 'parent';
+    role: 'admin' | 'coach' | 'parent' | 'superadmin' | 'finance';
 }
 
 interface CoachPayrollSummary {
@@ -203,7 +203,7 @@ export default function PayrollPage() {
         }
     }, []);
 
-    const isAdmin = session !== 'loading' && session !== null && session.role === 'admin';
+    const isAdmin = session !== 'loading' && session !== null && session.role === 'superadmin'|| 'finance';
     const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     // ── Admin: fetch summary list ──────────────────────────
@@ -217,7 +217,7 @@ export default function PayrollPage() {
             params.append('year', selectedYear);
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/payroll?${params.toString()}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/finance/payroll?${params.toString()}`,
                 { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
             );
             if (!response.ok) throw new Error('Failed to fetch payroll summary');
@@ -243,7 +243,7 @@ export default function PayrollPage() {
 
                 const endpoint = isCoach
                     ? `${process.env.NEXT_PUBLIC_API_URL}/coach/payroll?${params.toString()}`
-                    : `${process.env.NEXT_PUBLIC_API_URL}/admin/payroll/${coachId}?${params.toString()}`;
+                    : `${process.env.NEXT_PUBLIC_API_URL}/finance/payroll/${coachId}?${params.toString()}`;
 
                 const response = await fetch(endpoint, {
                     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -265,7 +265,7 @@ export default function PayrollPage() {
         try {
             setIsLoadingSettings(true);
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/payroll-settings`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/finance/payroll-settings`, {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
             });
             if (!response.ok) throw new Error('Failed to fetch settings');
@@ -289,7 +289,7 @@ export default function PayrollPage() {
         try {
             setIsSavingSettings(true);
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/payroll-settings`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/finance/payroll-settings`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -334,7 +334,7 @@ export default function PayrollPage() {
         try {
             setIsGenerating(true);
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/payroll/generate`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/finance/payroll/generate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -367,7 +367,7 @@ export default function PayrollPage() {
         }
         try {
             const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/payroll/${periodId}/finalize`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/finance/payroll/${periodId}/finalize`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
             });
