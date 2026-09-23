@@ -55,7 +55,8 @@ function isAllowed(role: string, pathname: string) {
             pathname.startsWith("/dashboard") ||
             pathname.startsWith("/attendance-reports") ||
             pathname.startsWith("/attendance-checkin") ||
-            pathname.startsWith("/coach-attendance")
+            pathname.startsWith("/coach-attendance") ||
+            pathname.startsWith("/payroll")
         );
     }
 

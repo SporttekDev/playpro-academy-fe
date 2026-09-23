@@ -21,6 +21,8 @@ import {
   IconUserCheck,
   IconUsers,
   IconUsersGroup,
+  IconMoneybag,
+  IconSettingsDollar,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -74,6 +76,11 @@ const data = {
       title: "Monthly Report",
       url: "/monthly-reports",
       icon: IconClipboardText,
+    },
+    {
+      title: "Payroll",
+      url: "/payroll",
+      icon: IconMoneybag, // atau icon lain yang belum dipakai
     },
   ],
 
@@ -239,7 +246,8 @@ export function AppSidebar({
         (item) =>
           item.url === "/dashboard" ||
           item.url === "/attendance-reports" ||
-          item.url === "/coach-attendance"
+          item.url === "/coach-attendance" ||
+          item.url === "/payroll"
       )
     }
 

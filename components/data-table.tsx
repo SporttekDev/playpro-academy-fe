@@ -117,51 +117,53 @@ export function DataTable<TData, TValue>({
 
             {/* Table */}
             <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        {table.getHeaderGroups().map(hg => (
-                            <TableRow key={hg.id}>
-                                {hg.headers.map(header => (
-                                    <TableHead
-                                        key={header.id}
-                                        onClick={header.column.getToggleSortingHandler()}
-                                        className="cursor-pointer select-none"
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            {flexRender(header.column.columnDef.header, header.getContext())}
-                                            {header.column.getCanSort() && (
-                                                header.column.getIsSorted() === 'asc'
-                                                    ? <ArrowUp className="w-4 h-4" />
-                                                    : header.column.getIsSorted() === 'desc'
-                                                        ? <ArrowDown className="w-4 h-4" />
-                                                        : <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                                            )}
-                                        </div>
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {table.getRowModel().rows.length > 0 ? (
-                            table.getRowModel().rows.map(row => (
-                                <TableRow key={row.id}>
-                                    {row.getVisibleCells().map(cell => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
+                <div className="w-full overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            {table.getHeaderGroups().map(hg => (
+                                <TableRow key={hg.id}>
+                                    {hg.headers.map(header => (
+                                        <TableHead
+                                            key={header.id}
+                                            onClick={header.column.getToggleSortingHandler()}
+                                            className="cursor-pointer select-none whitespace-nowrap"
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                                {header.column.getCanSort() && (
+                                                    header.column.getIsSorted() === 'asc'
+                                                        ? <ArrowUp className="w-4 h-4" />
+                                                        : header.column.getIsSorted() === 'desc'
+                                                            ? <ArrowDown className="w-4 h-4" />
+                                                            : <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                                )}
+                                            </div>
+                                        </TableHead>
                                     ))}
                                 </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No results.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                            ))}
+                        </TableHeader>
+                        <TableBody>
+                            {table.getRowModel().rows.length > 0 ? (
+                                table.getRowModel().rows.map(row => (
+                                    <TableRow key={row.id}>
+                                        {row.getVisibleCells().map(cell => (
+                                            <TableCell key={cell.id} className="whitespace-nowrap">
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                                        No results.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
 
             {/* Pagination Controls */}
