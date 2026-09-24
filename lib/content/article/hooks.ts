@@ -104,3 +104,29 @@ export function useArticle(slug: string) {
 
     return { article, isLoading, error, refetch: fetchArticle };
 }
+
+export function useLatestArticles(limit: number = 4) {
+    const [articles, setArticles] = useState<Article[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchArticles = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const contents = await listContents("article");
+            setArticles(contents.map(mapContentToArticle).slice(0, limit));
+        } catch (err) {
+            console.error("Failed to fetch latest articles:", err);
+            setError("Gagal memuat artikel");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [limit]);
+
+    useEffect(() => {
+        fetchArticles();
+    }, [fetchArticles]);
+
+    return { articles, isLoading, error };
+}

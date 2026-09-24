@@ -8,8 +8,9 @@ import { LayoutDashboard, Sparkles } from "lucide-react"
 import AdminDashboard from "@/components/dashboard/admin-dashboard"
 import CoachDashboard from "@/components/dashboard/coach-dashboard"
 import ParentDashboard from "@/components/dashboard/parent-dashboard"
+import FinanceDashboard from "@/components/dashboard/finance-dashboard"
 
-type Role = "admin" | "coach" | "parent"
+type Role = "admin" | "coach" | "parent" | "finance" | "superadmin"
 
 type ParsedSession = {
   role: Role
@@ -21,6 +22,9 @@ function normalizeRole(value: unknown): Role | null {
 
   const lower = value.toLowerCase()
 
+  // Cek yang paling spesifik dulu — "superadmin" mengandung substring "admin".
+  if (lower.includes("superadmin")) return "superadmin"
+  if (lower.includes("finance")) return "finance"
   if (lower.includes("admin")) return "admin"
   if (lower.includes("coach")) return "coach"
   if (lower.includes("parent")) return "parent"
@@ -60,7 +64,15 @@ function getParsedSession(): ParsedSession {
       nameCandidates.find(
         (item) => typeof item === "string" && item.trim().length > 0
       ) ??
-      (role === "admin" ? "Admin" : role === "coach" ? "Coach" : "Parent")
+      (role === "admin"
+        ? "Admin"
+        : role === "coach"
+          ? "Coach"
+          : role === "finance"
+            ? "Finance"
+            : role === "superadmin"
+              ? "Super Admin"
+              : "Parent")
 
     return { role, name }
   } catch {
@@ -68,7 +80,16 @@ function getParsedSession(): ParsedSession {
 
     return {
       role,
-      name: role === "admin" ? "Admin" : role === "coach" ? "Coach" : "Parent",
+      name:
+        role === "admin"
+          ? "Admin"
+          : role === "coach"
+            ? "Coach"
+            : role === "finance"
+              ? "Finance"
+              : role === "superadmin"
+                ? "Super Admin"
+                : "Parent",
     }
   }
 }
@@ -76,18 +97,24 @@ function getParsedSession(): ParsedSession {
 function roleLabel(role: Role) {
   if (role === "admin") return "Admin Dashboard"
   if (role === "coach") return "Coach Dashboard"
+  if (role === "finance") return "Finance Dashboard"
+  if (role === "superadmin") return "Super Admin Dashboard"
   return "Parent Dashboard"
 }
 
 function roleChipClass(role: Role) {
   if (role === "admin") return "bg-slate-950 text-white"
   if (role === "coach") return "bg-primary text-white"
+  if (role === "finance") return "bg-emerald-600 text-white"
+  if (role === "superadmin") return "bg-purple-700 text-white"
   return "bg-secondary text-white"
 }
 
 function roleChipText(role: Role) {
   if (role === "admin") return "Operational overview"
-  if (role === "coach") return "Today’s class focus"
+  if (role === "coach") return "Today's class focus"
+  if (role === "finance") return "Payroll & finance overview"
+  if (role === "superadmin") return "Full system access"
   return "Child progress & schedule"
 }
 
@@ -132,12 +159,14 @@ export default function Page() {
           </div>
         </div>
 
-        {role === "admin" ? (
+        {role === "admin" || role === "superadmin" ? (
           <AdminDashboard name={displayName} />
         ) : role === "coach" ? (
           <CoachDashboard name={displayName} />
+        ) : role === "finance" ? (
+          <FinanceDashboard name={displayName} />
         ) : (
-          <ParentDashboard />
+          <ParentDashboard name={displayName} />
         )}
       </div>
     </main>

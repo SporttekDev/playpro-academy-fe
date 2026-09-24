@@ -117,7 +117,15 @@ function formatDate(date: string) {
         day: "2-digit",
         month: "short",
         year: "numeric",
+        timeZone: "Asia/Jakarta", 
     }).format(new Date(date))
+}
+
+// Nama schedule dari backend biasanya sudah lengkap berisi venue + tanggal + jam,
+// padahal jam & venue sudah ditampilkan terpisah di badge/meta. Ambil segmen
+// pertama saja biar tidak dobel dan tidak makan banyak baris di layar sempit.
+function shortenTitle(title: string) {
+    return title.split(",")[0]?.trim() || title
 }
 
 function MiniChart({
@@ -242,8 +250,8 @@ function WarningListCard({
                                     <Badge
                                         className={
                                             type === "membership"
-                                                ? "rounded-full bg-amber-500/10 text-amber-700"
-                                                : "rounded-full bg-rose-500/10 text-rose-700"
+                                                ? "shrink-0 rounded-full bg-amber-500/10 text-amber-700"
+                                                : "shrink-0 rounded-full bg-rose-500/10 text-rose-700"
                                         }
                                     >
                                         {type === "membership"
@@ -355,19 +363,19 @@ export default function AdminDashboard({ name }: { name: string }) {
     return (
         <div className="space-y-6">
             <Card className="overflow-hidden rounded-3xl border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-primary text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
-                <CardHeader className="p-6 md:p-8">
+                <CardHeader className="p-5 sm:p-6 md:p-8">
                     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-                        <div>
-                            <Badge className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-4 py-2 text-white">
-                                <UserRound className="mr-2 h-4 w-4" />
+                        <div className="min-w-0">
+                            <Badge className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white sm:px-4 sm:py-2 sm:text-sm">
+                                <UserRound className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 Admin Dashboard
                             </Badge>
 
-                            <h1 className="mt-5 text-4xl font-extrabold tracking-tight md:text-5xl">
+                            <h1 className="mt-4 text-2xl font-extrabold tracking-tight sm:mt-5 sm:text-3xl md:text-4xl lg:text-5xl">
                                 Good morning, {data.admin.name}
                             </h1>
 
-                            <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-300 md:text-lg">
+                            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300 sm:mt-4 sm:text-base md:text-lg">
                                 Monitor playkids, coaches, classes, branches, venues, and today&apos;s
                                 operational flow in one clean workspace.
                             </p>
@@ -389,7 +397,7 @@ export default function AdminDashboard({ name }: { name: string }) {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                 <MetricCard
                     title="Total PlayKids"
                     value={`${data.metrics.playkids}`}
@@ -462,13 +470,13 @@ export default function AdminDashboard({ name }: { name: string }) {
                         <CardContent className="p-6 pt-0">
                             {ongoing ? (
                                 <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-                                    <div className="flex flex-wrap items-start justify-between gap-4">
-                                        <div>
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="min-w-0">
                                             <p className="text-sm font-semibold text-emerald-700">
                                                 {formatTime(ongoing.time)} - {formatTime(ongoing.end_time)}
                                             </p>
-                                            <h3 className="mt-2 text-2xl font-extrabold text-slate-900">
-                                                {ongoing.title}
+                                            <h3 className="mt-2 line-clamp-2 text-xl font-extrabold text-slate-900 sm:text-2xl">
+                                                {shortenTitle(ongoing.title)}
                                             </h3>
                                             <p className="mt-2 text-sm text-slate-600">
                                                 {ongoing.meta}
@@ -478,9 +486,9 @@ export default function AdminDashboard({ name }: { name: string }) {
                                             </p>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-3">
-                                            <Button className="rounded-2xl">Open Class</Button>
-                                            <Button variant="outline" className="rounded-2xl">
+                                        <div className="flex flex-wrap gap-3 sm:shrink-0">
+                                            <Button className="flex-1 rounded-2xl sm:flex-none">Open Class</Button>
+                                            <Button variant="outline" className="flex-1 rounded-2xl sm:flex-none">
                                                 View Roster
                                             </Button>
                                         </div>
@@ -509,7 +517,7 @@ export default function AdminDashboard({ name }: { name: string }) {
                                     <ScheduleRow
                                         key={item.id}
                                         time={`${item.time} - ${item.end_time}`}
-                                        title={item.title}
+                                        title={shortenTitle(item.title)}
                                         meta={item.meta}
                                         coach={item.coach}
                                         students={item.students}
@@ -562,25 +570,25 @@ export default function AdminDashboard({ name }: { name: string }) {
                                             key={item.id}
                                             className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4"
                                         >
-                                            <div className="flex items-start gap-3">
-                                                <Avatar className="h-11 w-11">
+                                            <div className="flex min-w-0 items-start gap-3">
+                                                <Avatar className="h-11 w-11 shrink-0">
                                                     {photo ? <AvatarImage src={photo} /> : null}
                                                     <AvatarFallback className="bg-primary/10 text-primary">
                                                         {item.name.slice(0, 1)}
                                                     </AvatarFallback>
                                                 </Avatar>
 
-                                                <div>
-                                                    <p className="font-semibold text-slate-900">
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-semibold text-slate-900">
                                                         {item.name}
                                                     </p>
-                                                    <p className="mt-1 text-sm text-slate-500">
+                                                    <p className="mt-1 truncate text-sm text-slate-500">
                                                         Parent: {item.parent_name ?? "-"}
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            <Badge className="rounded-full bg-slate-100 text-slate-700">
+                                            <Badge className="shrink-0 rounded-full bg-slate-100 text-slate-700">
                                                 New
                                             </Badge>
                                         </div>

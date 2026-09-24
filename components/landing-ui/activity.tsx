@@ -19,51 +19,9 @@ import {
     CarouselNext,
     CarouselPrevious,
 } from "@/components/ui/carousel"
+import { useLatestArticles } from "@/lib/content/article/hooks"
+import { Article } from "@/lib/content/article/types"
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const articles = [
-    {
-        title: "PlayPro Academy Hadir di Bandung!",
-        description:
-            "Cabang ke-8 resmi hadir di Bandung dengan program multisport untuk toddler dan junior bersama coach profesional.",
-        image:
-            "/images/galleries/gallery-2.png",
-        date: "26 April 2026",
-        category: "New Branch",
-        href: "/gallery-activities/playpro-bandung",
-    },
-    {
-        title: "Special Class Kini Hadir Handball",
-        description:
-            "Eksplorasi olahraga baru seperti hockey, baseball, hingga handball dalam program Special Class PlayPro Academy.",
-        image:
-            "/images/galleries/gallery-1.png",
-        date: "12 May 2026",
-        category: "Special Class",
-        href: "/gallery-activities/special-class",
-    },
-    {
-        title: "Mengapa Multisport Penting untuk Toddler?",
-        description:
-            "Pendekatan multisport membantu perkembangan motorik, fokus, dan koordinasi anak sejak usia dini.",
-        image:
-            "/images/galleries/gallery-4.png",
-        date: "08 May 2026",
-        category: "Parent Insights",
-        href: "/gallery-activities/multisport-toddler",
-    },
-    {
-        title: "Holiday Sports Camp 2026",
-        description:
-            "Program liburan interaktif penuh aktivitas olahraga menyenangkan untuk meningkatkan teamwork dan confidence anak.",
-        image:
-            "/images/galleries/gallery-6.png",
-        date: "01 June 2026",
-        category: "Event",
-        href: "/gallery-activities/holiday-camp",
-    },
-]
 
 const smoothTransition: Transition = {
     duration: 0.7,
@@ -108,7 +66,7 @@ const cardVariant = {
 function ArticleCard({
     article,
 }: {
-    article: (typeof articles)[0]
+    article: Article
 }) {
     return (
         <article
@@ -120,10 +78,9 @@ function ArticleCard({
         hover:-translate-y-2 hover:shadow-[0_30px_90px_rgba(15,23,42,0.14)]
       "
         >
-            {/* Image */}
             <motion.div className="relative aspect-[4/5] overflow-hidden">
                 <Image
-                    src={article.image}
+                    src={article.cover_image_url}
                     alt={article.title}
                     fill
                     className="
@@ -132,29 +89,16 @@ function ArticleCard({
           "
                 />
 
-                {/* Overlay */}
                 <motion.div
                     className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/5"
-                    whileHover={{
-                        opacity: 0.85,
-                    }}
+                    whileHover={{ opacity: 0.85 }}
                 />
 
-                {/* Floating Category */}
                 <motion.div
                     className="absolute left-5 top-5 z-10"
-                    initial={{
-                        opacity: 0,
-                        y: -10,
-                    }}
-                    whileInView={{
-                        opacity: 1,
-                        y: 0,
-                    }}
-                    transition={{
-                        delay: 0.2,
-                        duration: 0.5,
-                    }}
+                    initial={{ opacity: 0, y: -10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
                 >
                     <div
                         className="
@@ -165,21 +109,17 @@ function ArticleCard({
             "
                     >
                         <Sparkles className="h-3.5 w-3.5" />
-                        {article.category}
+                        {article.categoryLabel}
                     </div>
                 </motion.div>
             </motion.div>
 
-            {/* Content */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-6 md:p-7">
-
-                {/* Date */}
                 <div className="flex items-center gap-2 text-sm text-white/70">
                     <CalendarDays className="h-4 w-4" />
-                    {article.date}
+                    {article.publishedAtLabel}
                 </div>
 
-                {/* Title */}
                 <h3
                     className="
             mt-3 text-2xl font-extrabold leading-tight
@@ -189,24 +129,18 @@ function ArticleCard({
                     {article.title}
                 </h3>
 
-                {/* Description */}
                 <p
                     className="
             mt-3 line-clamp-3 text-sm leading-relaxed
             text-white/80
           "
                 >
-                    {article.description}
+                    {article.excerpt}
                 </p>
 
-                {/* Read More */}
-                <motion.div className="mt-5"
-                    whileHover={{
-                        x: 4,
-                    }}
-                >
+                <motion.div className="mt-5" whileHover={{ x: 4 }}>
                     <Link
-                        href={article.href}
+                        href={`/activities/${article.slug}`}
                         className="
               inline-flex items-center gap-2 text-sm font-semibold
               text-white transition-all duration-300
@@ -222,12 +156,19 @@ function ArticleCard({
     )
 }
 
+function ArticleCardSkeleton() {
+    return (
+        <div className="aspect-[4/5] animate-pulse overflow-hidden rounded-[2.2rem] border border-slate-100 bg-slate-100" />
+    )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ActivitiesSection() {
+    const { articles, isLoading, error } = useLatestArticles(4)
+
     return (
         <section className="relative overflow-hidden py-24">
-
             {/* Background */}
             <div className="absolute inset-0 -z-10">
 
@@ -312,55 +253,48 @@ export default function ActivitiesSection() {
                         positif, dan penuh semangat.
                     </motion.p>
                 </motion.div>
-
-                {/* Carousel */}
+                
                 <motion.div
                     className="mt-16"
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.2 }}
-                    transition={{
-                        duration: 0.8,
-                        ease: "easeOut",
-                    }}
-
+                    transition={{ duration: 0.8, ease: "easeOut" }}
                 >
-
-                    <Carousel
-                        opts={{
-                            align: "start",
-                            loop: true,
-                        }}
-                        className="w-full"
-                    >
-
-                        {/* Navigation Desktop */}
-                        <div className="mb-8 hidden justify-end gap-3 md:flex">
-                            <CarouselPrevious className="static translate-y-0 rounded-2xl border-slate-200 bg-white shadow-sm hover:bg-slate-50" />
-
-                            <CarouselNext className="static translate-y-0 rounded-2xl border-slate-200 bg-white shadow-sm hover:bg-slate-50" />
-                        </div>
-
-                        {/* Content */}
-                        <CarouselContent className="-ml-6">
-                            {articles.map((article) => (
-                                <CarouselItem
-                                    key={article.title}
-                                    className="
-                    pl-6 sm:basis-1/2 xl:basis-1/3
-                  "
-                                >
-                                    <ArticleCard article={article} />
-                                </CarouselItem>
+                    {isLoading ? (
+                        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <ArticleCardSkeleton key={i} />
                             ))}
-                        </CarouselContent>
-
-                        {/* Navigation Mobile */}
-                        <div className="mt-8 flex justify-center gap-3 md:hidden">
-                            <CarouselPrevious className="static translate-y-0" />
-                            <CarouselNext className="static translate-y-0" />
                         </div>
-                    </Carousel>
+                    ) : error ? (
+                        <p className="text-center text-red-500">{error}</p>
+                    ) : articles.length === 0 ? (
+                        <p className="text-center text-slate-500">Belum ada artikel terbaru.</p>
+                    ) : (
+                        <Carousel opts={{ align: "start", loop: true }} className="w-full">
+                            <div className="mb-8 hidden justify-end gap-3 md:flex">
+                                <CarouselPrevious className="static translate-y-0 rounded-2xl border-slate-200 bg-white shadow-sm hover:bg-slate-50" />
+                                <CarouselNext className="static translate-y-0 rounded-2xl border-slate-200 bg-white shadow-sm hover:bg-slate-50" />
+                            </div>
+
+                            <CarouselContent className="-ml-6">
+                                {articles.map((article) => (
+                                    <CarouselItem
+                                        key={article.id}
+                                        className="pl-6 sm:basis-1/2 xl:basis-1/3"
+                                    >
+                                        <ArticleCard article={article} />
+                                    </CarouselItem>
+                                ))}
+                            </CarouselContent>
+
+                            <div className="mt-8 flex justify-center gap-3 md:hidden">
+                                <CarouselPrevious className="static translate-y-0" />
+                                <CarouselNext className="static translate-y-0" />
+                            </div>
+                        </Carousel>
+                    )}
                 </motion.div>
 
                 {/* CTA */}
@@ -391,6 +325,6 @@ export default function ActivitiesSection() {
                     </Button>
                 </motion.div>
             </div>
-        </section >
+        </section>
     )
 }

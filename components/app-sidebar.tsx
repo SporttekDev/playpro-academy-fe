@@ -12,7 +12,7 @@ import {
   IconFileAi,
   IconFileDescription,
   IconHelp,
-  IconInnerShadowTop,
+  IconCheckupList,
   IconMapPin,
   IconReport,
   IconSearch,
@@ -21,6 +21,8 @@ import {
   IconUserCheck,
   IconUsers,
   IconUsersGroup,
+  IconMoneybag,
+  IconSettingsDollar,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -44,6 +46,7 @@ import Link from "next/link"
 import Image from 'next/image';
 
 const data = {
+  // Menu operasional biasa — dipakai admin, superadmin, coach, parent (difilter per role di bawah)
   navMain: [
     {
       title: "Dashboard",
@@ -66,9 +69,23 @@ const data = {
       icon: IconReport,
     },
     {
+      title: "Coach Attendance",
+      url: "/coach-attendance",
+      icon: IconCheckupList,
+    },
+    {
       title: "Monthly Report",
       url: "/monthly-reports",
       icon: IconClipboardText,
+    },
+  ],
+
+  // Menu payroll/finance — terpisah karena admin biasa TIDAK boleh akses ini
+  navFinance: [
+    {
+      title: "Payroll",
+      url: "/payroll",
+      icon: IconMoneybag,
     },
   ],
 
@@ -213,7 +230,7 @@ export function AppSidebar({
         avatar: session?.avatar ?? "/avatars/default.jpg",
       })
 
-      setRole(session?.role ?? null)
+      setRole(session?.role ? String(session.role).toLowerCase() : null)
     } catch (err) {
       console.error("JSON parse error:", err)
 
@@ -225,18 +242,38 @@ export function AppSidebar({
   const filteredNavMain = useMemo(() => {
     if (!role) return []
 
+    // SUPERADMIN: semua menu operasional + payroll
+    if (role === "superadmin") {
+      return [...data.navMain, ...data.navFinance]
+    }
+
+    // ADMIN: semua menu operasional, TANPA payroll
     if (role === "admin") {
       return data.navMain
     }
 
+    // COACH: subset menu operasional + payroll (lihat gaji sendiri)
     if (role === "coach") {
-      return data.navMain.filter(
-        (item) =>
-          item.url === "/dashboard" ||
-          item.url === "/attendance-reports"
-      )
+      return [
+        ...data.navMain.filter(
+          (item) =>
+            item.url === "/dashboard" ||
+            item.url === "/attendance-reports" ||
+            item.url === "/coach-attendance"
+        ),
+        // ...data.navFinance.filter((item) => item.url === "/payroll"),
+      ]
     }
 
+    // FINANCE: dashboard + payroll only (scope saat ini)
+    if (role === "finance") {
+      return [
+        ...data.navMain.filter((item) => item.url === "/dashboard"),
+        ...data.navFinance,
+      ]
+    }
+
+    // PARENT
     if (role === "parent") {
       return data.navMain.filter(
         (item) => item.url === "/dashboard"
@@ -261,7 +298,7 @@ export function AppSidebar({
               className="data-[slot=sidebar-menu-button]:!p-1.5 h-16"
             >
               <Link href="/" className="flex items-center gap-2 justify-center">
-                <Image 
+                <Image
                   src="/images/ppa-logo-inline-fill.png"
                   alt="Playpro Academy Logo"
                   width={180}
@@ -276,7 +313,7 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={filteredNavMain} />
 
-        {role === "admin" && (
+        {(role === "admin" || role === "superadmin") && (
           <NavDocuments items={data.documents} />
         )}
 

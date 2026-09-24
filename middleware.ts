@@ -43,17 +43,31 @@ function isPublicRoute(pathname: string) {
 }
 
 function isAllowed(role: string, pathname: string) {
-
-    // ADMIN
-    if (role === "admin") {
+    // SUPERADMIN - full access to everything
+    if (role === "superadmin") {
         return true;
+    }
+
+    // ADMIN - full access EXCEPT payroll/finance module
+    if (role === "admin") {
+        return !pathname.startsWith("/payroll");
+    }
+
+    // FINANCE - only dashboard and payroll module (payroll-only scope for now)
+    if (role === "finance") {
+        return (
+            pathname.startsWith("/dashboard") ||
+            pathname.startsWith("/payroll")
+        );
     }
 
     // COACH
     if (role === "coach") {
         return (
             pathname.startsWith("/dashboard") ||
-            pathname.startsWith("/attendance-reports")
+            pathname.startsWith("/attendance-reports") ||
+            pathname.startsWith("/attendance-checkin") ||
+            pathname.startsWith("/coach-attendance")
         );
     }
 
