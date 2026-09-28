@@ -50,7 +50,7 @@ interface Branch {
 interface Session {
     id: number;
     name: string;
-    role: 'admin' | 'coach' | 'parent';
+    role: 'admin' | 'coach' | 'parent' | 'superadmin' | 'finance';
 }
 
 const MONTHS = [
@@ -128,7 +128,8 @@ export default function CoachAttendancePage() {
         }
     }, []);
 
-    const isAdmin = session !== 'loading' && session !== null && session.role === 'admin';
+    const role = session !== 'loading' && session !== null ? session.role : null;
+    const isAdmin = role === 'admin' || role === 'superadmin' || role === 'finance';
     const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     const fetchBranches = useCallback(async () => {
@@ -205,8 +206,8 @@ export default function CoachAttendancePage() {
             row.status === 'Not Checked In'
                 ? 'Check-in'
                 : row.status === 'Checked In'
-                ? 'Check-out'
-                : 'Selesai';
+                    ? 'Check-out'
+                    : 'Selesai';
 
         return (
             <Button
@@ -286,12 +287,12 @@ export default function CoachAttendancePage() {
         },
         ...(isCoach
             ? ([
-                  {
-                      id: 'actions',
-                      header: 'Actions',
-                      cell: ({ row }) => <AttendanceActionButton row={row.original} />,
-                  },
-              ] as ColumnDef<CoachAttendanceRow>[])
+                {
+                    id: 'actions',
+                    header: 'Actions',
+                    cell: ({ row }) => <AttendanceActionButton row={row.original} />,
+                },
+            ] as ColumnDef<CoachAttendanceRow>[])
             : []),
     ];
 
