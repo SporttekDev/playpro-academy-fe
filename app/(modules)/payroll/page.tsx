@@ -390,7 +390,7 @@ export default function PayrollPage() {
         try {
             const token = Cookies.get('token');
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/coach-schedule/${coachScheduleId}/payroll-flags`,
+                `${process.env.NEXT_PUBLIC_API_URL}/finance/coach-schedule/${coachScheduleId}/payroll-flags`,
                 {
                     method: 'PATCH',
                     headers: {
