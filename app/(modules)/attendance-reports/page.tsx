@@ -42,6 +42,7 @@ interface AttendanceReport {
     locomotor: string;
     body_control: string;
     overall: number;
+    submitted_at: string | null;
     schedule: Schedule;
     coach: Coach;
     play_kid: PlayKid;
@@ -363,6 +364,21 @@ function AttendanceReportsContent() {
 
                 const coachName = coach?.user?.name ?? 'Unknown';
                 return `Submitted by ${coachName}`;
+            },
+        },
+        {
+            header: 'Submitted At',
+            cell: ({ row }) => {
+                const iso = row.original.submitted_at;
+                if (!iso) return <span className="text-xs text-muted-foreground">Belum disubmit</span>;
+                return new Intl.DateTimeFormat('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Jakarta',
+                }).format(new Date(iso));
             },
         },
         {
