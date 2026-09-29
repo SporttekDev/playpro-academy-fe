@@ -31,6 +31,7 @@ interface AttendanceReport {
     locomotor: string | null
     body_control: string | null
     overall: number | null
+    submitted_at: string | null
     created_at: string
     updated_at: string
     schedule: {
@@ -219,10 +220,9 @@ function AttendanceReportFormContent() {
     }, [report?.motorik, report?.locomotor, report?.body_control, report?.attendance])
 
     const fieldClass = (errorMsg: string, disabled: boolean) =>
-        `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${
-            disabled
-                ? 'border-gray-200 bg-muted text-muted-foreground cursor-not-allowed'
-                : errorMsg
+        `min-h-[80px] resize-none rounded-md border px-3 py-2 focus:outline-none focus:ring-2 ${disabled
+            ? 'border-gray-200 bg-muted text-muted-foreground cursor-not-allowed'
+            : errorMsg
                 ? 'border-red-500 ring-red-200'
                 : 'border-gray-200 ring-emerald-300'
         }`
@@ -309,6 +309,18 @@ function AttendanceReportFormContent() {
         } catch {
             return bd
         }
+    }
+
+    const formatSubmittedAt = (iso?: string | null) => {
+        if (!iso) return null
+        return new Intl.DateTimeFormat('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Jakarta',
+        }).format(new Date(iso))
     }
 
     return (
@@ -400,6 +412,12 @@ function AttendanceReportFormContent() {
                                     <div className="text-sm text-muted-foreground">Attendance</div>
                                     <div className="text-sm font-medium">
                                         {report?.attendance ? 'Present' : 'Absent'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-sm text-muted-foreground">Submitted</div>
+                                    <div className="text-sm font-medium">
+                                        {formatSubmittedAt(report.submitted_at) ?? 'Belum disubmit coach'}
                                     </div>
                                 </div>
                             </div>
