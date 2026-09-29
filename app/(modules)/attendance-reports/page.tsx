@@ -151,6 +151,9 @@ function AttendanceReportsContent() {
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
+    const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
+    const basePath = isCoach ? 'coach' : 'admin';
+
     useEffect(() => {
         const sessionString = Cookies.get('session_key');
         if (sessionString) {
@@ -206,7 +209,7 @@ function AttendanceReportsContent() {
             }
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report?${params.toString()}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/${basePath}/attendance-report?${params.toString()}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -214,7 +217,11 @@ function AttendanceReportsContent() {
                     },
                 }
             );
-            if (!response.ok) throw new Error('Failed to fetch attendance reports');
+            if (!response.ok) {
+                const body = await response.text();
+                console.error('Attendance report error:', response.status, body);
+                throw new Error(`Failed (${response.status})`);
+            }
             const { data } = await response.json();
             setAttendanceReports(data);
         } catch (error) {
@@ -225,8 +232,9 @@ function AttendanceReportsContent() {
     }, [selectedMonth, selectedYear, selectedBranch, session]);
 
     useEffect(() => {
+        if (session === 'loading' || isCoach) return;
         fetchBranches();
-    }, [fetchBranches]);
+    }, [fetchBranches, session, isCoach]);
 
     useEffect(() => {
         fetchAttendanceReports();
@@ -318,8 +326,6 @@ function AttendanceReportsContent() {
         setSelectedFile(null);
         setImportResult(null);
     };
-
-    const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     const columns: ColumnDef<AttendanceReport>[] = [
         {

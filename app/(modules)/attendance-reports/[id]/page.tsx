@@ -94,6 +94,8 @@ interface Session {
 const MIN_CHARS = 200
 const MAX_CHARS = 650
 
+const getBasePath = (role?: string) => (role === 'coach' ? 'coach' : 'admin')
+
 function AttendanceReportFormContent() {
     const { id } = useParams()
     const router = useRouter()
@@ -142,13 +144,23 @@ function AttendanceReportFormContent() {
             const sessionString = Cookies.get('session_key')
             if (!sessionString) return null
             const sessionKey = JSON.parse(sessionString)
+            const basePath = getBasePath(sessionKey.role)
 
             const token = Cookies.get('token')
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                `${process.env.NEXT_PUBLIC_API_URL}/${basePath}/attendance-report/${id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
             )
-            if (!response.ok) throw new Error('Failed to fetch report')
+            if (!response.ok) {
+                const body = await response.text()
+                console.error('Fetch report error:', response.status, body)
+                throw new Error(`Failed to fetch report (${response.status})`)
+            }
 
             const { data } = await response.json()
             const reportData = {
@@ -244,6 +256,8 @@ function AttendanceReportFormContent() {
 
         try {
             const token = Cookies.get('token')
+            const basePath = getBasePath(session?.role)
+
             const payload = {
                 coach_id: session?.role === 'coach' ? session.coach.id : report?.coach_id,
                 motorik: report?.motorik?.trim() || null,
@@ -253,17 +267,22 @@ function AttendanceReportFormContent() {
                 overall: report?.overall,
             }
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/attendance-report/${id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/${basePath}/attendance-report/${id}`,
                 {
                     method: 'PUT',
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/json',
+                        Accept: 'application/json',
                     },
                     body: JSON.stringify(payload),
                 }
             )
-            if (!response.ok) throw new Error('Failed to update report')
+            if (!response.ok) {
+                const body = await response.text()
+                console.error('Update report error:', response.status, body)
+                throw new Error(`Failed to update report (${response.status})`)
+            }
 
             await fetchReport(String(id))
             toast.success('Report updated successfully')
