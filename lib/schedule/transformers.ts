@@ -15,6 +15,13 @@ function formatTime(time: string): string {
     return time.slice(0, 5); // "15:00:00" -> "15:00"
 }
 
+const KNOWN_STATUSES: ScheduleStatus[] = ["Available", "Almost Full", "Full"];
+
+// Status tak dikenal dari backend dianggap "Available" supaya kartu tetap tampil rapi.
+function normalizeStatus(status: string): ScheduleStatus {
+    return KNOWN_STATUSES.includes(status as ScheduleStatus) ? (status as ScheduleStatus) : "Available";
+}
+
 export function mapRawToScheduleItem(raw: RawSchedule): ScheduleItem {
     return {
         id: raw.id,
@@ -30,7 +37,7 @@ export function mapRawToScheduleItem(raw: RawSchedule): ScheduleItem {
         endTime: formatTime(raw.end_time),
         quota: raw.quota,
         slotsRemaining: raw.slots_remaining,
-        status: raw.status as ScheduleStatus,
+        status: normalizeStatus(raw.status),
         coachName: raw.coach_name,
     };
 }

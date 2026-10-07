@@ -28,5 +28,6 @@ export async function listPublicSchedules(): Promise<RawSchedule[]> {
     }
 
     const json = await res.json();
-    return json.data;
+    // Backend sudah menyaring sesi batal; `?? []` menjaga halaman tetap jalan bila data kosong.
+    return (json.data ?? []) as RawSchedule[];
 }

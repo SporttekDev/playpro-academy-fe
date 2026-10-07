@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Cookies from "js-cookie"
 import {
     Bell,
     BookOpen,
@@ -18,6 +17,7 @@ import { Card, CardContent, CardHeader } from "../ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 
 import { SectionTitle } from "./section-title"
+import { apiRequest, getErrorMessage } from "@/lib/api"
 
 // ─────────────────────────────────────────────
 // Types
@@ -144,36 +144,11 @@ export default function ParentDashboard({ name }: { name: string }) {
                 setLoading(true)
                 setError("")
 
-                const token = Cookies.get("token")
-
-                if (!token) {
-                    throw new Error("Token not found. Please login again.")
-                }
-
-                const response = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/dashboard/parent`,
-                    {
-                        method: "GET",
-                        headers: {
-                            Accept: "application/json",
-                            Authorization: `Bearer ${token}`,
-                        },
-                        signal: controller.signal,
-                    }
-                )
-
-                if (response.status === 401) {
-                    throw new Error("Unauthorized. Please login again.")
-                }
-
-                if (!response.ok) {
-                    const result = await response.json().catch(() => null)
-                    throw new Error(
-                        result?.message ?? "Failed to load parent dashboard"
-                    )
-                }
-
-                const result: ParentDashboardResponse = await response.json()
+                // Endpoint dashboard tidak memakai envelope { data }, jadi pakai body utuh.
+                const { raw } = await apiRequest("/dashboard/parent", {
+                    signal: controller.signal,
+                })
+                const result = raw as ParentDashboardResponse
                 setData(result)
                 setActiveChildId(result.active_child_id)
             } catch (err) {
@@ -182,7 +157,7 @@ export default function ParentDashboard({ name }: { name: string }) {
                 }
 
                 console.error(err)
-                setError(err instanceof Error ? err.message : "Failed to load dashboard")
+                setError(getErrorMessage(err, "Failed to load dashboard"))
             } finally {
                 setLoading(false)
             }
@@ -265,8 +240,8 @@ export default function ParentDashboard({ name }: { name: string }) {
                             key={child.id}
                             onClick={() => setActiveChildId(child.id)}
                             className={`flex min-w-[240px] items-center gap-3 rounded-[1.5rem] border px-4 py-3 text-left shadow-sm transition ${isActive
-                                    ? "border-primary bg-primary text-white"
-                                    : "border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5"
+                                ? "border-primary bg-primary text-white"
+                                : "border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5"
                                 }`}
                         >
                             <Avatar className="h-12 w-12 shrink-0">
@@ -351,8 +326,8 @@ export default function ParentDashboard({ name }: { name: string }) {
                             </CardHeader>
 
                             <CardContent className="space-y-4 p-6 pt-0">
-                                {activeChild.upcoming_schedules.length > 0 ? (
-                                    activeChild.upcoming_schedules.map((schedule) => (
+                                {(activeChild.upcoming_schedules ?? []).length > 0 ? (
+                                    (activeChild.upcoming_schedules ?? []).map((schedule) => (
                                         <div
                                             key={schedule.id}
                                             className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 p-4"

@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import Cookies from "js-cookie"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, CheckCircle2, Clock, Loader2, MapPin } from "lucide-react"
+import { ArrowLeft, Ban, CheckCircle2, Clock, Loader2, MapPin } from "lucide-react"
 import { CameraGeoCapture } from "@/components/coach/camera-geo-capture"
 import { AttendanceStepper } from "@/components/coach/attendance-stepper"
+import { ApiError, apiRequest, getErrorMessage } from "@/lib/api"
 
 type ScheduleInfo = {
     class_name: string
@@ -18,6 +18,13 @@ type ScheduleInfo = {
     date: string
     start_time: string
     end_time: string
+    // "scheduled" | "cancelled" (butuh patch CoachAttendanceController bagian 6b)
+    status?: string | null
+}
+
+type DistanceError = {
+    distance_meters?: number
+    max_radius_meters?: number
 }
 
 type AttendanceStatus = {
@@ -54,22 +61,18 @@ export default function AttendanceCheckinPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [loadError, setLoadError] = useState(false)
 
-    const fetchStatus = useCallback(async () => {
+    const fetchStatus = useCallback(async (showLoader = true) => {
         try {
-            setIsLoading(true)
+            if (showLoader) setIsLoading(true)
             setLoadError(false)
-            const token = Cookies.get("token")
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/coach/schedule/${scheduleId}/attendance-status`,
-                { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+            const { data } = await apiRequest<AttendanceStatus>(
+                `/coach/schedule/${scheduleId}/attendance-status`
             )
-            if (!res.ok) throw new Error("Failed to load status")
-            const { data } = await res.json()
             setStatus(data)
         } catch (err) {
             console.error(err)
             setLoadError(true)
-            toast.error("Gagal memuat status absensi")
+            toast.error(getErrorMessage(err, "Gagal memuat status absensi"))
         } finally {
             setIsLoading(false)
         }
@@ -85,39 +88,36 @@ export default function AttendanceCheckinPage() {
     ) {
         try {
             setIsSubmitting(true)
-            const token = Cookies.get("token")
             const formData = new FormData()
             formData.append("photo", result.photoBlob, "attendance.jpg")
             formData.append("latitude", String(result.latitude))
             formData.append("longitude", String(result.longitude))
 
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/coach/schedule/${scheduleId}/${mode}`,
-                {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                    body: formData,
-                }
-            )
-
-            const json = await res.json()
-
-            if (!res.ok) {
-                if (json?.data?.distance_meters) {
-                    toast.error(
-                        `Kamu terlalu jauh dari venue (${json.data.distance_meters}m, maksimal ${json.data.max_radius_meters}m).`
-                    )
-                } else {
-                    toast.error(json?.message ?? "Gagal mengirim absensi")
-                }
-                return
-            }
+            await apiRequest(`/coach/schedule/${scheduleId}/${mode}`, {
+                method: "POST",
+                body: formData,
+            })
 
             toast.success(mode === "check-in" ? "Check-in berhasil!" : "Check-out berhasil!")
-            await fetchStatus()
+            await fetchStatus(false)
         } catch (err) {
             console.error(err)
-            toast.error("Terjadi kesalahan saat mengirim absensi")
+
+            // Detail jarak dikirim backend di key `error` (bukan `data`).
+            const details = err instanceof ApiError ? (err.errors as DistanceError | null) : null
+
+            if (details?.distance_meters !== undefined) {
+                toast.error(
+                    `Kamu terlalu jauh dari venue (${details.distance_meters}m, maksimal ${details.max_radius_meters}m).`
+                )
+            } else {
+                toast.error(getErrorMessage(err, "Gagal mengirim absensi"))
+            }
+
+            // Sesi mungkin baru dibatalkan admin: muat ulang supaya tampilan ikut berubah.
+            if (err instanceof ApiError && err.status === 422) {
+                await fetchStatus(false)
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -151,6 +151,7 @@ export default function AttendanceCheckinPage() {
     const hasCheckedIn = Boolean(status.check_in_at)
     const hasCheckedOut = Boolean(status.check_out_at)
     const schedule = status.schedule
+    const isCancelled = schedule?.status === "cancelled"
 
     return (
         <div className="mx-auto max-w-md space-y-5 px-4 py-6">
@@ -166,7 +167,7 @@ export default function AttendanceCheckinPage() {
             <Card className="overflow-hidden rounded-3xl border-slate-200 bg-gradient-to-br from-primary via-primary/95 to-cyan-500 text-white shadow-[0_20px_60px_rgba(59,130,246,0.18)]">
                 <CardContent className="space-y-3 p-5">
                     <Badge className="w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1 text-white">
-                        Jadwal Hari Ini
+                        {isCancelled ? "Sesi Dibatalkan" : "Jadwal Hari Ini"}
                     </Badge>
 
                     <h2 className="text-xl font-extrabold tracking-tight">
@@ -188,6 +189,20 @@ export default function AttendanceCheckinPage() {
                 </CardContent>
             </Card>
 
+            {isCancelled && (
+                <Card className="rounded-3xl border-rose-200 bg-rose-50">
+                    <CardContent className="flex items-start gap-3 p-5 text-sm text-rose-700">
+                        <Ban className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div>
+                            <p className="font-semibold">Sesi ini dibatalkan oleh admin.</p>
+                            <p className="mt-1">
+                                Kamu tidak perlu check-in atau check-out, dan sesi ini tidak dihitung ke gaji.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Step indicator */}
             <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
                 <CardContent className="p-5">
@@ -196,7 +211,11 @@ export default function AttendanceCheckinPage() {
             </Card>
 
             {/* Konten utama sesuai state */}
-            {hasCheckedOut ? (
+            {isCancelled && !hasCheckedOut ? (
+                <Button variant="outline" className="w-full rounded-2xl" asChild>
+                    <Link href="/dashboard">Kembali ke Dashboard</Link>
+                </Button>
+            ) : hasCheckedOut ? (
                 <Card className="rounded-3xl border-emerald-200 bg-emerald-50">
                     <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">

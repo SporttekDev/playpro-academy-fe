@@ -57,7 +57,8 @@ function isAllowed(role: string, pathname: string) {
     if (role === "finance") {
         return (
             pathname.startsWith("/dashboard") ||
-            pathname.startsWith("/payroll")
+            pathname.startsWith("/payroll") ||
+            pathname.startsWith("/reschedules")
         );
     }
 

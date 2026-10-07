@@ -28,6 +28,8 @@ function getStatusStyle(status: ScheduleItem["status"]) {
             return "bg-amber-50 text-amber-600 border-amber-200"
         case "Full":
             return "bg-rose-50 text-rose-600 border-rose-200"
+        default:
+            return "bg-slate-50 text-slate-500 border-slate-200"
     }
 }
 

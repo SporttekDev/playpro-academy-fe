@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Cookies from "js-cookie"
 import {
     AlertTriangle,
     ArrowDownRight,
@@ -11,6 +10,7 @@ import {
     ChevronLeft,
     ChevronRight,
     ClipboardList,
+    Hourglass,
     Loader2,
     UserRoundX,
     Wallet,
@@ -21,6 +21,7 @@ import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import MetricCard from "./metric-card"
 import { SectionTitle } from "./section-title"
+import { ApiError, apiRequest, getErrorMessage } from "@/lib/api"
 
 // ─────────────────────────────────────────────
 // Types
@@ -42,6 +43,8 @@ type FinanceDashboardResponse = {
     }
     coach_not_generated: { count: number }
     items_needing_review: { count: number }
+    // Sesi belum selesai yang menahan finalize. Butuh patch DashboardFinanceController 5b.
+    items_pending?: { count: number }
 }
 
 // ─────────────────────────────────────────────
@@ -82,45 +85,22 @@ export default function FinanceDashboard({ name }: { name: string }) {
                 setLoading(true)
                 setError("")
 
-                const token = Cookies.get("token")
-                if (!token) {
-                    throw new Error("Token not found. Please login again.")
-                }
-
-                const response = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/dashboard/finance?month=${month}&year=${year}`,
-                    {
-                        method: "GET",
-                        headers: {
-                            Accept: "application/json",
-                            Authorization: `Bearer ${token}`,
-                        },
-                        signal: controller.signal,
-                    }
-                )
-                console.log("Finance dashboard response status:", response.status)
-
-                if (response.status === 401) {
-                    throw new Error("Unauthorized. Please login again.")
-                }
-                if (response.status === 403) {
-                    throw new Error("You don't have access to the finance dashboard.")
-                }
-
-                if (!response.ok) {
-                    const result = await response.json().catch(() => null)
-                    throw new Error(result?.message ?? "Failed to load finance dashboard")
-                }
-
-                const result = await response.json()
-                setData(result.data)
+                const { data } = await apiRequest<FinanceDashboardResponse>("/dashboard/finance", {
+                    query: { month, year },
+                    signal: controller.signal,
+                })
+                setData(data)
             } catch (err) {
                 if (err instanceof DOMException && err.name === "AbortError") {
                     return
                 }
 
                 console.error(err)
-                setError(err instanceof Error ? err.message : "Failed to load dashboard")
+                setError(
+                    err instanceof ApiError && err.status === 403
+                        ? "You don't have access to the finance dashboard."
+                        : getErrorMessage(err, "Failed to load dashboard")
+                )
             } finally {
                 setLoading(false)
             }
@@ -218,7 +198,9 @@ export default function FinanceDashboard({ name }: { name: string }) {
                 </CardHeader>
             </Card>
 
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            <div
+                className={`grid grid-cols-2 gap-3 sm:gap-4 ${data.items_pending ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}
+            >
                 <MetricCard
                     title="Total Payroll"
                     value={formatCurrency(data.summary.total_amount)}
@@ -247,6 +229,15 @@ export default function FinanceDashboard({ name }: { name: string }) {
                     icon={AlertTriangle}
                     trend="Attention"
                 />
+                {data.items_pending ? (
+                    <MetricCard
+                        title="Not Finished Yet"
+                        value={`${data.items_pending.count}`}
+                        note="Sessions still upcoming, block finalize"
+                        icon={Hourglass}
+                        trend="Pending"
+                    />
+                ) : null}
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -301,8 +292,8 @@ export default function FinanceDashboard({ name }: { name: string }) {
 
                             <div
                                 className={`mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${isPositiveGrowth
-                                        ? "bg-emerald-500/10 text-emerald-700"
-                                        : "bg-rose-500/10 text-rose-700"
+                                    ? "bg-emerald-500/10 text-emerald-700"
+                                    : "bg-rose-500/10 text-rose-700"
                                     }`}
                             >
                                 {isPositiveGrowth ? (
