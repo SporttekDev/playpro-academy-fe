@@ -13,9 +13,11 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { IconCalendarCog, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconArrowBackUp, IconArrowsExchange, IconBan, IconCalendarCog, IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/date-picker';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
@@ -25,8 +27,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { apiRequest, getErrorMessage } from '@/lib/api';
 
 type CoachRole = 'head_coach' | 'captain_coach' | 'assistant_coach' | 'assistant_coach_vip';
+type RescheduleKind = 'coach_request' | 'admin_change';
+type ScheduleStatus = 'scheduled' | 'cancelled';
 
 const COACH_ROLES: { value: CoachRole; label: string }[] = [
     { value: 'head_coach', label: 'Head Coach' },
@@ -35,6 +40,18 @@ const COACH_ROLES: { value: CoachRole; label: string }[] = [
     { value: 'assistant_coach_vip', label: 'Assistant Coach VIP' },
 ];
 
+const RESCHEDULE_TYPES: { value: RescheduleKind; label: string; hint: string }[] = [
+    {
+        value: 'coach_request',
+        label: 'Coach cannot attend',
+        hint: "Counts toward the coach's monthly reschedule limit. Going over the limit forfeits their discipline bonus.",
+    },
+    {
+        value: 'admin_change',
+        label: 'Admin change',
+        hint: 'Schedule reorganized or entered by mistake. Does not count toward the limit.',
+    },
+];
 
 interface Branch {
     id: string;
@@ -50,6 +67,9 @@ interface Schedule {
     date: string;
     quota: number;
     venue_id: string;
+    status?: ScheduleStatus;
+    cancelled_at?: string | null;
+    cancel_reason?: string | null;
     class_model?: {
         id: string;
         name: string;
@@ -98,6 +118,8 @@ interface CoachSchedule {
     role_label: string;
     is_head_coach: boolean;
     attendance?: string;
+    /** Diisi backend jika sudah check-in (opsional). Penugasan yang sudah check-in tidak bisa diganti. */
+    checked_in?: boolean;
     coach?: {
         id: string;
         name: string;
@@ -151,6 +173,29 @@ interface AttendanceReportForm {
     overall?: number;
 }
 
+interface RescheduleForm {
+    type: RescheduleKind | '';
+    replacement_coach_id: string;
+    role: CoachRole;
+    reason: string;
+}
+
+interface RescheduleTarget {
+    assignment: CoachSchedule;
+    mode: 'replace' | 'remove';
+}
+
+interface RescheduleResult {
+    reschedule_count_this_month: number;
+    reschedule_limit: number;
+    discipline_bonus_forfeited: boolean;
+}
+
+interface StatusTarget {
+    kind: 'cancel' | 'reactivate';
+    schedule: Schedule;
+}
+
 const MONTHS = [
     { value: '1', label: 'Januari' },
     { value: '2', label: 'Februari' },
@@ -200,6 +245,13 @@ const defaultAttendanceReportForm: AttendanceReportForm = {
     overall: 0,
 };
 
+const defaultRescheduleForm: RescheduleForm = {
+    type: '',
+    replacement_coach_id: '',
+    role: 'assistant_coach',
+    reason: '',
+};
+
 const formatTimeForInput = (timeString: string): string => {
     if (!timeString) return '';
     if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
@@ -212,6 +264,12 @@ const formatTimeForAPI = (timeString: string): string => {
     if (/^\d{2}:\d{2}:\d{2}$/.test(timeString)) return timeString.substring(0, 5);
     if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
     return timeString;
+};
+
+/** Ambil bulan dan tahun dari tanggal 'YYYY-MM-DD' (atau ISO yang diawali tanggal). */
+const splitDate = (date: string): { month: number; year: number } => {
+    const [year, month] = date.split('-');
+    return { month: Number(month), year: Number(year) };
 };
 
 export default function SchedulesPage() {
@@ -245,6 +303,31 @@ export default function SchedulesPage() {
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
     const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
     const [selectedBranch, setSelectedBranch] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | ScheduleStatus>('all');
+
+    // Batalkan / aktifkan kembali sesi
+    const [statusTarget, setStatusTarget] = useState<StatusTarget | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [isChangingStatus, setIsChangingStatus] = useState(false);
+
+    // Ganti / cabut coach (reschedule)
+    const [rescheduleTarget, setRescheduleTarget] = useState<RescheduleTarget | null>(null);
+    const [rescheduleForm, setRescheduleForm] = useState<RescheduleForm>(defaultRescheduleForm);
+    const [priorRequests, setPriorRequests] = useState<number | null>(null);
+    const [isRescheduling, setIsRescheduling] = useState(false);
+
+    const activeSchedule = schedules.find((s) => s.id === activeScheduleId);
+    const activeDate = activeSchedule?.date;
+    const isActiveCancelled = activeSchedule?.status === 'cancelled';
+
+    const visibleSchedules =
+        statusFilter === 'all'
+            ? schedules
+            : schedules.filter((s) => (s.status ?? 'scheduled') === statusFilter);
+
+    const replacementOptions = coaches
+        .filter((coach) => !coachSchedule.some((cs) => String(cs.coach_id) === String(coach.id)))
+        .map((coach) => ({ value: coach.id.toString(), label: coach.name }));
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -265,25 +348,14 @@ export default function SchedulesPage() {
 
     const fetchSchedules = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            const params = new URLSearchParams();
-            if (selectedMonth) params.append('month', selectedMonth);
-            if (selectedYear) params.append('year', selectedYear);
-            if (selectedBranch && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
-
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule?${params.toString()}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: 'application/json',
-                    },
-                }
-            );
-
-            if (!response.ok) throw new Error('Failed to fetch schedules');
-            const { data } = await response.json();
-            setSchedules(data);
+            const { data } = await apiRequest<Schedule[]>('/admin/schedule', {
+                query: {
+                    month: selectedMonth,
+                    year: selectedYear,
+                    branch_id: selectedBranch !== 'all' ? selectedBranch : undefined,
+                },
+            });
+            setSchedules(data ?? []);
         } catch (error) {
             console.error('Fetch schedules error:', error);
             toast.error('Failed to fetch schedule data');
@@ -292,16 +364,8 @@ export default function SchedulesPage() {
 
     const fetchClasses = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/class`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-            if (!response.ok) throw new Error('Failed to fetch classes');
-            const { data } = await response.json();
-            setClasses(data);
+            const { data } = await apiRequest<ClassData[]>('/admin/class');
+            setClasses(data ?? []);
         } catch (error) {
             console.error('Fetch classes error:', error);
             toast.error('Failed to fetch class data');
@@ -310,16 +374,8 @@ export default function SchedulesPage() {
 
     const fetchVenues = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/venue`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-            if (!response.ok) throw new Error('Failed to fetch venues');
-            const { data } = await response.json();
-            setVenues(data);
+            const { data } = await apiRequest<Venue[]>('/admin/venue');
+            setVenues(data ?? []);
         } catch (error) {
             console.error('Fetch venues error:', error);
             toast.error('Failed to fetch venue data');
@@ -328,16 +384,8 @@ export default function SchedulesPage() {
 
     const fetchCoaches = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-            if (!response.ok) throw new Error('Failed to fetch coaches');
-            const { data } = await response.json();
-            setCoaches(data.sort((a: Coach, b: Coach) => a.name.localeCompare(b.name)));
+            const { data } = await apiRequest<Coach[]>('/admin/coach');
+            setCoaches((data ?? []).sort((a: Coach, b: Coach) => a.name.localeCompare(b.name)));
         } catch (error) {
             console.error('Fetch coaches error:', error);
             toast.error('Failed to fetch coach data');
@@ -346,20 +394,12 @@ export default function SchedulesPage() {
 
     const fetchEligiblePlayKids = useCallback(async (scheduleId: number) => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/eligible-playkids`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: 'application/json',
-                    },
-                }
-            );
-            if (!response.ok) throw new Error('Failed to fetch eligible play kids');
-            const { data } = await response.json();
-            const playKidsWithValidSessions = data.filter(
-                (playKid: PlayKid & { memberships?: { sessions?: { count: number }[] }[] }) =>
+            const { data } = await apiRequest<
+                (PlayKid & { memberships?: { sessions?: { count: number }[] }[] })[]
+            >(`/admin/schedule/${scheduleId}/eligible-playkids`);
+
+            const playKidsWithValidSessions = (data ?? []).filter(
+                (playKid) =>
                     playKid.memberships &&
                     playKid.memberships.length > 0 &&
                     playKid.memberships.some(
@@ -378,19 +418,8 @@ export default function SchedulesPage() {
 
     const fetchCoachSchedules = useCallback(async (scheduleId: number) => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: 'application/json',
-                    },
-                }
-            );
-            if (!response.ok) throw new Error('Failed to fetch coach schedules');
-            const { data } = await response.json();
-            setCoachSchedule(data);
+            const { data } = await apiRequest<CoachSchedule[]>(`/admin/schedule/${scheduleId}/coaches`);
+            setCoachSchedule(data ?? []);
         } catch (error) {
             console.error('Fetch coach schedules error:', error);
             toast.error('Failed to fetch coach schedule data');
@@ -399,19 +428,8 @@ export default function SchedulesPage() {
 
     const fetchAttendanceReports = useCallback(async (scheduleId: number) => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: 'application/json',
-                    },
-                }
-            );
-            if (!response.ok) throw new Error('Failed to fetch attendance reports');
-            const { data } = await response.json();
-            setAttendanceReport(data);
+            const { data } = await apiRequest<AttendanceReport[]>(`/admin/schedule/${scheduleId}/attendance`);
+            setAttendanceReport(data ?? []);
         } catch (error) {
             console.error('Fetch attendance reports error:', error);
             toast.error('Failed to fetch attendance report data');
@@ -448,6 +466,35 @@ export default function SchedulesPage() {
         setFormData((prev) => ({ ...prev, venue_id: '' }));
     }, [formData.class_id]);
 
+    // Berapa kali coach ini sudah meminta reschedule di bulan sesi, supaya admin tahu dampaknya
+    // sebelum memilih "Coach cannot attend".
+    const rescheduleCoachId = rescheduleTarget?.assignment.coach_id;
+    useEffect(() => {
+        if (!rescheduleCoachId || rescheduleForm.type !== 'coach_request' || !activeDate) {
+            setPriorRequests(null);
+            return;
+        }
+
+        let ignore = false;
+        const { month, year } = splitDate(activeDate);
+
+        apiRequest<unknown[]>('/admin/reschedules', {
+            query: { month, year, coach_id: rescheduleCoachId, type: 'coach_request' },
+        })
+            .then(({ data }) => {
+                if (!ignore) setPriorRequests(Array.isArray(data) ? data.length : 0);
+            })
+            .catch(() => {
+                if (!ignore) setPriorRequests(null);
+            });
+
+        return () => {
+            ignore = true;
+        };
+    }, [rescheduleCoachId, rescheduleForm.type, activeDate]);
+
+    // -- Jadwal ----------------------------------------------------------------
+
     const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -471,11 +518,6 @@ export default function SchedulesPage() {
 
         try {
             setIsLoading(true);
-            const method = isEditing ? 'PUT' : 'POST';
-            const url = isEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${editId}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule`;
-            const token = Cookies.get('token');
 
             let submitData = {
                 ...formData,
@@ -493,25 +535,10 @@ export default function SchedulesPage() {
                 }
             }
 
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify(submitData),
+            await apiRequest(isEditing ? `/admin/schedule/${editId}` : '/admin/schedule', {
+                method: isEditing ? 'PUT' : 'POST',
+                body: submitData,
             });
-
-            if (!response.ok) {
-                const errorResponse = await response.json().catch(() => null);
-                if (response.status === 422 && errorResponse?.errors) {
-                    const errors = Object.values(errorResponse.errors).flat();
-                    toast.error((errors as string[]).join(', '));
-                    return;
-                }
-                throw new Error(errorResponse?.message || 'Failed to save schedule');
-            }
 
             await fetchSchedules();
             setIsDialogOpen(false);
@@ -521,7 +548,7 @@ export default function SchedulesPage() {
             toast.success(isEditing ? 'Schedule updated successfully!' : 'Schedule created successfully!');
         } catch (error) {
             console.error('Save schedule error:', error);
-            toast.error(error instanceof Error ? error.message : 'Failed to save schedule');
+            toast.error(getErrorMessage(error, 'Failed to save schedule'));
         } finally {
             setIsLoading(false);
         }
@@ -529,20 +556,13 @@ export default function SchedulesPage() {
 
     async function handleDeleteSchedule() {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${deleteId}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-            if (!response.ok) throw new Error('Failed to delete schedule');
+            await apiRequest(`/admin/schedule/${deleteId}`, { method: 'DELETE' });
             await fetchSchedules();
             toast.success('Schedule deleted successfully!');
         } catch (error) {
             console.error('Delete schedule error:', error);
-            toast.error('Failed to delete schedule');
+            // Pesan dari server, misalnya jika payroll untuk sesi ini sudah final.
+            toast.error(getErrorMessage(error, 'Failed to delete schedule'));
         } finally {
             setIsDeleteDialogOpen(false);
         }
@@ -569,37 +589,72 @@ export default function SchedulesPage() {
         setFormData((prev) => ({ ...prev, [field]: time }));
     };
 
+    // -- Batalkan / aktifkan kembali sesi --------------------------------------
+
+    const closeStatusDialog = () => {
+        setStatusTarget(null);
+        setCancelReason('');
+    };
+
+    const handleConfirmStatusChange = async () => {
+        if (!statusTarget) return;
+
+        const { kind, schedule } = statusTarget;
+
+        try {
+            setIsChangingStatus(true);
+            await apiRequest(`/admin/schedule/${schedule.id}/${kind}`, {
+                method: 'POST',
+                body: kind === 'cancel' ? { reason: cancelReason.trim() || undefined } : undefined,
+            });
+
+            await fetchSchedules();
+            toast.success(kind === 'cancel' ? 'Schedule cancelled' : 'Schedule reactivated');
+            closeStatusDialog();
+        } catch (error) {
+            console.error('Change schedule status error:', error);
+            toast.error(getErrorMessage(error, 'Failed to update schedule status'));
+        } finally {
+            setIsChangingStatus(false);
+        }
+    };
+
+    // -- Coach pada jadwal -----------------------------------------------------
+
     const handleSaveCoachSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!coachScheduleFormData.coach_id || coachScheduleFormData.role === undefined) {
-            toast.error('Coach and Head Coach status are required');
+            toast.error('Coach and role are required');
             return;
         }
+
+        const scheduleId = activeScheduleId;
+        if (!scheduleId) {
+            toast.error('No schedule selected');
+            return;
+        }
+
         try {
             setIsLoading(true);
-            const token = Cookies.get('token');
-            const scheduleId = activeScheduleId;
-            if (!scheduleId) { toast.error('No schedule selected'); return; }
 
-            const method = isCoachEditing ? 'PUT' : 'POST';
-            const url = isCoachEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches/${coachScheduleFormData.id}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches`;
-
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Accept: 'application/json' },
-                body: JSON.stringify({
-                    coach_id: coachScheduleFormData.coach_id,
-                    role: coachScheduleFormData.role,
-                    attendance: coachScheduleFormData.attendance || null,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorResponse = await response.json();
-                toast.error(errorResponse.message || 'Failed to save coach schedule');
-                return;
+            if (isCoachEditing) {
+                // Mengganti coach tidak lewat sini lagi: hanya role yang diubah.
+                await apiRequest(`/admin/schedule/${scheduleId}/coaches/${coachScheduleFormData.id}`, {
+                    method: 'PUT',
+                    body: {
+                        role: coachScheduleFormData.role,
+                        attendance: coachScheduleFormData.attendance || null,
+                    },
+                });
+            } else {
+                await apiRequest(`/admin/schedule/${scheduleId}/coaches`, {
+                    method: 'POST',
+                    body: {
+                        coach_id: coachScheduleFormData.coach_id,
+                        role: coachScheduleFormData.role,
+                        attendance: coachScheduleFormData.attendance || null,
+                    },
+                });
             }
 
             await fetchCoachSchedules(scheduleId);
@@ -608,33 +663,83 @@ export default function SchedulesPage() {
             toast.success(isCoachEditing ? 'Coach schedule updated successfully!' : 'Coach schedule created successfully!');
         } catch (error) {
             console.error('Save coach schedule error:', error);
-            toast.error('Failed to save coach schedule');
+            toast.error(getErrorMessage(error, 'Failed to save coach schedule'));
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleDeleteCoachSchedule = async () => {
-        try {
-            const token = Cookies.get('token');
-            const scheduleId = activeScheduleId;
-            if (!scheduleId || !deleteId) return;
+    const openReschedule = (assignment: CoachSchedule, mode: RescheduleTarget['mode']) => {
+        setRescheduleForm({ ...defaultRescheduleForm, role: assignment.role });
+        setPriorRequests(null);
+        setRescheduleTarget({ assignment, mode });
+    };
 
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/coaches/${deleteId}`,
-                { method: 'DELETE', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
+    const closeReschedule = () => {
+        setRescheduleTarget(null);
+        setRescheduleForm(defaultRescheduleForm);
+        setPriorRequests(null);
+    };
+
+    const handleSubmitReschedule = async () => {
+        if (!rescheduleTarget || !activeScheduleId) return;
+
+        const { assignment, mode } = rescheduleTarget;
+        const reason = rescheduleForm.reason.trim();
+
+        if (!rescheduleForm.type) {
+            toast.error('Please choose why the coach is being changed');
+            return;
+        }
+        if (mode === 'replace' && !rescheduleForm.replacement_coach_id) {
+            toast.error('Please choose a replacement coach');
+            return;
+        }
+        if (rescheduleForm.type === 'coach_request' && !reason) {
+            toast.error('A reason is required when the coach cannot attend');
+            return;
+        }
+
+        try {
+            setIsRescheduling(true);
+
+            const { data } = await apiRequest<RescheduleResult>(
+                `/admin/schedule/${activeScheduleId}/coaches/${assignment.id}/reschedule`,
+                {
+                    method: 'POST',
+                    body: {
+                        type: rescheduleForm.type,
+                        replacement_coach_id:
+                            mode === 'replace' ? Number(rescheduleForm.replacement_coach_id) : undefined,
+                        role: mode === 'replace' ? rescheduleForm.role : undefined,
+                        reason: reason || undefined,
+                    },
+                }
             );
-            if (!response.ok) throw new Error('Failed to delete coach schedule');
-            await fetchCoachSchedules(scheduleId);
-            toast.success('Coach schedule deleted successfully!');
+
+            await fetchCoachSchedules(activeScheduleId);
+            closeReschedule();
+
+            toast.success(mode === 'replace' ? 'Coach replaced' : 'Coach removed from the session');
+
+            if (rescheduleForm.type === 'coach_request' && data) {
+                const summary = `${data.reschedule_count_this_month} of ${data.reschedule_limit} allowed this month`;
+
+                if (data.discipline_bonus_forfeited) {
+                    toast.warning(`This coach is over the reschedule limit (${summary}). Their discipline bonus is forfeited.`);
+                } else {
+                    toast.info(`Reschedule recorded: ${summary}.`);
+                }
+            }
         } catch (error) {
-            console.error('Delete coach schedule error:', error);
-            toast.error('Failed to delete coach schedule');
+            console.error('Reschedule error:', error);
+            toast.error(getErrorMessage(error, 'Failed to change the coach'));
         } finally {
-            setIsDeleteDialogOpen(false);
-            setDeleteId(null);
+            setIsRescheduling(false);
         }
     };
+
+    // -- Absensi anak ----------------------------------------------------------
 
     const handleSaveAttendanceReport = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -642,16 +747,15 @@ export default function SchedulesPage() {
             toast.error('Play Kids are required');
             return;
         }
+
+        const scheduleId = activeScheduleId;
+        if (!scheduleId) {
+            toast.error('No schedule selected');
+            return;
+        }
+
         try {
             setIsLoading(true);
-            const token = Cookies.get('token');
-            const scheduleId = activeScheduleId;
-            if (!scheduleId) { toast.error('No schedule selected'); return; }
-
-            const method = isAttendanceEditing ? 'PUT' : 'POST';
-            const url = isAttendanceEditing
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance/${attendanceFormData.id}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance`;
 
             const submitData = isAttendanceEditing
                 ? {
@@ -673,17 +777,12 @@ export default function SchedulesPage() {
                     overall: attendanceFormData.overall || null,
                 };
 
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Accept: 'application/json' },
-                body: JSON.stringify(submitData),
-            });
-
-            if (!response.ok) {
-                const errorResponse = await response.json();
-                toast.error(errorResponse.message || 'Failed to save attendance report');
-                return;
-            }
+            await apiRequest(
+                isAttendanceEditing
+                    ? `/admin/schedule/${scheduleId}/attendance/${attendanceFormData.id}`
+                    : `/admin/schedule/${scheduleId}/attendance`,
+                { method: isAttendanceEditing ? 'PUT' : 'POST', body: submitData }
+            );
 
             await fetchAttendanceReports(scheduleId);
             await fetchSchedules();
@@ -693,35 +792,32 @@ export default function SchedulesPage() {
             toast.success(isAttendanceEditing ? 'Attendance report updated successfully!' : 'Attendance report created successfully!');
         } catch (error) {
             console.error('Save attendance report error:', error);
-            toast.error('Failed to save attendance report');
+            toast.error(getErrorMessage(error, 'Failed to save attendance report'));
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleDeleteAttendanceReport = async () => {
-        try {
-            const token = Cookies.get('token');
-            const scheduleId = activeScheduleId;
-            if (!scheduleId || !deleteId) return;
+        const scheduleId = activeScheduleId;
+        if (!scheduleId || !deleteId) return;
 
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/admin/schedule/${scheduleId}/attendance/${deleteId}`,
-                { method: 'DELETE', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }
-            );
-            if (!response.ok) throw new Error('Failed to delete attendance report');
+        try {
+            await apiRequest(`/admin/schedule/${scheduleId}/attendance/${deleteId}`, { method: 'DELETE' });
             await fetchAttendanceReports(scheduleId);
             await fetchEligiblePlayKids(scheduleId);
             await fetchSchedules();
             toast.success('Attendance report deleted successfully!');
         } catch (error) {
             console.error('Delete attendance report error:', error);
-            toast.error('Failed to delete attendance report');
+            toast.error(getErrorMessage(error, 'Failed to delete attendance report'));
         } finally {
             setIsDeleteDialogOpen(false);
             setDeleteId(null);
         }
     };
+
+    // -- Kolom -----------------------------------------------------------------
 
     const columns: ColumnDef<Schedule>[] = [
         {
@@ -747,10 +843,33 @@ export default function SchedulesPage() {
         },
         { accessorKey: 'quota', header: 'Quota' },
         {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) =>
+                row.original.status === 'cancelled' ? (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Badge className="rounded-full border bg-rose-50 text-rose-600 border-rose-200">
+                                Cancelled
+                            </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            {row.original.cancel_reason || 'No reason given'}
+                        </TooltipContent>
+                    </Tooltip>
+                ) : (
+                    <Badge className="rounded-full border bg-emerald-50 text-emerald-600 border-emerald-200">
+                        Scheduled
+                    </Badge>
+                ),
+        },
+        {
             id: 'actions',
             header: 'Actions',
             cell: ({ row }) => {
                 const schedule = row.original;
+                const cancelled = schedule.status === 'cancelled';
+
                 return (
                     <div className="flex gap-2">
                         <Tooltip>
@@ -773,6 +892,24 @@ export default function SchedulesPage() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
+                                    onClick={() =>
+                                        setStatusTarget({ kind: cancelled ? 'reactivate' : 'cancel', schedule })
+                                    }
+                                >
+                                    {cancelled ? (
+                                        <IconArrowBackUp className="w-4 h-4 text-emerald-600" />
+                                    ) : (
+                                        <IconBan className="w-4 h-4 text-amber-600" />
+                                    )}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{cancelled ? 'Reactivate' : 'Cancel session'}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => {
                                         setDeleteId(schedule.id);
                                         setIsDeleteDialogOpen(true);
@@ -781,7 +918,7 @@ export default function SchedulesPage() {
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Delete</TooltipContent>
+                            <TooltipContent side="top">Delete (prefer Cancel to keep history)</TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -810,6 +947,9 @@ export default function SchedulesPage() {
             header: 'Actions',
             cell: ({ row }) => {
                 const cs = row.original;
+                const locked = isActiveCancelled;
+                const checkedIn = cs.checked_in === true;
+
                 return (
                     <div className="flex gap-2">
                         <Tooltip>
@@ -817,6 +957,7 @@ export default function SchedulesPage() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
+                                    disabled={locked}
                                     onClick={() => {
                                         setIsCoachEditing(true);
                                         setCoachScheduleFormData({
@@ -831,22 +972,37 @@ export default function SchedulesPage() {
                                     <IconPencil className="w-4 h-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Edit</TooltipContent>
+                            <TooltipContent side="top">Edit role</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => {
-                                        setDeleteId(cs.id);
-                                        setIsDeleteDialogOpen(true);
-                                    }}
+                                    disabled={locked || checkedIn}
+                                    onClick={() => openReschedule(cs, 'replace')}
+                                >
+                                    <IconArrowsExchange className="w-4 h-4 text-blue-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                {checkedIn ? 'Already checked in' : 'Replace coach (reschedule)'}
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={locked || checkedIn}
+                                    onClick={() => openReschedule(cs, 'remove')}
                                 >
                                     <IconTrash className="w-4 h-4 text-red-600" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Delete</TooltipContent>
+                            <TooltipContent side="top">
+                                {checkedIn ? 'Already checked in' : 'Remove coach'}
+                            </TooltipContent>
                         </Tooltip>
                     </div>
                 );
@@ -938,7 +1094,8 @@ export default function SchedulesPage() {
         },
     ];
 
-
+    const selectedRescheduleType = RESCHEDULE_TYPES.find((t) => t.value === rescheduleForm.type);
+    const rescheduleCoachName = rescheduleTarget?.assignment.coach?.name ?? 'this coach';
 
     return (
         <>
@@ -978,9 +1135,20 @@ export default function SchedulesPage() {
                             ))}
                         </SelectContent>
                     </Select>
+
+                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | ScheduleStatus)}>
+                        <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Status</SelectItem>
+                            <SelectItem value="scheduled">Scheduled</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                <DataTable columns={columns} data={schedules} />
+                <DataTable columns={columns} data={visibleSchedules} />
             </div>
 
             <FloatingAddButton
@@ -992,6 +1160,7 @@ export default function SchedulesPage() {
                 tooltip="Add Schedule"
             />
 
+            {/* Form jadwal */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
@@ -1111,6 +1280,7 @@ export default function SchedulesPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Kelola jadwal: coach dan anak */}
             <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
                 <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
@@ -1119,6 +1289,14 @@ export default function SchedulesPage() {
                             Manage coach and play kid list for the selected schedule.
                         </DialogDescription>
                     </DialogHeader>
+
+                    {isActiveCancelled && (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                            This session is cancelled
+                            {activeSchedule?.cancel_reason ? ` (${activeSchedule.cancel_reason})` : ''}. Coaches and play
+                            kids can no longer be added. Reactivate it from the schedule list to make changes.
+                        </div>
+                    )}
 
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="grid w-full grid-cols-2">
@@ -1147,11 +1325,17 @@ export default function SchedulesPage() {
                                             placeholder="Choose coach"
                                             searchPlaceholder="Search coach..."
                                             emptyText="No coaches available"
-                                            disabled={coaches.length === 0}
+                                            disabled={coaches.length === 0 || isCoachEditing}
                                         />
+                                        {isCoachEditing && (
+                                            <p className="text-xs text-muted-foreground">
+                                                The coach cannot be changed here. Use the replace button in the table so the
+                                                change is recorded.
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
-                                        <Label>Is Head Coach</Label>
+                                        <Label>Role</Label>
                                         <Select
                                             value={coachScheduleFormData.role}
                                             onValueChange={(value) =>
@@ -1170,9 +1354,23 @@ export default function SchedulesPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <Button type="submit" disabled={isLoading}>
-                                        {isLoading ? 'Loading...' : isCoachEditing ? 'Update Coach Schedule' : 'Add Coach Schedule'}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button type="submit" disabled={isLoading || isActiveCancelled} className="flex-1">
+                                            {isLoading ? 'Loading...' : isCoachEditing ? 'Update Role' : 'Add Coach Schedule'}
+                                        </Button>
+                                        {isCoachEditing && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setIsCoachEditing(false);
+                                                    setCoachScheduleFormData(defaultCoachScheduleForm);
+                                                }}
+                                            >
+                                                Cancel edit
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </form>
                         </TabsContent>
@@ -1180,7 +1378,7 @@ export default function SchedulesPage() {
                         <TabsContent value="attendance_report" className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-muted-foreground">
-                                    Available Quota: {schedules.find(s => s.id === activeScheduleId)?.quota || 0}
+                                    Available Quota: {activeSchedule?.quota || 0}
                                 </div>
                             </div>
 
@@ -1203,14 +1401,13 @@ export default function SchedulesPage() {
                                             disabled={isAttendanceEditing}
                                         />
                                     </div>
-                                    <Button type="submit" disabled={isLoading}>
+                                    <Button type="submit" disabled={isLoading || (isActiveCancelled && !isAttendanceEditing)}>
                                         {isLoading ? 'Loading...' : isAttendanceEditing ? 'Update Attendance Report' : 'Add Attendance Report'}
                                     </Button>
                                 </div>
                             </form>
                         </TabsContent>
                     </Tabs>
-
 
                     <DialogFooter>
                         <Button
@@ -1234,13 +1431,189 @@ export default function SchedulesPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Ganti atau cabut coach (reschedule) */}
+            <Dialog
+                open={rescheduleTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open && !isRescheduling) closeReschedule();
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {rescheduleTarget?.mode === 'replace' ? 'Replace coach' : 'Remove coach'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {rescheduleTarget?.mode === 'replace'
+                                ? `Choose who takes over from ${rescheduleCoachName}. The change is recorded.`
+                                : `${rescheduleCoachName} is removed from this session with no replacement. The change is recorded.`}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4">
+                        <div className="space-y-1">
+                            <Label>Why is the coach being changed?</Label>
+                            <Select
+                                value={rescheduleForm.type}
+                                onValueChange={(value) =>
+                                    setRescheduleForm((prev) => ({ ...prev, type: value as RescheduleKind }))
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choose a reason type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {RESCHEDULE_TYPES.map((t) => (
+                                        <SelectItem key={t.value} value={t.value}>
+                                            {t.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {selectedRescheduleType && (
+                                <p className="text-xs text-muted-foreground">{selectedRescheduleType.hint}</p>
+                            )}
+                            {rescheduleForm.type === 'coach_request' && priorRequests !== null && (
+                                <p className="text-xs text-amber-600">
+                                    {rescheduleCoachName} already has {priorRequests} coach-requested reschedule(s) in this
+                                    session&apos;s month. This one will be recorded on top of that.
+                                </p>
+                            )}
+                        </div>
+
+                        {rescheduleTarget?.mode === 'replace' && (
+                            <>
+                                <div className="space-y-1">
+                                    <Label>Replacement coach</Label>
+                                    <SearchableSelect
+                                        value={rescheduleForm.replacement_coach_id}
+                                        onValueChange={(value) =>
+                                            setRescheduleForm((prev) => ({ ...prev, replacement_coach_id: value }))
+                                        }
+                                        options={replacementOptions}
+                                        placeholder="Choose replacement"
+                                        searchPlaceholder="Search coach..."
+                                        emptyText="No coaches available"
+                                        disabled={replacementOptions.length === 0}
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Label>Role of the replacement</Label>
+                                    <Select
+                                        value={rescheduleForm.role}
+                                        onValueChange={(value) =>
+                                            setRescheduleForm((prev) => ({ ...prev, role: value as CoachRole }))
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {COACH_ROLES.map((r) => (
+                                                <SelectItem key={r.value} value={r.value}>
+                                                    {r.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="space-y-1">
+                            <Label htmlFor="reschedule-reason">
+                                Reason{rescheduleForm.type === 'coach_request' ? ' (required)' : ' (optional)'}
+                            </Label>
+                            <Textarea
+                                id="reschedule-reason"
+                                value={rescheduleForm.reason}
+                                maxLength={500}
+                                placeholder="For example: sick, family matter, schedule clash"
+                                onChange={(e) => setRescheduleForm((prev) => ({ ...prev, reason: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeReschedule} disabled={isRescheduling}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSubmitReschedule}
+                            disabled={
+                                isRescheduling ||
+                                !rescheduleForm.type ||
+                                (rescheduleTarget?.mode === 'replace' && !rescheduleForm.replacement_coach_id)
+                            }
+                        >
+                            {isRescheduling
+                                ? 'Saving...'
+                                : rescheduleTarget?.mode === 'replace'
+                                    ? 'Replace coach'
+                                    : 'Remove coach'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Batalkan atau aktifkan kembali sesi */}
+            <Dialog
+                open={statusTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open && !isChangingStatus) closeStatusDialog();
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {statusTarget?.kind === 'cancel' ? 'Cancel this session?' : 'Reactivate this session?'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {statusTarget?.kind === 'cancel'
+                                ? 'The session disappears from the public booking page and is left out of coach payroll. Play kids already registered are not refunded automatically.'
+                                : 'The session appears again on the booking page and counts toward coach payroll.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {statusTarget?.kind === 'cancel' && (
+                        <div className="space-y-1">
+                            <Label htmlFor="cancel-reason">Reason (optional)</Label>
+                            <Textarea
+                                id="cancel-reason"
+                                value={cancelReason}
+                                maxLength={255}
+                                placeholder="For example: bad weather, venue unavailable"
+                                onChange={(e) => setCancelReason(e.target.value)}
+                            />
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeStatusDialog} disabled={isChangingStatus}>
+                            Back
+                        </Button>
+                        <Button
+                            variant={statusTarget?.kind === 'cancel' ? 'destructive' : 'default'}
+                            onClick={handleConfirmStatusChange}
+                            disabled={isChangingStatus}
+                        >
+                            {isChangingStatus
+                                ? 'Saving...'
+                                : statusTarget?.kind === 'cancel'
+                                    ? 'Cancel session'
+                                    : 'Reactivate'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Hapus jadwal / hapus absensi anak */}
             <AlertDialogDelete
                 isOpen={isDeleteDialogOpen}
                 setIsOpen={setIsDeleteDialogOpen}
                 onConfirm={() => {
-                    if (activeTab === 'coach_schedule' && isScheduleDialogOpen) {
-                        handleDeleteCoachSchedule();
-                    } else if (activeTab === 'attendance_report' && isScheduleDialogOpen) {
+                    if (activeTab === 'attendance_report' && isScheduleDialogOpen) {
                         handleDeleteAttendanceReport();
                     } else {
                         handleDeleteSchedule();

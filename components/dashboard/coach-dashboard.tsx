@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Cookies from "js-cookie"
 import {
     AlertTriangle,
     ArrowRight,
@@ -28,6 +27,7 @@ import MetricCard from "./metric-card"
 import { SectionTitle } from "./section-title"
 import ScheduleRow from "./schedule-row"
 import { useRouter } from "next/navigation"
+import { apiRequest, getErrorMessage } from "@/lib/api"
 
 // ─────────────────────────────────────────────
 // Types
@@ -135,36 +135,11 @@ export default function CoachDashboard({ name }: { name: string }) {
                 setLoading(true)
                 setError("")
 
-                const token = Cookies.get("token")
-
-                if (!token) {
-                    throw new Error("Token not found. Please login again.")
-                }
-
-                const response = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/dashboard/coach`,
-                    {
-                        method: "GET",
-                        headers: {
-                            Accept: "application/json",
-                            Authorization: `Bearer ${token}`,
-                        },
-                        signal: controller.signal,
-                    }
-                )
-
-                if (response.status === 401) {
-                    throw new Error("Unauthorized. Please login again.")
-                }
-
-                if (!response.ok) {
-                    const result = await response.json().catch(() => null)
-                    throw new Error(
-                        result?.message ?? "Failed to load coach dashboard"
-                    )
-                }
-
-                const result: CoachDashboardResponse = await response.json()
+                // Endpoint dashboard tidak memakai envelope { data }, jadi pakai body utuh.
+                const { raw } = await apiRequest("/dashboard/coach", {
+                    signal: controller.signal,
+                })
+                const result = raw as CoachDashboardResponse
                 setData(result)
             } catch (err) {
                 if (err instanceof DOMException && err.name === "AbortError") {
@@ -172,7 +147,7 @@ export default function CoachDashboard({ name }: { name: string }) {
                 }
 
                 console.error(err)
-                setError(err instanceof Error ? err.message : "Failed to load dashboard")
+                setError(getErrorMessage(err, "Failed to load dashboard"))
             } finally {
                 setLoading(false)
             }

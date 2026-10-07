@@ -23,6 +23,9 @@ import {
 import Image from 'next/image';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
+import { apiRequest, getErrorMessage } from '@/lib/api';
+
+type AttendanceStatus = 'Not Checked In' | 'Checked In' | 'Checked Out' | 'Cancelled';
 
 interface CoachAttendanceRow {
     id: number;
@@ -35,7 +38,9 @@ interface CoachAttendanceRow {
     date: string;
     start_time: string;
     end_time: string;
-    status: 'Not Checked In' | 'Checked In' | 'Checked Out';
+    status: AttendanceStatus;
+    // Butuh patch CoachAttendanceController bagian 6b; tanpa itu field ini kosong.
+    schedule_status?: 'scheduled' | 'cancelled' | null;
     check_in_at: string | null;
     check_in_photo_url: string | null;
     check_out_at: string | null;
@@ -95,7 +100,10 @@ function getStatusStyle(status: CoachAttendanceRow['status']) {
             return 'bg-emerald-50 text-emerald-600 border-emerald-200';
         case 'Checked In':
             return 'bg-amber-50 text-amber-600 border-amber-200';
+        case 'Cancelled':
+            return 'bg-slate-100 text-slate-500 border-slate-200 line-through';
         case 'Not Checked In':
+        default:
             return 'bg-rose-50 text-rose-600 border-rose-200';
     }
 }
@@ -134,13 +142,8 @@ export default function CoachAttendancePage() {
 
     const fetchBranches = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-            });
-            if (!response.ok) return;
-            const { data } = await response.json();
-            setBranches(data);
+            const { data } = await apiRequest<Branch[]>('/admin/branch');
+            setBranches(data ?? []);
         } catch (error) {
             console.error(error);
         }
@@ -151,25 +154,20 @@ export default function CoachAttendancePage() {
 
         setIsLoading(true);
         try {
-            const token = Cookies.get('token');
-            const params = new URLSearchParams();
-            params.append('month', selectedMonth);
-            params.append('year', selectedYear);
-            if (isAdmin && selectedBranch !== 'all') params.append('branch_id', selectedBranch);
-
-            const endpoint = isAdmin
-                ? `${process.env.NEXT_PUBLIC_API_URL}/admin/coach-attendance?${params.toString()}`
-                : `${process.env.NEXT_PUBLIC_API_URL}/coach/attendance-history?${params.toString()}`;
-
-            const response = await fetch(endpoint, {
-                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-            });
-            if (!response.ok) throw new Error('Failed to fetch coach attendance');
-            const { data } = await response.json();
-            setData(data);
+            const { data } = await apiRequest<CoachAttendanceRow[]>(
+                isAdmin ? '/admin/coach-attendance' : '/coach/attendance-history',
+                {
+                    query: {
+                        month: selectedMonth,
+                        year: selectedYear,
+                        branch_id: isAdmin && selectedBranch !== 'all' ? selectedBranch : undefined,
+                    },
+                }
+            );
+            setData(data ?? []);
         } catch (error) {
             console.error(error);
-            toast.error('Gagal memuat data absensi coach');
+            toast.error(getErrorMessage(error, 'Gagal memuat data absensi coach'));
         } finally {
             setIsLoading(false);
         }
@@ -202,8 +200,12 @@ export default function CoachAttendancePage() {
     function AttendanceActionButton({ row }: { row: CoachAttendanceRow }) {
         if (!isCoach) return null;
 
-        const label =
-            row.status === 'Not Checked In'
+        const isCancelled = row.status === 'Cancelled';
+        const isDone = row.status === 'Checked Out';
+
+        const label = isCancelled
+            ? 'Dibatalkan'
+            : row.status === 'Not Checked In'
                 ? 'Check-in'
                 : row.status === 'Checked In'
                     ? 'Check-out'
@@ -212,8 +214,8 @@ export default function CoachAttendancePage() {
         return (
             <Button
                 size="sm"
-                variant={row.status === 'Checked Out' ? 'outline' : 'default'}
-                disabled={row.status === 'Checked Out'}
+                variant={isDone || isCancelled ? 'outline' : 'default'}
+                disabled={isDone || isCancelled}
                 className="rounded-xl"
                 onClick={() => router.push(`/attendance-checkin/${row.schedule_id}`)}
             >

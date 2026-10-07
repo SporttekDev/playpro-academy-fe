@@ -19,8 +19,8 @@ import { DatePicker } from '@/components/date-picker';
 import { Switch } from '@/components/ui/switch';
 import { MultiSelect } from '@/components/multi-select';
 import { Badge } from '@/components/ui/badge';
-import Cookies from 'js-cookie';
 import { toast } from 'sonner';
+import { apiRequest, getErrorMessage } from '@/lib/api';
 import { AlertDialogDelete } from '@/components/alert-dialog-delete';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -83,39 +83,19 @@ export default function CoachesPage() {
 
     const fetchCoaches = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            if (!token) throw new Error('No authentication token found');
-
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(`Failed to fetch coaches: ${error}`);
-            }
-
-            const { data } = await response.json();
-            const sorted = [...data].sort((a: Coach, b: Coach) => a.name.localeCompare(b.name));
+            const { data } = await apiRequest<Coach[]>('/admin/coach');
+            const sorted = [...(data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
             setCoaches(sorted);
         } catch (error) {
             console.error('Fetch coaches failed:', error);
-            toast.error('Failed to fetch coach data');
+            toast.error(getErrorMessage(error, 'Failed to fetch coach data'));
         }
     }, []);
 
     const fetchBranches = useCallback(async () => {
         try {
-            const token = Cookies.get('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/branch`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-            });
-            if (!response.ok) return;
-            const { data } = await response.json();
-            setBranches(data);
+            const { data } = await apiRequest<Branch[]>('/admin/branch');
+            setBranches(data ?? []);
         } catch (error) {
             console.error(error);
         }
@@ -146,9 +126,6 @@ export default function CoachesPage() {
 
         try {
             setIsLoading(true);
-            const token = Cookies.get('token');
-            if (!token) throw new Error('No authentication token found');
-
             const formDataToSend = new FormData();
             formDataToSend.append('_method', 'PUT');
             formDataToSend.append('birth_date', formData.birth_date);
@@ -168,19 +145,8 @@ export default function CoachesPage() {
                 formDataToSend.append('photo', formData.photo);
             }
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${editId}`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: formDataToSend,
-            });
-
-            if (!res.ok) {
-                const errorResponse = await res.json().catch(() => null);
-                const errorMessage = errorResponse?.message || 'Failed to update coach';
-                throw new Error(errorMessage);
-            }
+            // Laravel membaca _method=PUT dari POST multipart (diperlukan untuk upload foto).
+            await apiRequest(`/admin/coach/${editId}`, { method: 'POST', body: formDataToSend });
 
             await fetchCoaches();
             setIsDialogOpen(false);
@@ -190,9 +156,8 @@ export default function CoachesPage() {
             setRemovePhoto(false);
             toast.success('Coach updated successfully!');
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'An error occurred';
             console.error('Update coach error:', error);
-            toast.error(message);
+            toast.error(getErrorMessage(error, 'Failed to update coach'));
         } finally {
             setIsLoading(false);
         }
@@ -200,26 +165,16 @@ export default function CoachesPage() {
 
     const handleDeleteCoach = async () => {
         try {
-            const token = Cookies.get('token');
-            if (!token) throw new Error('No authentication token found');
+            if (deleteId === null) return;
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/coach/${deleteId}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!res.ok) {
-                throw new Error('Failed to delete coach');
-            }
+            await apiRequest(`/admin/coach/${deleteId}`, { method: 'DELETE' });
 
             toast.success('Coach deleted successfully!');
             await fetchCoaches();
         } catch (error) {
             console.error('Delete error:', error);
-            toast.error('Failed to delete coach');
+            // 422 dari server menjelaskan alasannya (jadwal aktif, payroll final/paid, dll).
+            toast.error(getErrorMessage(error, 'Failed to delete coach'));
         } finally {
             setIsDeleteDialogOpen(false);
             setDeleteId(null);

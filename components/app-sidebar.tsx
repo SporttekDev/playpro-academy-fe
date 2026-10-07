@@ -23,6 +23,7 @@ import {
   IconUsersGroup,
   IconMoneybag,
   IconSettingsDollar,
+  IconArrowsExchange,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -77,6 +78,11 @@ const data = {
       title: "Monthly Report",
       url: "/monthly-reports",
       icon: IconClipboardText,
+    },
+    {
+      title: "Reschedule History",
+      url: "/reschedules",
+      icon: IconArrowsExchange,
     },
   ],
 
@@ -268,7 +274,9 @@ export function AppSidebar({
     // FINANCE: dashboard + payroll only (scope saat ini)
     if (role === "finance") {
       return [
-        ...data.navMain.filter((item) => item.url === "/dashboard"),
+        ...data.navMain.filter(
+          (item) => item.url === "/dashboard" || item.url === "/reschedules"
+        ),
         ...data.navFinance,
       ]
     }
