@@ -58,7 +58,8 @@ function isAllowed(role: string, pathname: string) {
         return (
             pathname.startsWith("/dashboard") ||
             pathname.startsWith("/payroll") ||
-            pathname.startsWith("/reschedules")
+            pathname.startsWith("/reschedules") ||
+            pathname.startsWith("/coach-attendance")
         );
     }
 
@@ -67,8 +68,8 @@ function isAllowed(role: string, pathname: string) {
         return (
             pathname.startsWith("/dashboard") ||
             pathname.startsWith("/attendance-reports") ||
-            pathname.startsWith("/attendance-checkin") ||
-            pathname.startsWith("/coach-attendance")
+            pathname.startsWith("/attendance-checkin")
+            // pathname.startsWith("/coach-attendance")
         );
     }
 

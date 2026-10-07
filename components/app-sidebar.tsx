@@ -275,7 +275,7 @@ export function AppSidebar({
     if (role === "finance") {
       return [
         ...data.navMain.filter(
-          (item) => item.url === "/dashboard" || item.url === "/reschedules"
+          (item) => item.url === "/dashboard" || item.url === "/reschedules" || item.url === "/coach-attendance"
         ),
         ...data.navFinance,
       ]
