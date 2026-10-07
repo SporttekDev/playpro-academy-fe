@@ -137,17 +137,20 @@ export default function CoachAttendancePage() {
     }, []);
 
     const role = session !== 'loading' && session !== null ? session.role : null;
-    const isAdmin = role === 'admin' || role === 'superadmin' || role === 'finance';
+    const isAdmin = role === 'admin' || role === 'superadmin';
+    const isFinance = role === 'finance';
     const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     const fetchBranches = useCallback(async () => {
         try {
-            const { data } = await apiRequest<Branch[]>('/admin/branch');
+            const { data } = await apiRequest<Branch[]>(
+                isAdmin ? '/admin/branches' : '/finance/branches'
+            );
             setBranches(data ?? []);
         } catch (error) {
             console.error(error);
         }
-    }, []);
+    }, [isAdmin]);
 
     const fetchAttendance = useCallback(async () => {
         if (session === 'loading') return;
@@ -155,7 +158,7 @@ export default function CoachAttendancePage() {
         setIsLoading(true);
         try {
             const { data } = await apiRequest<CoachAttendanceRow[]>(
-                isAdmin ? '/admin/coach-attendance' : '/coach/attendance-history',
+                isAdmin ? '/admin/coach-attendance' : isFinance ? '/finance/coach-attendance' : '/coach/attendance',
                 {
                     query: {
                         month: selectedMonth,
