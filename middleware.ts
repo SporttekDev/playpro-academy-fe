@@ -53,7 +53,7 @@ function isAllowed(role: string, pathname: string) {
         return !pathname.startsWith("/payroll");
     }
 
-    // FINANCE - only dashboard and payroll module (payroll-only scope for now)
+    // FINANCE - dashboard, payroll, reschedule history, dan coach attendance
     if (role === "finance") {
         return (
             pathname.startsWith("/dashboard") ||
@@ -68,8 +68,8 @@ function isAllowed(role: string, pathname: string) {
         return (
             pathname.startsWith("/dashboard") ||
             pathname.startsWith("/attendance-reports") ||
-            pathname.startsWith("/attendance-checkin")
-            // pathname.startsWith("/coach-attendance")
+            pathname.startsWith("/attendance-checkin") ||
+            pathname.startsWith("/coach-attendance")
         );
     }
 

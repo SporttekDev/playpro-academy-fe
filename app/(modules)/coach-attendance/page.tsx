@@ -137,20 +137,19 @@ export default function CoachAttendancePage() {
     }, []);
 
     const role = session !== 'loading' && session !== null ? session.role : null;
-    const isAdmin = role === 'admin' || role === 'superadmin';
-    const isFinance = role === 'finance';
+    const isAdmin = role === 'admin' || role === 'superadmin' || role === 'finance';
+    // Finance memakai endpoint /finance (middleware payroll.access), admin & superadmin memakai /admin.
+    const apiPrefix = role === 'finance' ? '/finance' : '/admin';
     const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     const fetchBranches = useCallback(async () => {
         try {
-            const { data } = await apiRequest<Branch[]>(
-                isAdmin ? '/admin/branches' : '/finance/branches'
-            );
+            const { data } = await apiRequest<Branch[]>(role === 'finance' ? '/finance/branches' : '/admin/branch');
             setBranches(data ?? []);
         } catch (error) {
             console.error(error);
         }
-    }, [isAdmin]);
+    }, [role]);
 
     const fetchAttendance = useCallback(async () => {
         if (session === 'loading') return;
@@ -158,7 +157,7 @@ export default function CoachAttendancePage() {
         setIsLoading(true);
         try {
             const { data } = await apiRequest<CoachAttendanceRow[]>(
-                isAdmin ? '/admin/coach-attendance' : isFinance ? '/finance/coach-attendance' : '/coach/attendance',
+                isAdmin ? `${apiPrefix}/coach-attendance` : '/coach/attendance-history',
                 {
                     query: {
                         month: selectedMonth,
@@ -174,7 +173,7 @@ export default function CoachAttendancePage() {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedMonth, selectedYear, selectedBranch, session, isAdmin]);
+    }, [selectedMonth, selectedYear, selectedBranch, session, isAdmin, apiPrefix]);
 
     useEffect(() => {
         if (isAdmin) fetchBranches();
