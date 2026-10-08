@@ -11,6 +11,22 @@ type CaptureResult = {
     longitude: number
 }
 
+/**
+ * Preview kamera depan. Safari (iOS/macOS) me-mirror preview kamera depan secara
+ * bawaan, sedangkan foto hasil canvas TIDAK ter-mirror. Supaya preview sama persis
+ * dengan hasil foto (tidak mirror), preview di-flip balik hanya bila browser memang
+ * me-mirror. Kalau di perangkat tertentu hasilnya malah terbalik, ubah ke "never".
+ */
+const UNMIRROR_PREVIEW: "auto" | "never" = "auto"
+
+function isAppleBrowser() {
+    if (typeof navigator === "undefined") return false
+    const ua = navigator.userAgent
+    const iOS = /iP(hone|ad|od)/.test(ua) || (ua.includes("Mac") && navigator.maxTouchPoints > 1)
+    const safariDesktop = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua)
+    return iOS || safariDesktop
+}
+
 export function CameraGeoCapture({
     onCapture,
     isSubmitting,
@@ -23,26 +39,76 @@ export function CameraGeoCapture({
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const streamRef = useRef<MediaStream | null>(null)
+    const startIdRef = useRef(0)
 
-    const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+    const [photoUrl, setPhotoUrl] = useState<string | null>(null)
     const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
     const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
     const [locationError, setLocationError] = useState<string | null>(null)
     const [cameraError, setCameraError] = useState<string | null>(null)
+    const [cameraReady, setCameraReady] = useState(false)
     const [isLocating, setIsLocating] = useState(true)
 
+    const stopCamera = useCallback(() => {
+        streamRef.current?.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
+        if (videoRef.current) videoRef.current.srcObject = null
+        setCameraReady(false)
+    }, [])
+
     const startCamera = useCallback(async () => {
+        // Setiap pemanggilan punya id; hasil pemanggilan lama (mis. React StrictMode
+        // atau klik ganda) dibuang supaya tidak menimpa stream yang baru.
+        const myId = ++startIdRef.current
+
         try {
             setCameraError(null)
+            setCameraReady(false)
+
+            // Matikan stream lama dulu — iOS sering gagal/hitam kalau ada 2 stream kamera aktif.
+            streamRef.current?.getTracks().forEach((track) => track.stop())
+            streamRef.current = null
+
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user" }, // "user" = kamera depan (selfie)
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
                 audio: false,
             })
-            streamRef.current = stream
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream
+
+            if (myId !== startIdRef.current) {
+                stream.getTracks().forEach((track) => track.stop())
+                return
             }
+
+            streamRef.current = stream
+
+            // Kalau iOS mematikan kamera (app di-background, layar kunci), pulihkan otomatis.
+            stream.getVideoTracks().forEach((track) => {
+                track.onended = () => {
+                    if (myId === startIdRef.current) setCameraReady(false)
+                }
+            })
+
+            const video = videoRef.current
+            if (!video) return
+
+            video.muted = true
+            video.setAttribute("playsinline", "true")
+            video.srcObject = stream
+
+            try {
+                await video.play()
+            } catch (playErr) {
+                // AbortError normal bila srcObject diganti saat play() berjalan.
+                if ((playErr as DOMException)?.name !== "AbortError") throw playErr
+            }
+
+            if (myId === startIdRef.current) setCameraReady(true)
         } catch (err) {
+            if (myId !== startIdRef.current) return
             console.error("Camera error:", err)
             setCameraError("Gagal mengakses kamera. Pastikan izin kamera diaktifkan.")
         }
@@ -95,28 +161,55 @@ export function CameraGeoCapture({
         requestLocation()
 
         return () => {
-            streamRef.current?.getTracks().forEach((track) => track.stop())
+            startIdRef.current++ // batalkan start yang masih menggantung
+            stopCamera()
         }
-    }, [startCamera, requestLocation])
+    }, [startCamera, requestLocation, stopCamera])
+
+    // Kembali dari background / tab lain: kalau stream sudah mati, nyalakan lagi.
+    useEffect(() => {
+        function handleVisibility() {
+            if (document.visibilityState !== "visible") return
+            const live = streamRef.current?.getVideoTracks().some((t) => t.readyState === "live")
+            if (!live) startCamera()
+            else videoRef.current?.play().catch(() => {})
+        }
+        document.addEventListener("visibilitychange", handleVisibility)
+        return () => document.removeEventListener("visibilitychange", handleVisibility)
+    }, [startCamera])
+
+    // Bersihkan object URL foto saat diganti / unmount.
+    useEffect(() => {
+        return () => {
+            if (photoUrl) URL.revokeObjectURL(photoUrl)
+        }
+    }, [photoUrl])
 
     function handleCapturePhoto() {
         const video = videoRef.current
         const canvas = canvasRef.current
         if (!video || !canvas) return
 
+        // Frame belum siap (layar hitam) -> jangan ambil foto kosong.
+        if (video.readyState < 2 || video.videoWidth === 0) {
+            setCameraReady(false)
+            startCamera()
+            return
+        }
+
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
         const ctx = canvas.getContext("2d")
         if (!ctx) return
 
+        // Digambar apa adanya (tanpa flip) -> hasil foto tidak mirror.
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
         canvas.toBlob(
             (blob) => {
-                if (blob) {
-                    setPhotoBlob(blob)
-                    setPhotoDataUrl(canvas.toDataURL("image/jpeg"))
-                }
+                if (!blob) return
+                setPhotoBlob(blob)
+                setPhotoUrl(URL.createObjectURL(blob))
             },
             "image/jpeg",
             0.85
@@ -124,8 +217,16 @@ export function CameraGeoCapture({
     }
 
     function handleRetake() {
-        setPhotoDataUrl(null)
+        setPhotoUrl(null)
         setPhotoBlob(null)
+
+        // Elemen <video> tidak pernah di-unmount, jadi cukup pastikan stream masih hidup.
+        const live = streamRef.current?.getVideoTracks().some((t) => t.readyState === "live")
+        if (!live) {
+            startCamera()
+        } else {
+            videoRef.current?.play().catch(() => {})
+        }
     }
 
     function handleSubmit() {
@@ -134,31 +235,55 @@ export function CameraGeoCapture({
     }
 
     const canSubmit = Boolean(photoBlob && location) && !isSubmitting
+    const showPhoto = Boolean(photoUrl)
+    const flipPreview = UNMIRROR_PREVIEW === "auto" && isAppleBrowser()
 
     return (
         <div className="space-y-4">
             <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-slate-900">
-                {photoDataUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photoDataUrl} alt="Captured" className="h-full w-full object-cover" />
-                ) : (
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="h-full w-full object-cover"
-                    />
-                )}
+                {/* Video SELALU ter-mount (hanya ditutup foto) supaya tidak blank setelah "Ambil Ulang". */}
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover"
+                    style={{ transform: flipPreview ? "scaleX(-1)" : "none" }}
+                />
                 <canvas ref={canvasRef} className="hidden" />
 
-                {cameraError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 p-6 text-center text-sm text-white">
-                        {cameraError}
+                {showPhoto && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={photoUrl!}
+                        alt="Captured"
+                        className="absolute inset-0 h-full w-full object-cover"
+                    />
+                )}
+
+                {!cameraReady && !cameraError && !showPhoto && (
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-white/80">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Menyalakan kamera...
                     </div>
                 )}
 
-                {photoDataUrl && location && !locationError && (
+                {cameraError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/90 p-6 text-center text-sm text-white">
+                        <p>{cameraError}</p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl text-slate-900"
+                            onClick={startCamera}
+                        >
+                            Coba Lagi
+                        </Button>
+                    </div>
+                )}
+
+                {showPhoto && location && !locationError && (
                     <div className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full bg-emerald-500/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Lokasi tersimpan
@@ -215,7 +340,7 @@ export function CameraGeoCapture({
                 </div>
             </div>
 
-            {photoDataUrl ? (
+            {showPhoto ? (
                 <div className="flex gap-3">
                     <Button
                         variant="outline"
@@ -232,7 +357,11 @@ export function CameraGeoCapture({
                     </Button>
                 </div>
             ) : (
-                <Button className="w-full rounded-2xl" onClick={handleCapturePhoto} disabled={!!cameraError}>
+                <Button
+                    className="w-full rounded-2xl"
+                    onClick={handleCapturePhoto}
+                    disabled={!!cameraError || !cameraReady}
+                >
                     <Camera className="mr-2 h-4 w-4" />
                     Ambil Foto
                 </Button>
