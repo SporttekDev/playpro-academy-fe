@@ -267,6 +267,7 @@ export default function AttendanceCheckinPage() {
                     </CardHeader>
                     <CardContent>
                         <CameraGeoCapture
+                            key="check-out"
                             actionLabel="Check-out Sekarang"
                             isSubmitting={isSubmitting}
                             onCapture={(result) => handleCapture("check-out", result)}
@@ -283,6 +284,7 @@ export default function AttendanceCheckinPage() {
                     </CardHeader>
                     <CardContent>
                         <CameraGeoCapture
+                            key="check-in"
                             actionLabel="Check-in Sekarang"
                             isSubmitting={isSubmitting}
                             onCapture={(result) => handleCapture("check-in", result)}

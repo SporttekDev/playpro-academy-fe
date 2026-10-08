@@ -17,9 +17,14 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { TimeInput } from '@/components/ui/time-input';
 import Image from 'next/image';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
@@ -45,6 +50,11 @@ interface CoachAttendanceRow {
     check_in_photo_url: string | null;
     check_out_at: string | null;
     check_out_photo_url: string | null;
+    // Diisi bila admin/superadmin/finance menginput absensi manual.
+    check_in_manual?: boolean;
+    check_out_manual?: boolean;
+    manual_reason?: string | null;
+    manual_by_name?: string | null;
 }
 
 interface Branch {
@@ -94,6 +104,17 @@ function formatDateTime(iso: string | null) {
     }).format(new Date(iso));
 }
 
+/** ISO -> "HH:mm" di zona Asia/Jakarta (untuk mengisi form absen manual). */
+function toJakartaTime(iso: string | null | undefined) {
+    if (!iso) return '';
+    return new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Jakarta',
+    }).format(new Date(iso));
+}
+
 function getStatusStyle(status: CoachAttendanceRow['status']) {
     switch (status) {
         case 'Checked Out':
@@ -120,6 +141,13 @@ export default function CoachAttendancePage() {
     const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
     const [selectedBranch, setSelectedBranch] = useState<string>('all');
 
+    // Absen manual (admin, superadmin, finance)
+    const [manualTarget, setManualTarget] = useState<CoachAttendanceRow | null>(null);
+    const [manualCheckIn, setManualCheckIn] = useState('');
+    const [manualCheckOut, setManualCheckOut] = useState('');
+    const [manualReason, setManualReason] = useState('');
+    const [isSavingManual, setIsSavingManual] = useState(false);
+
     const [previewPhoto, setPreviewPhoto] = useState<{ url: string; label: string } | null>(null);
 
     useEffect(() => {
@@ -137,20 +165,19 @@ export default function CoachAttendancePage() {
     }, []);
 
     const role = session !== 'loading' && session !== null ? session.role : null;
-    const isAdmin = role === 'admin' || role === 'superadmin';
-    const isFinance = role === 'finance';
+    const isAdmin = role === 'admin' || role === 'superadmin' || role === 'finance';
+    // Finance memakai endpoint /finance (middleware payroll.access), admin & superadmin memakai /admin.
+    const apiPrefix = role === 'finance' ? '/finance' : '/admin';
     const isCoach = session !== 'loading' && session !== null && session.role === 'coach';
 
     const fetchBranches = useCallback(async () => {
         try {
-            const { data } = await apiRequest<Branch[]>(
-                isAdmin ? '/admin/branches' : '/finance/branches'
-            );
+            const { data } = await apiRequest<Branch[]>(role === 'finance' ? '/finance/branches' : '/admin/branch');
             setBranches(data ?? []);
         } catch (error) {
             console.error(error);
         }
-    }, [isAdmin]);
+    }, [role]);
 
     const fetchAttendance = useCallback(async () => {
         if (session === 'loading') return;
@@ -158,7 +185,7 @@ export default function CoachAttendancePage() {
         setIsLoading(true);
         try {
             const { data } = await apiRequest<CoachAttendanceRow[]>(
-                isAdmin ? '/admin/coach-attendance' : isFinance ? '/finance/coach-attendance' : '/coach/attendance',
+                isAdmin ? `${apiPrefix}/coach-attendance` : '/coach/attendance-history',
                 {
                     query: {
                         month: selectedMonth,
@@ -174,7 +201,7 @@ export default function CoachAttendancePage() {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedMonth, selectedYear, selectedBranch, session, isAdmin]);
+    }, [selectedMonth, selectedYear, selectedBranch, session, isAdmin, apiPrefix]);
 
     useEffect(() => {
         if (isAdmin) fetchBranches();
@@ -183,6 +210,89 @@ export default function CoachAttendancePage() {
     useEffect(() => {
         fetchAttendance();
     }, [fetchAttendance]);
+
+    function openManualDialog(row: CoachAttendanceRow) {
+        setManualTarget(row);
+        setManualCheckIn(toJakartaTime(row.check_in_at));
+        setManualCheckOut(toJakartaTime(row.check_out_at));
+        setManualReason('');
+    }
+
+    function closeManualDialog() {
+        setManualTarget(null);
+        setManualCheckIn('');
+        setManualCheckOut('');
+        setManualReason('');
+    }
+
+    async function handleSaveManual() {
+        if (!manualTarget) return;
+
+        // Check-in/out asli dari aplikasi tidak bisa ditimpa, jadi tidak ikut dikirim.
+        const inLocked = Boolean(manualTarget.check_in_at) && !manualTarget.check_in_manual;
+        const outLocked = Boolean(manualTarget.check_out_at) && !manualTarget.check_out_manual;
+
+        const checkInTime = inLocked ? '' : manualCheckIn;
+        const checkOutTime = outLocked ? '' : manualCheckOut;
+
+        if (!checkInTime && !checkOutTime) {
+            toast.error('Isi jam check-in atau jam check-out.');
+            return;
+        }
+        if (manualReason.trim().length < 5) {
+            toast.error('Alasan wajib diisi (minimal 5 karakter).');
+            return;
+        }
+
+        try {
+            setIsSavingManual(true);
+            await apiRequest(`${apiPrefix}/coach-schedule/${manualTarget.id}/manual-attendance`, {
+                method: 'POST',
+                body: {
+                    check_in_time: checkInTime || undefined,
+                    check_out_time: checkOutTime || undefined,
+                    reason: manualReason.trim(),
+                },
+            });
+            toast.success('Absensi manual tersimpan.');
+            closeManualDialog();
+            await fetchAttendance();
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Gagal menyimpan absensi manual'));
+        } finally {
+            setIsSavingManual(false);
+        }
+    }
+
+    function ManualBadge() {
+        return (
+            <Badge variant="outline" className="rounded-full border-indigo-200 bg-indigo-50 text-[10px] text-indigo-600">
+                Manual
+            </Badge>
+        );
+    }
+
+    function ManualActionButton({ row }: { row: CoachAttendanceRow }) {
+        const isCancelled = row.status === 'Cancelled';
+        const complete =
+            Boolean(row.check_in_at) &&
+            Boolean(row.check_out_at) &&
+            !row.check_in_manual &&
+            !row.check_out_manual;
+        const hasManual = Boolean(row.check_in_manual || row.check_out_manual);
+
+        return (
+            <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={isCancelled || complete}
+                onClick={() => openManualDialog(row)}
+            >
+                {hasManual ? 'Ubah Manual' : 'Absen Manual'}
+            </Button>
+        );
+    }
 
     function PhotoThumbnail({ url, label }: { url: string | null; label: string }) {
         if (!url) {
@@ -266,10 +376,14 @@ export default function CoachAttendancePage() {
             header: 'Check-in',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
-                    <PhotoThumbnail
-                        url={row.original.check_in_photo_url}
-                        label={`Check-in ${row.original.coach_name ?? row.original.class_name}`}
-                    />
+                    {row.original.check_in_manual ? (
+                        <ManualBadge />
+                    ) : (
+                        <PhotoThumbnail
+                            url={row.original.check_in_photo_url}
+                            label={`Check-in ${row.original.coach_name ?? row.original.class_name}`}
+                        />
+                    )}
                     <span className="text-xs text-muted-foreground">
                         {formatDateTime(row.original.check_in_at)}
                     </span>
@@ -280,16 +394,29 @@ export default function CoachAttendancePage() {
             header: 'Check-out',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
-                    <PhotoThumbnail
-                        url={row.original.check_out_photo_url}
-                        label={`Check-out ${row.original.coach_name ?? row.original.class_name}`}
-                    />
+                    {row.original.check_out_manual ? (
+                        <ManualBadge />
+                    ) : (
+                        <PhotoThumbnail
+                            url={row.original.check_out_photo_url}
+                            label={`Check-out ${row.original.coach_name ?? row.original.class_name}`}
+                        />
+                    )}
                     <span className="text-xs text-muted-foreground">
                         {formatDateTime(row.original.check_out_at)}
                     </span>
                 </div>
             ),
         },
+        ...(isAdmin
+            ? ([
+                {
+                    id: 'manual_actions',
+                    header: 'Actions',
+                    cell: ({ row }) => <ManualActionButton row={row.original} />,
+                },
+            ] as ColumnDef<CoachAttendanceRow>[])
+            : []),
         ...(isCoach
             ? ([
                 {
@@ -348,10 +475,77 @@ export default function CoachAttendancePage() {
 
             {/* Table */}
             {isLoading ? (
-                <DataTableSkeleton columns={isAdmin ? 9 : 7} rows={6} />
+                <DataTableSkeleton columns={isAdmin ? 10 : 7} rows={6} />
             ) : (
                 <DataTable columns={columns} data={data} />
             )}
+
+            {/* Absen Manual Dialog (admin, superadmin, finance) */}
+            <Dialog open={!!manualTarget} onOpenChange={(open) => !open && closeManualDialog()}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Absen Manual</DialogTitle>
+                        <DialogDescription>
+                            {manualTarget
+                                ? `${manualTarget.coach_name ?? 'Coach'} - ${manualTarget.class_name}, ${manualTarget.date} (${formatTime(manualTarget.start_time)} - ${formatTime(manualTarget.end_time)})`
+                                : ''}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {manualTarget && (
+                        <div className="space-y-4">
+                            <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+                                Jam yang Anda isi dipakai apa adanya oleh payroll, termasuk potongan telat bila jam
+                                check-in melewati jadwal. Tindakan ini tercatat di riwayat.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label>Jam Check-in</Label>
+                                    <TimeInput
+                                        value={manualCheckIn}
+                                        onChange={setManualCheckIn}
+                                        disabled={Boolean(manualTarget.check_in_at) && !manualTarget.check_in_manual}
+                                    />
+                                    {Boolean(manualTarget.check_in_at) && !manualTarget.check_in_manual && (
+                                        <p className="text-[11px] text-muted-foreground">Check-in asli dari aplikasi.</p>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Jam Check-out</Label>
+                                    <TimeInput
+                                        value={manualCheckOut}
+                                        onChange={setManualCheckOut}
+                                        disabled={Boolean(manualTarget.check_out_at) && !manualTarget.check_out_manual}
+                                    />
+                                    {Boolean(manualTarget.check_out_at) && !manualTarget.check_out_manual && (
+                                        <p className="text-[11px] text-muted-foreground">Check-out asli dari aplikasi.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label>Alasan</Label>
+                                <Textarea
+                                    value={manualReason}
+                                    onChange={(e) => setManualReason(e.target.value)}
+                                    placeholder="Contoh: aplikasi error di HP coach, GPS tidak terbaca"
+                                    maxLength={500}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={closeManualDialog} disabled={isSavingManual}>
+                            Batal
+                        </Button>
+                        <Button type="button" onClick={handleSaveManual} disabled={isSavingManual}>
+                            {isSavingManual ? 'Menyimpan...' : 'Simpan'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Photo Preview Dialog */}
             <Dialog open={!!previewPhoto} onOpenChange={(open) => !open && setPreviewPhoto(null)}>

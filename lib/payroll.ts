@@ -234,6 +234,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
     manual_bonus_changed: 'Manual bonus changed',
     flags_updated: 'Flags updated',
     settings_updated: 'Settings updated',
+    manual_attendance: 'Manual attendance',
 };
 
 export function getAuditActionLabel(action: string): string {
@@ -264,6 +265,22 @@ export function describeAuditEntry(entry: PayrollAuditEntry): string {
                     return `${label}: ${value ? 'yes' : 'no'}`;
                 })
                 .join(', ');
+        }
+
+        case 'manual_attendance': {
+            const to = meta.to as Record<string, string | null> | undefined;
+            const fmt = (iso: string | null | undefined) =>
+                iso
+                    ? new Intl.DateTimeFormat('en-GB', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        timeZone: 'Asia/Jakarta',
+                    }).format(new Date(iso))
+                    : '-';
+            const times = to ? `In ${fmt(to.check_in_at)}, Out ${fmt(to.check_out_at)}` : '';
+            const reason = typeof meta.reason === 'string' ? ` | Reason: ${meta.reason}` : '';
+            return `${times}${reason}`;
         }
 
         default:
