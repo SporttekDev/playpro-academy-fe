@@ -21,8 +21,8 @@ type CaptureResult = {
  * Default false/false = tampilan & foto apa adanya dari kamera. Kalau teks yang dipegang
  * di depan kamera terlihat terbalik, set true pada bagian yang terbalik.
  */
-const FLIP_PREVIEW = false
-const FLIP_PHOTO = false
+const FLIP_PREVIEW = true
+const FLIP_PHOTO = true
 
 export function CameraGeoCapture({
     onCapture,
