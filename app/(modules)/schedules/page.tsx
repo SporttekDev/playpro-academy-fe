@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { IconArrowBackUp, IconArrowsExchange, IconBan, IconCalendarCog, IconPencil, IconTrash } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/date-picker';
@@ -1234,21 +1235,17 @@ export default function SchedulesPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <Label>Start Time</Label>
-                                    <Input
-                                        type="time"
+                                    <TimeInput
                                         value={formData.start_time}
-                                        onChange={(e) => handleTimeChange(e.target.value, 'start_time')}
-                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden"
+                                        onChange={(time) => handleTimeChange(time, 'start_time')}
                                         required
                                     />
                                 </div>
                                 <div className="space-y-1">
                                     <Label>End Time</Label>
-                                    <Input
-                                        type="time"
+                                    <TimeInput
                                         value={formData.end_time}
-                                        onChange={(e) => handleTimeChange(e.target.value, 'end_time')}
-                                        className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden"
+                                        onChange={(time) => handleTimeChange(time, 'end_time')}
                                         required
                                     />
                                 </div>
