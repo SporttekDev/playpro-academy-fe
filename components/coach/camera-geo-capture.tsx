@@ -12,20 +12,17 @@ type CaptureResult = {
 }
 
 /**
- * Preview kamera depan. Safari (iOS/macOS) me-mirror preview kamera depan secara
- * bawaan, sedangkan foto hasil canvas TIDAK ter-mirror. Supaya preview sama persis
- * dengan hasil foto (tidak mirror), preview di-flip balik hanya bila browser memang
- * me-mirror. Kalau di perangkat tertentu hasilnya malah terbalik, ubah ke "never".
+ * Mirroring kamera depan. Perilaku bawaan tiap browser/perangkat berbeda, jadi arahnya
+ * dikendalikan eksplisit di sini (sama di semua perangkat).
+ *
+ * FLIP_PREVIEW: true  -> preview dibalik kiri-kanan (kompensasi bila stream dari perangkat ter-mirror)
+ * FLIP_PHOTO  : true  -> hasil foto dibalik kiri-kanan (kompensasi bila foto hasil ter-mirror)
+ *
+ * Default false/false = tampilan & foto apa adanya dari kamera. Kalau teks yang dipegang
+ * di depan kamera terlihat terbalik, set true pada bagian yang terbalik.
  */
-const UNMIRROR_PREVIEW: "auto" | "never" = "auto"
-
-function isAppleBrowser() {
-    if (typeof navigator === "undefined") return false
-    const ua = navigator.userAgent
-    const iOS = /iP(hone|ad|od)/.test(ua) || (ua.includes("Mac") && navigator.maxTouchPoints > 1)
-    const safariDesktop = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua)
-    return iOS || safariDesktop
-}
+const FLIP_PREVIEW = false
+const FLIP_PHOTO = false
 
 export function CameraGeoCapture({
     onCapture,
@@ -202,7 +199,10 @@ export function CameraGeoCapture({
         const ctx = canvas.getContext("2d")
         if (!ctx) return
 
-        // Digambar apa adanya (tanpa flip) -> hasil foto tidak mirror.
+        if (FLIP_PHOTO) {
+            ctx.translate(canvas.width, 0)
+            ctx.scale(-1, 1)
+        }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
         canvas.toBlob(
@@ -236,7 +236,6 @@ export function CameraGeoCapture({
 
     const canSubmit = Boolean(photoBlob && location) && !isSubmitting
     const showPhoto = Boolean(photoUrl)
-    const flipPreview = UNMIRROR_PREVIEW === "auto" && isAppleBrowser()
 
     return (
         <div className="space-y-4">
@@ -248,7 +247,7 @@ export function CameraGeoCapture({
                     playsInline
                     muted
                     className="h-full w-full object-cover"
-                    style={{ transform: flipPreview ? "scaleX(-1)" : "none" }}
+                    style={{ transform: FLIP_PREVIEW ? "scaleX(-1)" : "none" }}
                 />
                 <canvas ref={canvasRef} className="hidden" />
 
