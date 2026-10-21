@@ -449,58 +449,61 @@ export default function RaportPage() {
 
 
     return (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-            {/* Filter Bar */}
-            <div className="flex flex-wrap gap-2">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-36">
-                        <SelectValue placeholder="Pilih Bulan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {MONTHS.map((m) => (
-                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+        <div className="px-6 space-y-4">
 
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger className="w-28">
-                        <SelectValue placeholder="Pilih Tahun" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {YEARS.map((y) => (
-                            <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Filter Bar */}
+                <div className="flex flex-wrap gap-2">
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-36">
+                            <SelectValue placeholder="Pilih Bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {MONTHS.map((m) => (
+                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                    <SelectTrigger className="w-44">
-                        <SelectValue placeholder="Pilih Branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Branch</SelectItem>
-                        {branches.map((b) => (
-                            <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="w-28">
+                            <SelectValue placeholder="Pilih Tahun" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {YEARS.map((y) => (
+                                <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-            <div className="flex gap-2">
-                {batchProgress && (
-                    <Button variant="outline" onClick={() => (cancelRef.current = true)}>
-                        Batal
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Pilih Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Branch</SelectItem>
+                            {branches.map((b) => (
+                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex gap-2">
+                    {batchProgress && (
+                        <Button variant="outline" onClick={() => (cancelRef.current = true)}>
+                            Batal
+                        </Button>
+                    )}
+                    <Button onClick={handleDownloadAll} disabled={!!batchProgress || reports.length === 0}>
+                        <IconFileZip size={16} />
+                        <span className="ml-2">
+                            {batchProgress
+                                ? `Mengekspor ${batchProgress.current}/${batchProgress.total}...`
+                                : `Download Semua (${reports.length})`}
+                        </span>
                     </Button>
-                )}
-                <Button onClick={handleDownloadAll} disabled={!!batchProgress || reports.length === 0}>
-                    <IconFileZip size={16} />
-                    <span className="ml-2">
-                        {batchProgress
-                            ? `Mengekspor ${batchProgress.current}/${batchProgress.total}...`
-                            : `Download Semua (${reports.length})`}
-                    </span>
-                </Button>
+                </div>
             </div>
 
             <DataTable columns={columns} data={reports} />
