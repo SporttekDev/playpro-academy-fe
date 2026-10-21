@@ -20,6 +20,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { IconArrowLeft } from '@tabler/icons-react'
+import { Input } from '@/components/ui/input'
 
 interface AttendanceReport {
     id: number
@@ -96,6 +97,11 @@ const MAX_CHARS = 650
 
 const getBasePath = (role?: string) => (role === 'coach' ? 'coach' : 'admin')
 
+const toLocalInputValue = (d: Date) => {
+    const p = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 function AttendanceReportFormContent() {
     const { id } = useParams()
     const router = useRouter()
@@ -108,6 +114,7 @@ function AttendanceReportFormContent() {
     const [session, setSession] = useState<Session | null>(null)
     const [coaches, setCoaches] = useState<{ id: number; name: string }[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [submittedAtInput, setSubmittedAtInput] = useState('')
 
     const motorikRef = useRef<HTMLTextAreaElement | null>(null)
     const locomotorRef = useRef<HTMLTextAreaElement | null>(null)
@@ -170,6 +177,7 @@ function AttendanceReportFormContent() {
             setReport(reportData)
             setDefaultReport(reportData)
             setSession(sessionKey)
+            setSubmittedAtInput('')
         } catch (error) {
             console.error('Error : ', error)
             toast.error('Error fetching report')
@@ -254,6 +262,13 @@ function AttendanceReportFormContent() {
             return
         }
 
+        const canSetSubmittedAt = session?.role === 'admin' && !report?.submitted_at
+
+        if (canSetSubmittedAt && submittedAtInput && new Date(submittedAtInput) > new Date()) {
+            toast.error('Waktu submit tidak boleh di masa depan.')
+            return
+        }
+
         try {
             const token = Cookies.get('token')
             const basePath = getBasePath(session?.role)
@@ -265,6 +280,7 @@ function AttendanceReportFormContent() {
                 body_control: report?.body_control?.trim() || null,
                 attendance: Boolean(report?.attendance),
                 overall: report?.overall,
+                ...(canSetSubmittedAt && submittedAtInput ? { submitted_at: submittedAtInput } : {}),
             }
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/${basePath}/attendance-report/${id}`,
@@ -294,6 +310,7 @@ function AttendanceReportFormContent() {
 
     const handleReset = () => {
         setReport(defaultReport)
+        setSubmittedAtInput('')
         toast.info('Changes reverted to last saved state')
     }
 
@@ -660,6 +677,24 @@ function AttendanceReportFormContent() {
                                             Overall rating (1 = low, 5 = excellent).
                                         </p>
                                     </div>
+
+                                    {/* Submitted At — admin only, hanya saat belum pernah disubmit */}
+                                    {session?.role === 'admin' && !report.submitted_at && (
+                                        <div className="space-y-1 lg:col-span-1">
+                                            <Label htmlFor="submitted_at">Submitted At (optional)</Label>
+                                            <Input
+                                                id="submitted_at"
+                                                type="datetime-local"
+                                                value={submittedAtInput}
+                                                max={toLocalInputValue(new Date())}
+                                                onChange={(e) => setSubmittedAtInput(e.target.value)}
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Leave empty to use the current time (WIB). Can only be set when the report is first
+                                                submitted, and cannot be in the future.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {!isFilledByOtherCoach && (

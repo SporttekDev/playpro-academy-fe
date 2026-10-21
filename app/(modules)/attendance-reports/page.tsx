@@ -376,7 +376,7 @@ function AttendanceReportsContent() {
             header: 'Submitted At',
             cell: ({ row }) => {
                 const iso = row.original.submitted_at;
-                if (!iso) return <span className="text-xs text-muted-foreground">Belum disubmit</span>;
+                if (!iso) return <span className="text-xs text-muted-foreground">Not Submitted</span>;
                 return new Intl.DateTimeFormat('id-ID', {
                     day: '2-digit',
                     month: 'short',
