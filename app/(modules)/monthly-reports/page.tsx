@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import Cookies from 'js-cookie';
-import { IconFileExport } from '@tabler/icons-react';
+import { IconFileExport, IconFileZip } from '@tabler/icons-react';
 import { ReportPDF } from '@/components/ui/report-pdf';
 import jsPDF from "jspdf";
 import html2canvas from 'html2canvas-pro';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { flushSync } from 'react-dom';
+import JSZip from 'jszip'; // IconFileZip ditambahkan
 
 
 export interface ReportResponse {
@@ -92,17 +94,17 @@ interface BranchOption {
 }
 
 const MONTHS = [
-    { value: '1', label: 'Januari' },    
+    { value: '1', label: 'Januari' },
     { value: '2', label: 'Februari' },
-    { value: '3', label: 'Maret' },      
+    { value: '3', label: 'Maret' },
     { value: '4', label: 'April' },
-    { value: '5', label: 'Mei' },        
+    { value: '5', label: 'Mei' },
     { value: '6', label: 'Juni' },
-    { value: '7', label: 'Juli' },       
+    { value: '7', label: 'Juli' },
     { value: '8', label: 'Agustus' },
-    { value: '9', label: 'September' },  
+    { value: '9', label: 'September' },
     { value: '10', label: 'Oktober' },
-    { value: '11', label: 'November' },  
+    { value: '11', label: 'November' },
     { value: '12', label: 'Desember' },
 ];
 
@@ -111,6 +113,88 @@ const YEARS = Array.from({ length: 5 }, (_, i) => ({
     value: String(currentYear - i),
     label: String(currentYear - i),
 }));
+
+const pxToMm = (px: number) => px * 0.264583;
+
+const sanitizeFileName = (name: string) =>
+    name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+
+const nextFrame = () =>
+    new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+// Memuat ulang semua <img> di dalam element (cache-bust + CORS) dan menunggu sampai selesai.
+async function waitForImages(root: HTMLElement) {
+    const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
+    await Promise.all(
+        images.map(
+            (img) =>
+                new Promise<void>((resolve) => {
+                    const done = () => resolve();
+                    img.loading = 'eager'; // next/image default-nya lazy
+                    img.crossOrigin = 'anonymous';
+                    img.onload = done;
+                    img.onerror = done; // jangan sampai satu foto gagal menggantung seluruh proses
+                    const url = new URL(img.src);
+                    url.searchParams.set('cache_bust', Date.now().toString());
+                    img.src = url.toString();
+                    setTimeout(done, 15000); // timeout pengaman
+                })
+        )
+    );
+}
+
+// Render element menjadi PDF (Blob). Dipakai oleh download satuan dan download all.
+async function elementToPdfBlob(element: HTMLElement): Promise<Blob> {
+    const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        onclone: (clonedDoc) => {
+            const style = clonedDoc.createElement('style');
+            style.innerHTML = `
+                #${element.id}, #${element.id} * {
+                    box-shadow: none !important;
+                    background-image: none !important;
+                    filter: none !important;
+                    outline: none !important;
+                }
+                #${element.id} { background-color: #ffffff !important; }
+            `;
+            clonedDoc.head.appendChild(style);
+            clonedDoc
+                .querySelectorAll(`#${element.id} img`)
+                .forEach((img) => ((img as HTMLImageElement).crossOrigin = 'anonymous'));
+        },
+    });
+
+    const widthMm = pxToMm(canvas.width);
+    const heightMm = pxToMm(canvas.height);
+
+    const pdf = new jsPDF({
+        orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [widthMm, heightMm],
+    });
+
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, widthMm, heightMm);
+    const blob = pdf.output('blob');
+
+    // bebaskan memori canvas, penting untuk batch besar
+    canvas.width = 0;
+    canvas.height = 0;
+
+    return blob;
+}
+
+function saveBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export default function RaportPage() {
 
@@ -122,6 +206,11 @@ export default function RaportPage() {
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
     const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
     const [selectedBranch, setSelectedBranch] = useState<string>('all');
+
+    const [batchReport, setBatchReport] = useState<ReportResponse | null>(null);
+    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+    const batchRef = useRef<HTMLDivElement | null>(null);
+    const cancelRef = useRef(false);
 
     const reportRef = useRef<HTMLDivElement | null>(null);
 
@@ -184,7 +273,7 @@ export default function RaportPage() {
 
     const handleDownloadPdf = useCallback(async () => {
         const element = reportRef.current;
-        if (!element) {
+        if (!element || !reportPdf) {
             toast.error('Tidak ada laporan untuk di-download');
             return;
         }
@@ -193,64 +282,9 @@ export default function RaportPage() {
             setExporting(true);
             toast('Mempersiapkan PDF...', { duration: 2000 });
 
-            // 1. Target all images in your report
-            // Use HTMLImageElement in querySelectorAll to help TypeScript
-            const images = document.querySelectorAll<HTMLImageElement>('#report-to-export img');
-
-            images.forEach((img) => {
-                // Now TypeScript knows 'img' has a 'src' property
-                const url = new URL(img.src);
-                url.searchParams.set('cache_bust', new Date().getTime().toString());
-                img.src = url.toString();
-                
-                // Also ensure the crossOrigin attribute is set BEFORE the reload
-                img.crossOrigin = "anonymous";
-            });
-
-            // 3. (Important) Ensure the images are fully loaded with the new URL 
-            // before starting html2canvas
-            await Promise.all(
-                Array.from(images).map(img => 
-                    img.complete ? Promise.resolve() : new Promise(res => img.onload = res)
-                )
-            );
-
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                logging: true, // Add this to check console for image loading errors
-                onclone: (clonedDoc) => {
-                    const style = clonedDoc.createElement('style');
-                    style.innerHTML = `
-                        #report-to-export, #report-to-export * {
-                            box-shadow: none !important;
-                            background-image: none !important;
-                            filter: none !important;
-                            outline: none !important;
-                        }
-                        #report-to-export { background-color: #ffffff !important; }
-                    `;
-                    clonedDoc.head.appendChild(style);
-                    clonedDoc.querySelectorAll('#report-to-export img')
-                        .forEach((img) => (img as HTMLImageElement).crossOrigin = 'anonymous');
-                },
-            });
-
-            const imgData = canvas.toDataURL('image/jpeg');
-            const pxToMm = (px: number) => px * 0.264583;
-            const canvasWidthMm = pxToMm(canvas.width);
-            const canvasHeightMm = pxToMm(canvas.height);
-
-            const pdf = new jsPDF({
-                orientation: canvasWidthMm > canvasHeightMm ? 'landscape' : 'portrait',
-                unit: 'mm',
-                format: [canvasWidthMm, canvasHeightMm],
-            });
-
-            pdf.addImage(imgData, 'PNG', 0, 0, canvasWidthMm, canvasHeightMm);
-
-            const fileName = `${reportPdf?.play_kid.name} - ${reportPdf?.month_display}.pdf`;
-            pdf.save(fileName);
+            await waitForImages(element);
+            const blob = await elementToPdfBlob(element);
+            saveBlob(blob, `${sanitizeFileName(reportPdf.play_kid.name)} - ${reportPdf.month_display}.pdf`);
 
             toast.success('PDF berhasil di-download');
         } catch (err) {
@@ -259,7 +293,85 @@ export default function RaportPage() {
         } finally {
             setExporting(false);
         }
-    }, [reportRef, reportPdf]);
+    }, [reportPdf]);
+
+    const handleDownloadAll = useCallback(async () => {
+        if (reports.length === 0) {
+            toast.error('Tidak ada laporan untuk di-download');
+            return;
+        }
+
+        cancelRef.current = false;
+        const total = reports.length;
+        setBatchProgress({ current: 0, total });
+
+        const zip = new JSZip();
+        const usedNames = new Map<string, number>();
+        let failed = 0;
+
+        try {
+            for (let i = 0; i < total; i++) {
+                if (cancelRef.current) break;
+
+                const report = reports[i];
+
+                // render laporan ini ke container tersembunyi, lalu tunggu DOM siap
+                flushSync(() => setBatchReport(report));
+                const element = batchRef.current;
+
+                try {
+                    if (!element) throw new Error('Container tidak ditemukan');
+                    await waitForImages(element);
+                    await nextFrame();
+                    const blob = await elementToPdfBlob(element);
+
+                    // nama file: "Nama - Bulan Tahun.pdf", beri suffix bila kembar
+                    const base = sanitizeFileName(`${report.play_kid.name} - ${report.month_display}`);
+                    const count = (usedNames.get(base) ?? 0) + 1;
+                    usedNames.set(base, count);
+                    zip.file(count > 1 ? `${base} (${count}).pdf` : `${base}.pdf`, blob);
+                } catch (err) {
+                    failed++;
+                    console.error(`Gagal membuat PDF untuk ${report.play_kid.name}:`, err);
+                }
+
+                setBatchProgress({ current: i + 1, total });
+            }
+
+            if (cancelRef.current) {
+                toast.info('Download dibatalkan');
+                return;
+            }
+
+            if (failed === total) {
+                toast.error('Semua laporan gagal dibuat');
+                return;
+            }
+
+            // PDF sudah terkompres, jadi STORE (tanpa kompresi ulang) lebih cepat
+            const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+
+            const monthLabel = MONTHS.find((m) => m.value === selectedMonth)?.label ?? selectedMonth;
+            const branchLabel =
+                selectedBranch === 'all'
+                    ? 'Semua Branch'
+                    : branches.find((b) => String(b.id) === selectedBranch)?.name ?? selectedBranch;
+
+            saveBlob(zipBlob, sanitizeFileName(`Laporan ${monthLabel} ${selectedYear} - ${branchLabel}`) + '.zip');
+
+            if (failed > 0) {
+                toast.warning(`${total - failed} laporan berhasil, ${failed} gagal`);
+            } else {
+                toast.success(`${total} laporan berhasil di-download`);
+            }
+        } catch (err) {
+            console.error('Download all error:', err);
+            toast.error('Gagal membuat ZIP');
+        } finally {
+            setBatchReport(null);
+            setBatchProgress(null);
+        }
+    }, [reports, branches, selectedMonth, selectedYear, selectedBranch]);
 
     const columns: ColumnDef<ReportResponse>[] = [
         {
@@ -338,41 +450,60 @@ export default function RaportPage() {
 
     return (
         <div className="px-6 space-y-4">
-            {/* Filter Bar */}
-            <div className="flex flex-wrap gap-2">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-36">
-                        <SelectValue placeholder="Pilih Bulan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {MONTHS.map((m) => (
-                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
 
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger className="w-28">
-                        <SelectValue placeholder="Pilih Tahun" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {YEARS.map((y) => (
-                            <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Filter Bar */}
+                <div className="flex flex-wrap gap-2">
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-36">
+                            <SelectValue placeholder="Pilih Bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {MONTHS.map((m) => (
+                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                    <SelectTrigger className="w-44">
-                        <SelectValue placeholder="Pilih Branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Branch</SelectItem>
-                        {branches.map((b) => (
-                            <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="w-28">
+                            <SelectValue placeholder="Pilih Tahun" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {YEARS.map((y) => (
+                                <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Pilih Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Branch</SelectItem>
+                            {branches.map((b) => (
+                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex gap-2">
+                    {batchProgress && (
+                        <Button variant="outline" onClick={() => (cancelRef.current = true)}>
+                            Batal
+                        </Button>
+                    )}
+                    <Button onClick={handleDownloadAll} disabled={!!batchProgress || reports.length === 0}>
+                        <IconFileZip size={16} />
+                        <span className="ml-2">
+                            {batchProgress
+                                ? `Mengekspor ${batchProgress.current}/${batchProgress.total}...`
+                                : `Download Semua (${reports.length})`}
+                        </span>
+                    </Button>
+                </div>
             </div>
 
             <DataTable columns={columns} data={reports} />
@@ -408,6 +539,17 @@ export default function RaportPage() {
                                 {exporting ? 'Mengekspor...' : 'Download PDF'}
                             </Button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {batchReport && (
+                <div
+                    aria-hidden
+                    style={{ position: 'fixed', top: 0, left: 0, width: 1024, zIndex: -1, pointerEvents: 'none' }}
+                >
+                    <div ref={batchRef} id="batch-report-to-export" style={{ width: 1024, background: '#fff' }}>
+                        <ReportPDF report={batchReport} />
                     </div>
                 </div>
             )}
