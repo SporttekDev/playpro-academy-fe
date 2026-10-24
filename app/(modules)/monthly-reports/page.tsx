@@ -446,8 +446,6 @@ export default function RaportPage() {
         },
     ];
 
-
-
     return (
         <div className="px-6 space-y-4">
 

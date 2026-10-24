@@ -252,6 +252,9 @@ function BreakdownView({
     const sessionsSubtotal =
         breakdown.total_amount - breakdown.discipline_bonus_amount - breakdown.manual_bonus_amount;
     const overLimit = breakdown.reschedule_count > breakdown.reschedule_limit;
+    const showBonusCalculation =
+        breakdown.discipline_bonus_rate > 0 &&
+        (breakdown.discipline_bonus_eligible || breakdown.discipline_bonus_sessions > 0);
 
     return (
         <div className="space-y-4">
@@ -291,14 +294,19 @@ function BreakdownView({
                 <div className="rounded-2xl border p-4">
                     <p className="text-xs text-muted-foreground">Discipline bonus</p>
                     <p
-                        className={`text-lg font-semibold ${
-                            breakdown.discipline_bonus_eligible ? 'text-emerald-600' : 'text-muted-foreground'
-                        }`}
+                        className={`text-lg font-semibold ${breakdown.discipline_bonus_eligible ? 'text-emerald-600' : 'text-muted-foreground'
+                            }`}
                     >
                         {breakdown.discipline_bonus_eligible
                             ? `+${formatRupiah(breakdown.discipline_bonus_amount)}`
                             : 'Not earned'}
                     </p>
+                    {showBonusCalculation && (
+                        <p className="text-xs text-muted-foreground">
+                            {breakdown.discipline_bonus_eligible ? '' : 'Forfeited: '}
+                            {formatRupiah(breakdown.discipline_bonus_rate)} × {breakdown.discipline_bonus_sessions} paid session(s)
+                        </p>
+                    )}
                     {breakdown.discipline_bonus_provisional && (
                         <p className="text-xs text-sky-600">Provisional: sessions still pending</p>
                     )}
@@ -366,11 +374,10 @@ function BreakdownView({
                                             {formatDate(r.schedule_date)} {r.class_name ? `- ${r.class_name}` : ''}
                                         </span>
                                         <Badge
-                                            className={`rounded-full border ${
-                                                r.counts_toward_bonus
+                                            className={`rounded-full border ${r.counts_toward_bonus
                                                     ? 'bg-amber-50 text-amber-600 border-amber-200'
                                                     : 'bg-slate-100 text-slate-600 border-slate-200'
-                                            }`}
+                                                }`}
                                         >
                                             {getRescheduleTypeLabel(r.type)}
                                             {r.counts_toward_bonus ? ' (counts)' : ''}
