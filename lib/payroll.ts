@@ -64,6 +64,8 @@ export interface CoachPayrollBreakdown {
     upcoming_sessions: number;
     discipline_bonus_eligible: boolean;
     discipline_bonus_amount: number;
+    discipline_bonus_rate: number;
+    discipline_bonus_sessions: number;
     discipline_bonus_reason: string | null;
     discipline_bonus_provisional: boolean;
     reschedule_count: number;
