@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { IconCopy, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCopy, IconPencil, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 import {
     Dialog,
     DialogContent,
@@ -19,10 +19,26 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { TimeInput } from '@/components/ui/time-input';
 import { DatePicker } from '@/components/date-picker';
 import { apiRequest, getErrorMessage } from '@/lib/api';
-
-const MAX_ITEMS = 200;
-const MAX_RANGE_DAYS = 93;
-const DEFAULT_QUOTA = 15;
+import {
+    DEFAULT_QUOTA,
+    INHERIT,
+    MAX_ITEMS,
+    MAX_RANGE_DAYS,
+    SKIP,
+    buildWeeks,
+    classMeta,
+    compareRows,
+    dayLabel,
+    generateRows,
+    isSlotReady,
+    parseIso,
+    rowError,
+    shortDate,
+    toIso,
+    type ClassLike,
+    type Row,
+    type Slot,
+} from '@/lib/bulk-schedule-utils';
 
 // Urutan tampilan Senin..Minggu; nilai = Date.getDay() (0 = Minggu).
 const DAYS: { value: number; label: string }[] = [
@@ -34,6 +50,7 @@ const DAYS: { value: number; label: string }[] = [
     { value: 6, label: 'Sab' },
     { value: 0, label: 'Min' },
 ];
+const dayShort = (d: number) => DAYS.find((x) => x.value === d)?.label ?? '';
 
 const SKIP_REASONS: Record<string, string> = {
     already_exists: 'Already exists',
@@ -42,11 +59,12 @@ const SKIP_REASONS: Record<string, string> = {
     venue_branch_mismatch: 'Venue does not belong to the class branch',
 };
 
-export interface BulkClassOption {
+export interface BulkBranchOption {
     id: string | number;
     name: string;
-    branch_id: string | number;
 }
+
+// Removed BulkClassOption as it is equivalent to ClassLike
 
 export interface BulkVenueOption {
     id: string | number;
@@ -54,24 +72,20 @@ export interface BulkVenueOption {
     branch: { id: string | number };
 }
 
-interface Rule {
-    key: string;
-    class_id: string;
-    venue_id: string;
+interface TemplateSlot {
+    venue_id: number;
     days: number[];
     start_time: string;
     end_time: string;
     quota: number;
+    category_key: string;
 }
 
-interface PreviewItem {
-    id: string;
-    class_id: string;
-    venue_id: string;
-    date: string;
-    start_time: string;
-    end_time: string;
-    quota: number;
+interface Template {
+    id: number;
+    branch_id: number;
+    name: string;
+    slots: TemplateSlot[];
 }
 
 interface SkippedItem {
@@ -92,53 +106,77 @@ interface BulkResult {
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    classes: BulkClassOption[];
+    branches: BulkBranchOption[];
+    classes: ClassLike[];
     venues: BulkVenueOption[];
     /** Dipanggil setelah ada jadwal yang berhasil dibuat, untuk memuat ulang daftar. */
     onCreated: () => void;
 }
 
-let ruleCounter = 0;
-const newRule = (base?: Partial<Rule>): Rule => ({
-    class_id: '',
+let counter = 0;
+const nextKey = (prefix: string) => `${prefix}${++counter}`;
+
+const newSlot = (base?: Partial<Slot>): Slot => ({
     venue_id: '',
     days: [],
     start_time: '',
     end_time: '',
     quota: DEFAULT_QUOTA,
+    category: '',
     ...base,
-    // Selalu key baru, termasuk saat menduplikasi aturan yang sudah ada.
-    key: `r${++ruleCounter}`,
+    key: nextKey('s'),
 });
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const toIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parseIso = (iso: string) => {
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y, m - 1, d);
-};
-const dayLabel = (iso: string) =>
-    parseIso(iso).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
-
-const isRuleReady = (r: Rule) =>
-    !!r.class_id &&
-    !!r.venue_id &&
-    r.days.length > 0 &&
-    /^\d{2}:\d{2}$/.test(r.start_time) &&
-    /^\d{2}:\d{2}$/.test(r.end_time) &&
-    r.end_time > r.start_time &&
-    r.quota >= 1;
-
-export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCreated }: Props) {
+export function BulkScheduleDialog({ open, onOpenChange, branches, classes, venues, onCreated }: Props) {
+    const [branchId, setBranchId] = useState('');
     const [rangeStart, setRangeStart] = useState<Date | undefined>();
     const [rangeEnd, setRangeEnd] = useState<Date | undefined>();
-    const [rules, setRules] = useState<Rule[]>(() => [newRule()]);
+    const [slots, setSlots] = useState<Slot[]>(() => [newSlot()]);
+    const [weekSport, setWeekSport] = useState<Record<string, string>>({});
+    const [overrides, setOverrides] = useState<Record<string, string>>({});
+    const [perSlot, setPerSlot] = useState(false);
+
     const [removed, setRemoved] = useState<Set<string>>(new Set());
+    const [edits, setEdits] = useState<Record<string, Partial<Row>>>({});
+    const [manualRows, setManualRows] = useState<Row[]>([]);
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    const [templates, setTemplates] = useState<Template[]>([]);
+    const [templateName, setTemplateName] = useState('');
+
     const [isSaving, setIsSaving] = useState(false);
     const [result, setResult] = useState<BulkResult | null>(null);
 
+    // -- Data turunan ----------------------------------------------------------
+
+    const branchClasses = useMemo(
+        () => classes.filter((c) => String(c.branch_id) === branchId),
+        [classes, branchId]
+    );
+    const branchVenues = useMemo(
+        () => venues.filter((v) => String(v.branch.id) === branchId),
+        [venues, branchId]
+    );
     const classById = useMemo(() => new Map(classes.map((c) => [String(c.id), c])), [classes]);
     const venueById = useMemo(() => new Map(venues.map((v) => [String(v.id), v])), [venues]);
+
+    const sportOptions = useMemo(() => {
+        const map = new Map<string, string>();
+        branchClasses.forEach((c) => {
+            const m = classMeta(c);
+            if (!map.has(m.sportKey)) map.set(m.sportKey, m.sportLabel);
+        });
+        return [...map.entries()].map(([value, label]) => ({ value, label }));
+    }, [branchClasses]);
+
+    const categoryOptions = useMemo(() => {
+        const map = new Map<string, string>();
+        branchClasses.forEach((c) => {
+            const m = classMeta(c);
+            if (!map.has(m.categoryKey)) map.set(m.categoryKey, m.categoryLabel);
+        });
+        return [...map.entries()].map(([value, label]) => ({ value, label }));
+    }, [branchClasses]);
 
     const rangeError = useMemo(() => {
         if (!rangeStart || !rangeEnd) return null;
@@ -148,69 +186,226 @@ export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCrea
         return null;
     }, [rangeStart, rangeEnd]);
 
-    // Pratinjau selalu diturunkan dari aturan + rentang tanggal; tanggal yang dihapus user
-    // disimpan terpisah supaya tetap terhapus saat aturan lain diubah.
-    const preview = useMemo<PreviewItem[]>(() => {
-        if (!rangeStart || !rangeEnd || rangeError) return [];
+    const weeks = useMemo(
+        () => (rangeError ? [] : buildWeeks(rangeStart, rangeEnd)),
+        [rangeStart, rangeEnd, rangeError]
+    );
 
-        const items: PreviewItem[] = [];
-        for (const rule of rules) {
-            if (!isRuleReady(rule)) continue;
+    const generated = useMemo(
+        () => generateRows({ slots, weeks, weekSport, overrides, classes: branchClasses }),
+        [slots, weeks, weekSport, overrides, branchClasses]
+    );
 
-            for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
-                if (!rule.days.includes(d.getDay())) continue;
-                const date = toIso(d);
-                const id = `${rule.key}|${date}`;
-                if (removed.has(id)) continue;
-                items.push({
-                    id,
-                    class_id: rule.class_id,
-                    venue_id: rule.venue_id,
-                    date,
-                    start_time: rule.start_time,
-                    end_time: rule.end_time,
-                    quota: rule.quota,
-                });
-            }
+    const rows = useMemo<Row[]>(() => {
+        const fromGrid = generated
+            .filter((r) => !removed.has(r.id))
+            .map((r) => {
+                const e = edits[r.id];
+                if (!e) return r;
+                return { ...r, ...e, problem: e.class_id !== undefined ? undefined : r.problem };
+            });
+        return [...fromGrid, ...manualRows].sort(compareRows);
+    }, [generated, removed, edits, manualRows]);
+
+    const validRows = useMemo(() => rows.filter((r) => !rowError(r)), [rows]);
+    const invalidCount = rows.length - validRows.length;
+
+    // -- Template --------------------------------------------------------------
+
+    useEffect(() => {
+        if (!open || !branchId) {
+            setTemplates([]);
+            return;
         }
 
-        return items.sort((a, b) =>
-            a.date === b.date ? a.start_time.localeCompare(b.start_time) : a.date.localeCompare(b.date)
-        );
-    }, [rules, rangeStart, rangeEnd, rangeError, removed]);
+        let ignore = false;
+        apiRequest<Template[]>('/admin/schedule-templates', { query: { branch_id: branchId } })
+            .then(({ data }) => {
+                if (!ignore) setTemplates(Array.isArray(data) ? data : []);
+            })
+            .catch(() => {
+                if (!ignore) setTemplates([]);
+            });
 
-    const updateRule = (key: string, patch: Partial<Rule>) =>
-        setRules((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+        return () => {
+            ignore = true;
+        };
+    }, [open, branchId]);
 
-    const toggleDay = (rule: Rule, day: number) =>
-        updateRule(rule.key, {
-            days: rule.days.includes(day) ? rule.days.filter((d) => d !== day) : [...rule.days, day],
-        });
-
-    const venueOptionsFor = (classId: string) => {
-        const cls = classById.get(classId);
-        if (!cls) return [];
-        return venues.filter((v) => String(v.branch.id) === String(cls.branch_id));
+    const reloadTemplates = async () => {
+        try {
+            const { data } = await apiRequest<Template[]>('/admin/schedule-templates', {
+                query: { branch_id: branchId },
+            });
+            setTemplates(Array.isArray(data) ? data : []);
+        } catch {
+            /* daftar template hanya kemudahan; abaikan bila gagal */
+        }
     };
 
-    const reset = () => {
+    const handleSaveTemplate = async () => {
+        const ready = slots.filter(isSlotReady);
+        const name = templateName.trim();
+
+        if (!name) {
+            toast.error('Enter a template name first');
+            return;
+        }
+        if (ready.length === 0) {
+            toast.error('Complete at least one slot before saving a template');
+            return;
+        }
+
+        try {
+            await apiRequest('/admin/schedule-templates', {
+                method: 'POST',
+                body: {
+                    branch_id: Number(branchId),
+                    name,
+                    slots: ready.map((s) => ({
+                        venue_id: Number(s.venue_id),
+                        days: s.days,
+                        start_time: s.start_time,
+                        end_time: s.end_time,
+                        quota: s.quota,
+                        category_key: s.category,
+                    })),
+                },
+            });
+            await reloadTemplates();
+            toast.success('Template saved');
+        } catch (error) {
+            console.error('Save template error:', error);
+            toast.error(getErrorMessage(error, 'Failed to save template'));
+        }
+    };
+
+    const handleLoadTemplate = (id: string) => {
+        const t = templates.find((x) => String(x.id) === id);
+        if (!t) return;
+
+        setSlots(
+            t.slots.map((s) =>
+                newSlot({
+                    venue_id: String(s.venue_id),
+                    days: s.days,
+                    start_time: s.start_time,
+                    end_time: s.end_time,
+                    quota: s.quota,
+                    category: s.category_key,
+                })
+            )
+        );
+        setOverrides({});
+        setRemoved(new Set());
+        setEdits({});
+        setTemplateName(t.name);
+    };
+
+    const handleDeleteTemplate = async () => {
+        const t = templates.find((x) => x.name === templateName.trim());
+        if (!t) return;
+        if (!window.confirm(`Delete template "${t.name}"?`)) return;
+
+        try {
+            await apiRequest(`/admin/schedule-templates/${t.id}`, { method: 'DELETE' });
+            await reloadTemplates();
+            setTemplateName('');
+            toast.success('Template deleted');
+        } catch (error) {
+            console.error('Delete template error:', error);
+            toast.error(getErrorMessage(error, 'Failed to delete template'));
+        }
+    };
+
+    // -- Aksi ------------------------------------------------------------------
+
+    const resetAll = () => {
+        setBranchId('');
         setRangeStart(undefined);
         setRangeEnd(undefined);
-        setRules([newRule()]);
+        setSlots([newSlot()]);
+        setWeekSport({});
+        setOverrides({});
+        setPerSlot(false);
         setRemoved(new Set());
+        setEdits({});
+        setManualRows([]);
+        setEditingId(null);
+        setTemplateName('');
         setResult(null);
         setIsSaving(false);
     };
 
     const handleOpenChange = (next: boolean) => {
         if (isSaving) return;
-        if (!next) reset();
+        if (!next) resetAll();
         onOpenChange(next);
     };
 
+    const changeBranch = (next: string) => {
+        setBranchId(next);
+        setSlots([newSlot()]);
+        setWeekSport({});
+        setOverrides({});
+        setRemoved(new Set());
+        setEdits({});
+        setManualRows([]);
+        setEditingId(null);
+        setTemplateName('');
+    };
+
+    const updateSlot = (key: string, patch: Partial<Slot>) =>
+        setSlots((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+
+    const toggleDay = (slot: Slot, day: number) =>
+        updateSlot(slot.key, {
+            days: slot.days.includes(day) ? slot.days.filter((d) => d !== day) : [...slot.days, day],
+        });
+
+    const fillAllWeeks = (value: string) => {
+        const next: Record<string, string> = {};
+        weeks.forEach((w) => {
+            next[w.key] = value;
+        });
+        setWeekSport(next);
+    };
+
+    const updateRow = (row: Row, patch: Partial<Row>) => {
+        if (row.manual) {
+            setManualRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...patch } : r)));
+        } else {
+            setEdits((prev) => ({ ...prev, [row.id]: { ...prev[row.id], ...patch } }));
+        }
+    };
+
+    const removeRow = (row: Row) => {
+        if (row.manual) {
+            setManualRows((prev) => prev.filter((r) => r.id !== row.id));
+        } else {
+            setRemoved((prev) => new Set(prev).add(row.id));
+        }
+        if (editingId === row.id) setEditingId(null);
+    };
+
+    const addManualRow = () => {
+        const row: Row = {
+            id: nextKey('m'),
+            manual: true,
+            class_id: '',
+            venue_id: '',
+            date: '',
+            start_time: '',
+            end_time: '',
+            quota: DEFAULT_QUOTA,
+        };
+        setManualRows((prev) => [...prev, row]);
+        setEditingId(row.id);
+    };
+
     const handleSubmit = async () => {
-        if (preview.length === 0) return;
-        if (preview.length > MAX_ITEMS) {
+        if (validRows.length === 0) return;
+        if (validRows.length > MAX_ITEMS) {
             toast.error(`A maximum of ${MAX_ITEMS} schedules can be created at once`);
             return;
         }
@@ -220,13 +415,13 @@ export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCrea
             const { data } = await apiRequest<BulkResult>('/admin/schedule/bulk', {
                 method: 'POST',
                 body: {
-                    items: preview.map((p) => ({
-                        class_id: Number(p.class_id),
-                        venue_id: Number(p.venue_id),
-                        date: p.date,
-                        start_time: p.start_time,
-                        end_time: p.end_time,
-                        quota: p.quota,
+                    items: validRows.map((r) => ({
+                        class_id: Number(r.class_id),
+                        venue_id: Number(r.venue_id),
+                        date: r.date,
+                        start_time: r.start_time,
+                        end_time: r.end_time,
+                        quota: r.quota,
                     })),
                 },
             });
@@ -241,14 +436,33 @@ export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCrea
         }
     };
 
+    // -- Tampilan --------------------------------------------------------------
+
+    const weekLabel = (dates: string[]) =>
+        dates.length === 1 ? shortDate(dates[0]) : `${shortDate(dates[0])} – ${shortDate(dates[dates.length - 1])}`;
+
+    const slotTitle = (s: Slot, i: number) => {
+        const venue = venueById.get(s.venue_id)?.name;
+        const days = [...s.days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(dayShort).join('/');
+        return venue && days ? `${venue} · ${days} ${s.start_time}` : `Slot ${i + 1}`;
+    };
+
+    const sportSelectItems = (
+        <>
+            {sportOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+        </>
+    );
+
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Add Multiple Schedules</DialogTitle>
                     <DialogDescription>
-                        Pick a date range, then add one pattern for each class, venue and time. Extra days or hours
-                        are just another pattern. Schedules that already exist are skipped.
+                        Define the weekly slots once, choose the sport for each week, then review and edit the list
+                        before saving. Schedules that already exist are skipped.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -288,8 +502,21 @@ export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCrea
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {/* 1. Rentang tanggal */}
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {/* 1. Branch dan rentang tanggal */}
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div className="space-y-1">
+                                <Label>Branch</Label>
+                                <Select value={branchId} onValueChange={changeBranch}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose branch" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {branches.map((b) => (
+                                            <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="space-y-1">
                                 <Label>Start date</Label>
                                 <DatePicker value={rangeStart} onChange={setRangeStart} modal={true} />
@@ -298,177 +525,396 @@ export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCrea
                                 <Label>End date</Label>
                                 <DatePicker value={rangeEnd} onChange={setRangeEnd} modal={true} />
                             </div>
-                            {rangeError && <p className="text-xs text-red-600 sm:col-span-2">{rangeError}</p>}
+                            {rangeError && <p className="text-xs text-red-600 sm:col-span-3">{rangeError}</p>}
                         </div>
 
-                        {/* 2. Aturan pola */}
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label>Patterns</Label>
-                                <Button type="button" variant="outline" size="sm" onClick={() => setRules((p) => [...p, newRule()])}>
-                                    <IconPlus className="w-4 h-4" /> Add pattern
-                                </Button>
-                            </div>
-
-                            {rules.map((rule, idx) => {
-                                const venueOptions = venueOptionsFor(rule.class_id);
-
-                                return (
-                                    <div key={rule.key} className="space-y-3 rounded-xl border p-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium text-muted-foreground">Pattern {idx + 1}</span>
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    title="Duplicate"
-                                                    onClick={() =>
-                                                        setRules((p) => [
-                                                            ...p.slice(0, idx + 1),
-                                                            newRule({ ...rule, days: [...rule.days] }),
-                                                            ...p.slice(idx + 1),
-                                                        ])
-                                                    }
-                                                >
-                                                    <IconCopy className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    title="Remove pattern"
-                                                    disabled={rules.length === 1}
-                                                    onClick={() => setRules((p) => p.filter((r) => r.key !== rule.key))}
-                                                >
-                                                    <IconTrash className="w-4 h-4 text-red-600" />
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <div className="space-y-1">
-                                                <Label>Class</Label>
-                                                <SearchableSelect
-                                                    value={rule.class_id}
-                                                    onValueChange={(value) => updateRule(rule.key, { class_id: value, venue_id: '' })}
-                                                    options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
-                                                    placeholder="Choose class"
-                                                    searchPlaceholder="Search class..."
-                                                    emptyText="No classes available"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label>Venue</Label>
-                                                <Select
-                                                    value={rule.venue_id}
-                                                    onValueChange={(value) => updateRule(rule.key, { venue_id: value })}
-                                                    disabled={!rule.class_id}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder={rule.class_id ? 'Choose venue' : 'Select a class first'} />
+                        {!branchId ? (
+                            <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                                Choose a branch to start.
+                            </p>
+                        ) : (
+                            <>
+                                {/* 2. Slot mingguan */}
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <Label>Weekly slots</Label>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {templates.length > 0 && (
+                                                <Select value="" onValueChange={handleLoadTemplate}>
+                                                    <SelectTrigger className="w-44">
+                                                        <SelectValue placeholder="Load template" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {venueOptions.length === 0 ? (
-                                                            <SelectItem value="0" disabled>No venues available for this class</SelectItem>
-                                                        ) : (
-                                                            venueOptions.map((v) => (
-                                                                <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
-                                                            ))
-                                                        )}
+                                                        {templates.map((t) => (
+                                                            <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                                                        ))}
                                                     </SelectContent>
                                                 </Select>
-                                            </div>
+                                            )}
+                                            <Button type="button" variant="outline" size="sm" onClick={() => setSlots((p) => [...p, newSlot()])}>
+                                                <IconPlus className="w-4 h-4" /> Add slot
+                                            </Button>
                                         </div>
+                                    </div>
 
-                                        <div className="space-y-1">
-                                            <Label>Days</Label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {DAYS.map((d) => (
+                                    {slots.map((slot, idx) => (
+                                        <div key={slot.key} className="space-y-3 rounded-xl border p-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-medium text-muted-foreground">Slot {idx + 1}</span>
+                                                <div className="flex gap-1">
                                                     <Button
-                                                        key={d.value}
                                                         type="button"
-                                                        size="sm"
-                                                        variant={rule.days.includes(d.value) ? 'default' : 'outline'}
-                                                        onClick={() => toggleDay(rule, d.value)}
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        title="Duplicate slot"
+                                                        onClick={() =>
+                                                            setSlots((p) => [
+                                                                ...p.slice(0, idx + 1),
+                                                                newSlot({ ...slot, days: [...slot.days] }),
+                                                                ...p.slice(idx + 1),
+                                                            ])
+                                                        }
                                                     >
-                                                        {d.label}
+                                                        <IconCopy className="w-4 h-4" />
                                                     </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        title="Remove slot"
+                                                        disabled={slots.length === 1}
+                                                        onClick={() => setSlots((p) => p.filter((s) => s.key !== slot.key))}
+                                                    >
+                                                        <IconTrash className="w-4 h-4 text-red-600" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                <div className="space-y-1">
+                                                    <Label>Venue</Label>
+                                                    <Select value={slot.venue_id} onValueChange={(v) => updateSlot(slot.key, { venue_id: v })}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Choose venue" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {branchVenues.length === 0 ? (
+                                                                <SelectItem value="0" disabled>No venues in this branch</SelectItem>
+                                                            ) : (
+                                                                branchVenues.map((v) => (
+                                                                    <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                                                                ))
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label>Category</Label>
+                                                    <Select value={slot.category} onValueChange={(v) => updateSlot(slot.key, { category: v })}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Choose category" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {categoryOptions.length === 0 ? (
+                                                                <SelectItem value="0" disabled>No classes in this branch</SelectItem>
+                                                            ) : (
+                                                                categoryOptions.map((o) => (
+                                                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                                                ))
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <Label>Days</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {DAYS.map((d) => (
+                                                        <Button
+                                                            key={d.value}
+                                                            type="button"
+                                                            size="sm"
+                                                            variant={slot.days.includes(d.value) ? 'default' : 'outline'}
+                                                            onClick={() => toggleDay(slot, d.value)}
+                                                        >
+                                                            {d.label}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <Label>Start</Label>
+                                                    <TimeInput value={slot.start_time} onChange={(v) => updateSlot(slot.key, { start_time: v })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label>End</Label>
+                                                    <TimeInput value={slot.end_time} onChange={(v) => updateSlot(slot.key, { end_time: v })} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label>Quota</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="1"
+                                                        value={slot.quota || ''}
+                                                        onChange={(e) => updateSlot(slot.key, { quota: parseInt(e.target.value) || 0 })}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {slot.start_time && slot.end_time && slot.end_time <= slot.start_time && (
+                                                <p className="text-xs text-red-600">End time must be after start time</p>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {/* Simpan / hapus template */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Input
+                                            className="w-56"
+                                            placeholder="Template name"
+                                            value={templateName}
+                                            maxLength={100}
+                                            onChange={(e) => setTemplateName(e.target.value)}
+                                        />
+                                        <Button type="button" variant="outline" size="sm" onClick={handleSaveTemplate}>
+                                            Save slots as template
+                                        </Button>
+                                        {templates.some((t) => t.name === templateName.trim()) && (
+                                            <Button type="button" variant="ghost" size="sm" onClick={handleDeleteTemplate}>
+                                                <IconTrash className="w-4 h-4 text-red-600" /> Delete template
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* 3. Olahraga per pekan */}
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <Label>Sport per week</Label>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Select value="" onValueChange={fillAllWeeks} disabled={weeks.length === 0}>
+                                                <SelectTrigger className="w-48">
+                                                    <SelectValue placeholder="Set all weeks to…" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {sportSelectItems}
+                                                    <SelectItem value={SKIP}>— Skip —</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <Button type="button" variant={perSlot ? 'default' : 'outline'} size="sm" onClick={() => setPerSlot((v) => !v)}>
+                                                Set per slot
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {weeks.length === 0 ? (
+                                        <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                                            Choose a valid date range to see the weeks.
+                                        </p>
+                                    ) : (
+                                        <div className="overflow-x-auto rounded-md border">
+                                            <div className="min-w-max divide-y text-sm">
+                                                <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
+                                                    <span className="w-36 shrink-0">Week (Mon–Sun)</span>
+                                                    <span className="w-48 shrink-0">{perSlot ? 'Default for all slots' : 'Sport'}</span>
+                                                    {perSlot &&
+                                                        slots.map((s, i) => (
+                                                            <span key={s.key} className="w-48 shrink-0 truncate" title={slotTitle(s, i)}>
+                                                                {slotTitle(s, i)}
+                                                            </span>
+                                                        ))}
+                                                </div>
+
+                                                {weeks.map((w) => (
+                                                    <div key={w.key} className="flex items-center gap-2 px-3 py-1.5">
+                                                        <span className="w-36 shrink-0">{weekLabel(w.dates)}</span>
+                                                        <div className="w-48 shrink-0">
+                                                            <Select
+                                                                value={weekSport[w.key] ?? ''}
+                                                                onValueChange={(v) => setWeekSport((p) => ({ ...p, [w.key]: v }))}
+                                                            >
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Pick sport" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {sportSelectItems}
+                                                                    <SelectItem value={SKIP}>— Skip this week —</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        {perSlot &&
+                                                            slots.map((s) => (
+                                                                <div key={s.key} className="w-48 shrink-0">
+                                                                    <Select
+                                                                        value={overrides[`${s.key}|${w.key}`] ?? INHERIT}
+                                                                        onValueChange={(v) =>
+                                                                            setOverrides((p) => ({ ...p, [`${s.key}|${w.key}`]: v }))
+                                                                        }
+                                                                    >
+                                                                        <SelectTrigger>
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value={INHERIT}>Same as week</SelectItem>
+                                                                            {sportSelectItems}
+                                                                            <SelectItem value={SKIP}>— Skip —</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            ))}
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
+                                    )}
+                                </div>
 
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="space-y-1">
-                                                <Label>Start</Label>
-                                                <TimeInput value={rule.start_time} onChange={(v) => updateRule(rule.key, { start_time: v })} />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label>End</Label>
-                                                <TimeInput value={rule.end_time} onChange={(v) => updateRule(rule.key, { end_time: v })} />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label>Quota</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="1"
-                                                    value={rule.quota || ''}
-                                                    onChange={(e) => updateRule(rule.key, { quota: parseInt(e.target.value) || 0 })}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {rule.start_time && rule.end_time && rule.end_time <= rule.start_time && (
-                                            <p className="text-xs text-red-600">End time must be after start time</p>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* 3. Pratinjau */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label>Preview ({preview.length})</Label>
-                                {removed.size > 0 && (
-                                    <Button type="button" variant="ghost" size="xs" onClick={() => setRemoved(new Set())}>
-                                        Restore removed
-                                    </Button>
-                                )}
-                            </div>
-
-                            {preview.length === 0 ? (
-                                <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                                    Fill in the dates and at least one complete pattern to see the schedules here.
-                                </p>
-                            ) : (
-                                <div className="max-h-64 overflow-y-auto rounded-md border divide-y text-sm">
-                                    {preview.map((p) => (
-                                        <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
-                                            <span>
-                                                <span className="font-medium">{dayLabel(p.date)}</span> · {p.start_time}-{p.end_time} ·{' '}
-                                                {classById.get(p.class_id)?.name} · {venueById.get(p.venue_id)?.name} · quota {p.quota}
-                                            </span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                title="Remove this date"
-                                                onClick={() => setRemoved((prev) => new Set(prev).add(p.id))}
-                                            >
-                                                <IconX className="w-4 h-4" />
+                                {/* 4. Pratinjau yang bisa diedit */}
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <Label>
+                                            Preview ({validRows.length}
+                                            {invalidCount > 0 ? `, ${invalidCount} need attention` : ''})
+                                        </Label>
+                                        <div className="flex gap-2">
+                                            {(removed.size > 0 || Object.keys(edits).length > 0) && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    onClick={() => {
+                                                        setRemoved(new Set());
+                                                        setEdits({});
+                                                    }}
+                                                >
+                                                    Restore removed / edited
+                                                </Button>
+                                            )}
+                                            <Button type="button" variant="outline" size="xs" onClick={addManualRow}>
+                                                <IconPlus className="w-3 h-3" /> Add row
                                             </Button>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    </div>
 
-                            {preview.length > MAX_ITEMS && (
-                                <p className="text-xs text-red-600">
-                                    Too many schedules ({preview.length}). The limit is {MAX_ITEMS} per input.
-                                </p>
-                            )}
-                        </div>
+                                    {rows.length === 0 ? (
+                                        <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                                            Complete a slot and pick a sport for at least one week to see the schedules here.
+                                        </p>
+                                    ) : (
+                                        <div className="max-h-96 overflow-y-auto rounded-md border divide-y text-sm">
+                                            {rows.map((r) => {
+                                                const err = rowError(r);
+                                                const editing = editingId === r.id;
+                                                const cls = classById.get(r.class_id);
+
+                                                return (
+                                                    <div key={r.id} className={err ? 'bg-red-50/60' : undefined}>
+                                                        <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+                                                            <span className="min-w-0">
+                                                                <span className="font-medium">{r.date ? dayLabel(r.date) : '—'}</span>
+                                                                {' · '}
+                                                                {r.start_time || '--:--'}-{r.end_time || '--:--'} ·{' '}
+                                                                {cls?.name ?? 'No class'} · {venueById.get(r.venue_id)?.name ?? 'No venue'} · quota {r.quota}
+                                                                {r.problem === 'ambiguous' && (
+                                                                    <span className="ml-2 inline-flex items-center gap-1 text-xs text-amber-600" title="More than one class matches; the first was used">
+                                                                        <IconAlertTriangle className="w-3 h-3" /> check class
+                                                                    </span>
+                                                                )}
+                                                                {err && <span className="ml-2 text-xs text-red-600">{err}</span>}
+                                                            </span>
+                                                            <span className="flex shrink-0 gap-1">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon-sm"
+                                                                    title="Edit"
+                                                                    onClick={() => setEditingId(editing ? null : r.id)}
+                                                                >
+                                                                    <IconPencil className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button type="button" variant="ghost" size="icon-sm" title="Remove" onClick={() => removeRow(r)}>
+                                                                    <IconX className="w-4 h-4" />
+                                                                </Button>
+                                                            </span>
+                                                        </div>
+
+                                                        {editing && (
+                                                            <div className="grid grid-cols-1 gap-3 border-t bg-muted/30 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                                <div className="space-y-1">
+                                                                    <Label>Date</Label>
+                                                                    <DatePicker
+                                                                        value={r.date ? parseIso(r.date) : undefined}
+                                                                        onChange={(d) => d && updateRow(r, { date: toIso(d) })}
+                                                                        modal={true}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-1 sm:col-span-1 lg:col-span-2">
+                                                                    <Label>Class</Label>
+                                                                    <SearchableSelect
+                                                                        value={r.class_id}
+                                                                        onValueChange={(v) => updateRow(r, { class_id: v })}
+                                                                        options={branchClasses.map((c) => ({ value: String(c.id), label: c.name }))}
+                                                                        placeholder="Choose class"
+                                                                        searchPlaceholder="Search class..."
+                                                                        emptyText="No classes available"
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <Label>Venue</Label>
+                                                                    <Select value={r.venue_id} onValueChange={(v) => updateRow(r, { venue_id: v })}>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Choose venue" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {branchVenues.map((v) => (
+                                                                                <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                                <div className="grid grid-cols-3 gap-3 sm:col-span-1 lg:col-span-2">
+                                                                    <div className="space-y-1">
+                                                                        <Label>Start</Label>
+                                                                        <TimeInput value={r.start_time} onChange={(v) => updateRow(r, { start_time: v })} />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <Label>End</Label>
+                                                                        <TimeInput value={r.end_time} onChange={(v) => updateRow(r, { end_time: v })} />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <Label>Quota</Label>
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="1"
+                                                                            value={r.quota || ''}
+                                                                            onChange={(e) => updateRow(r, { quota: parseInt(e.target.value) || 0 })}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {validRows.length > MAX_ITEMS && (
+                                        <p className="text-xs text-red-600">
+                                            Too many schedules ({validRows.length}). The limit is {MAX_ITEMS} per input.
+                                        </p>
+                                    )}
+                                    {invalidCount > 0 && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Rows marked in red are not saved until you fix or remove them.
+                                        </p>
+                                    )}
+                                </div>
+                            </>
+                        )}
 
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
@@ -477,9 +923,9 @@ export function BulkScheduleDialog({ open, onOpenChange, classes, venues, onCrea
                             <Button
                                 type="button"
                                 onClick={handleSubmit}
-                                disabled={isSaving || preview.length === 0 || preview.length > MAX_ITEMS}
+                                disabled={isSaving || validRows.length === 0 || validRows.length > MAX_ITEMS}
                             >
-                                {isSaving ? 'Saving...' : `Create ${preview.length} schedule(s)`}
+                                {isSaving ? 'Saving...' : `Create ${validRows.length} schedule(s)`}
                             </Button>
                         </DialogFooter>
                     </div>
