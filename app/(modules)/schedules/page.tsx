@@ -13,7 +13,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { IconArrowBackUp, IconArrowsExchange, IconBan, IconCalendarCog, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconArrowBackUp, IconArrowsExchange, IconBan, IconCalendarCog, IconPencil, IconTrash, IconCalendarPlus } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { TimeInput } from '@/components/ui/time-input';
@@ -29,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/multi-select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { apiRequest, getErrorMessage } from '@/lib/api';
+import { BulkScheduleDialog } from '@/components/bulk-schedule-dialog';
 
 type CoachRole = 'head_coach' | 'captain_coach' | 'assistant_coach' | 'assistant_coach_vip';
 type RescheduleKind = 'coach_request' | 'admin_change';
@@ -321,6 +322,9 @@ export default function SchedulesPage() {
     const activeDate = activeSchedule?.date;
     const isActiveCancelled = activeSchedule?.status === 'cancelled';
 
+    const [isBulkOpen, setIsBulkOpen] = useState(false);
+
+
     const visibleSchedules =
         statusFilter === 'all'
             ? schedules
@@ -356,6 +360,7 @@ export default function SchedulesPage() {
                     branch_id: selectedBranch !== 'all' ? selectedBranch : undefined,
                 },
             });
+            console.log('Fetched schedules:', data);
             setSchedules(data ?? []);
         } catch (error) {
             console.error('Fetch schedules error:', error);
@@ -1102,51 +1107,57 @@ export default function SchedulesPage() {
         <>
             <div className="px-6 space-y-4">
                 {/* Filter Bar */}
-                <div className="flex flex-wrap gap-2">
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                        <SelectTrigger className="w-36">
-                            <SelectValue placeholder="Pilih Bulan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {MONTHS.map((m) => (
-                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className='flex items-center justify-between'>
 
-                    <Select value={selectedYear} onValueChange={setSelectedYear}>
-                        <SelectTrigger className="w-28">
-                            <SelectValue placeholder="Pilih Tahun" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {YEARS.map((y) => (
-                                <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex items-center flex-wrap gap-2">
+                        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                            <SelectTrigger className="w-36">
+                                <SelectValue placeholder="Pilih Bulan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {MONTHS.map((m) => (
+                                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                        <SelectTrigger className="w-44">
-                            <SelectValue placeholder="Pilih Branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Semua Branch</SelectItem>
-                            {branches.map((b) => (
-                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                        <Select value={selectedYear} onValueChange={setSelectedYear}>
+                            <SelectTrigger className="w-28">
+                                <SelectValue placeholder="Pilih Tahun" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {YEARS.map((y) => (
+                                    <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | ScheduleStatus)}>
-                        <SelectTrigger className="w-40">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Semua Status</SelectItem>
-                            <SelectItem value="scheduled">Scheduled</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                    </Select>
+                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder="Pilih Branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Branch</SelectItem>
+                                {branches.map((b) => (
+                                    <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | ScheduleStatus)}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="scheduled">Scheduled</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button className='h-9' variant="secondary" onClick={() => setIsBulkOpen(true)}>
+                        <IconCalendarPlus /> Add Multiple
+                    </Button>
                 </div>
 
                 <DataTable columns={columns} data={visibleSchedules} />
@@ -1604,6 +1615,14 @@ export default function SchedulesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <BulkScheduleDialog
+                open={isBulkOpen}
+                onOpenChange={setIsBulkOpen}
+                classes={classes}
+                venues={venues}
+                onCreated={fetchSchedules}
+            />
 
             {/* Hapus jadwal / hapus absensi anak */}
             <AlertDialogDelete
