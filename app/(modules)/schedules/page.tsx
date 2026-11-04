@@ -1619,6 +1619,7 @@ export default function SchedulesPage() {
             <BulkScheduleDialog
                 open={isBulkOpen}
                 onOpenChange={setIsBulkOpen}
+                branches={branches}
                 classes={classes}
                 venues={venues}
                 onCreated={fetchSchedules}
