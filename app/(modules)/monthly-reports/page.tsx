@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -114,8 +114,6 @@ const YEARS = Array.from({ length: 5 }, (_, i) => ({
     label: String(currentYear - i),
 }));
 
-const pxToMm = (px: number) => px * 0.264583;
-
 const sanitizeFileName = (name: string) =>
     name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
 
@@ -123,6 +121,7 @@ const nextFrame = () =>
     new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
 // Memuat ulang semua <img> di dalam element (cache-bust + CORS) dan menunggu sampai selesai.
+// Kalau foto gagal dimuat dan <img> punya data-fallback, ganti ke gambar bawaan lalu tunggu sampai termuat.
 async function waitForImages(root: HTMLElement) {
     const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
     await Promise.all(
@@ -130,10 +129,22 @@ async function waitForImages(root: HTMLElement) {
             (img) =>
                 new Promise<void>((resolve) => {
                     const done = () => resolve();
+                    const fallback = img.dataset.fallback;
+                    let retried = false;
+
                     img.loading = 'eager'; // next/image default-nya lazy
                     img.crossOrigin = 'anonymous';
                     img.onload = done;
-                    img.onerror = done; // jangan sampai satu foto gagal menggantung seluruh proses
+                    img.onerror = () => {
+                        if (fallback && !retried) {
+                            retried = true;
+                            img.dataset.fallbackUsed = '1';
+                            img.removeAttribute('srcset');
+                            if (!img.src.endsWith(fallback)) img.src = fallback;
+                            return; // tunggu onload fallback; kalau fallback juga gagal, error kedua memanggil done()
+                        }
+                        done(); // jangan sampai satu foto gagal menggantung seluruh proses
+                    };
                     const url = new URL(img.src);
                     url.searchParams.set('cache_bust', Date.now().toString());
                     img.src = url.toString();
@@ -143,8 +154,159 @@ async function waitForImages(root: HTMLElement) {
     );
 }
 
-// Render element menjadi PDF (Blob). Dipakai oleh download satuan dan download all.
-async function elementToPdfBlob(element: HTMLElement): Promise<Blob> {
+/* ------------------------------------------------------------------ */
+/* Ekspor PDF: halaman A4, kartu sesi tidak pernah terpotong           */
+/* ------------------------------------------------------------------ */
+
+const A4_RATIO = 297 / 210; // tinggi / lebar
+const MINI_HEADER_H = 56; // tinggi strip header di halaman 2 dst (css px)
+const DEFAULT_CARD_GAP = 12; // dipakai kalau hanya ada 1 kartu (css px)
+const BRAND_NAVY = '#1f3d56';
+const SKY_100 = '#e0f2fe';
+
+// Watermark logo besar di dasar halaman: lebar ±90% halaman, 1/3 bagian bawahnya "tenggelam" di balik footer.
+// Digambar hanya di area kosong, jadi bagian atasnya terselip di balik kartu terakhir dan tidak pernah menimpa teks.
+// Logo watermark memakai FILE TERSENDIRI, terpisah dari logo di header. Taruh file-nya di folder public/.
+// Sementara masih memakai logo yang sama dengan header; ganti ke mis. '/images/ppa-watermark.png' kalau sudah siap.
+const WATERMARK_SRC = '/images/ppa-logo-smile.png';
+const WATERMARK_WIDTH_RATIO = 0.9; // lebar logo = 90% lebar halaman
+const WATERMARK_CROP = 1 / 6; // bagian bawah logo yang terpotong oleh footer
+const WATERMARK_MIN_FREE = 24; // sisa ruang minimum (css px) agar logo digambar
+const WATERMARK_ALPHA = 0.08; // kepekatan logo. Untuk logo putih: naikkan (mis. 0.25) dan naikkan TINT_STRENGTH (mis. 0.6)
+const TINT_STRENGTH = 0.15; // seberapa biru gradasi di dekat footer (0 = tanpa gradasi)
+const TINT_TARGET = [125, 211, 252] as const; // warna tujuan gradasi (sky-300)
+
+interface Block {
+    top: number;
+    height: number;
+}
+
+interface FreeSpaceOpts {
+    W: number; // lebar canvas halaman (px canvas)
+    px: (v: number) => number; // css px -> px canvas
+    top: number; // bawah konten terakhir (css px)
+    bottom: number; // atas footer (css px)
+    pageBg: string; // warna latar halaman, "rgb(r, g, b)"
+    tintEnd: string; // warna gradasi di dasar area kosong
+    logo: HTMLImageElement | null;
+}
+
+// Mengisi area kosong di bawah konten: gradasi lembut (mulai dari warna latar persis, jadi tanpa garis sambungan)
+// + watermark logo besar yang terpotong di dasar halaman. Digambar langsung di canvas halaman, bukan lewat CSS.
+function drawFreeSpace(ctx: CanvasRenderingContext2D, o: FreeSpaceOpts) {
+    const freeH = o.bottom - o.top;
+    if (freeH < 8) return;
+
+    const y0 = o.px(o.top);
+    const y1 = o.px(o.bottom);
+
+    if (TINT_STRENGTH > 0) {
+        const grad = ctx.createLinearGradient(0, y0, 0, y1);
+        grad.addColorStop(0, o.pageBg);
+        grad.addColorStop(1, o.tintEnd);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, y0, o.W, y1 - y0);
+    }
+
+    if (!o.logo || freeH < WATERMARK_MIN_FREE) return;
+    const aspect = o.logo.naturalHeight / o.logo.naturalWidth;
+    if (!isFinite(aspect) || aspect <= 0) return;
+
+    const wmW = o.W * WATERMARK_WIDTH_RATIO;
+    const wmH = wmW * aspect;
+    const wmTop = y1 - wmH * (1 - WATERMARK_CROP); // bagian bawah logo jatuh di bawah footer
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, y0, o.W, y1 - y0); // logo hanya terlihat di area kosong
+    ctx.clip();
+    ctx.globalAlpha = WATERMARK_ALPHA;
+    ctx.drawImage(o.logo, (o.W - wmW) / 2, wmTop, wmW, wmH);
+    ctx.restore();
+}
+
+// Muat gambar watermark sekali saja (di-cache untuk batch). Gagal dimuat -> null, watermark dilewati, ekspor tetap jalan.
+let watermarkPromise: Promise<HTMLImageElement | null> | null = null;
+function loadWatermark(): Promise<HTMLImageElement | null> {
+    if (!watermarkPromise) {
+        watermarkPromise = new Promise<HTMLImageElement | null>((resolve) => {
+            try {
+                // hanya satu origin (atau server dengan CORS) supaya canvas tidak "tainted"
+                if (new URL(WATERMARK_SRC, window.location.href).origin !== window.location.origin) {
+                    console.warn('WATERMARK_SRC beda origin, watermark dilewati');
+                    resolve(null);
+                    return;
+                }
+            } catch {
+                resolve(null);
+                return;
+            }
+            const img = new window.Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img.naturalWidth > 0 ? img : null);
+            img.onerror = () => resolve(null);
+            img.src = WATERMARK_SRC;
+            setTimeout(() => resolve(null), 10000); // timeout pengaman
+        }).then((img) => {
+            if (!img) watermarkPromise = null; // gagal: boleh dicoba lagi pada ekspor berikutnya
+            return img;
+        });
+    }
+    return watermarkPromise;
+}
+
+interface PdfMeta {
+    name: string;
+    period: string;
+}
+
+// Greedy: isi halaman sampai kartu berikutnya tidak muat, lalu pindah ke halaman baru.
+// Mengembalikan daftar indeks kartu per halaman. Kartu yang lebih tinggi dari halaman kosong
+// tetap ditempatkan sendirian (tidak ada loop tak berujung).
+function planPages(cards: Block[], firstStart: number, nextStart: number, limit: number, gap: number): number[][] {
+    const pages: number[][] = [];
+    let current: number[] = [];
+    let used = firstStart;
+
+    cards.forEach((card, i) => {
+        const add = (current.length ? gap : 0) + card.height;
+        if (current.length > 0 && used + add > limit) {
+            pages.push(current);
+            current = [];
+            used = nextStart;
+        }
+        used += (current.length ? gap : 0) + card.height;
+        current.push(i);
+    });
+
+    if (current.length) pages.push(current);
+    return pages;
+}
+
+// Render element menjadi PDF A4 (Blob). Dipakai oleh download satuan dan download all.
+async function elementToPdfBlob(element: HTMLElement, meta: PdfMeta): Promise<Blob> {
+    // Ukur posisi tiap bagian SEBELUM dipotret (layout asli sama dengan layout clone html2canvas).
+    const rootRect = element.getBoundingClientRect();
+    const measure = (el: Element): Block => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top - rootRect.top, height: r.height };
+    };
+
+    const accentEl = element.querySelector('[data-pdf="accent"]');
+    const footerEl = element.querySelector('[data-pdf="footer"]');
+    const cardEls = Array.from(element.querySelectorAll('[data-pdf="card"]'));
+    const summaryEl = element.querySelector('[data-pdf="summary"]'); // opsional: blok penutup
+    if (!accentEl || !footerEl || cardEls.length === 0) {
+        throw new Error('Penanda data-pdf tidak ditemukan di ReportPDF');
+    }
+
+    const accent = measure(accentEl);
+    const footer = measure(footerEl);
+    const cards = cardEls.map(measure);
+    const summary = summaryEl ? measure(summaryEl) : null;
+    const fontFamily = getComputedStyle(element).fontFamily;
+    if (document.fonts?.ready) await document.fonts.ready;
+
     const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -166,23 +328,124 @@ async function elementToPdfBlob(element: HTMLElement): Promise<Blob> {
         },
     });
 
-    const widthMm = pxToMm(canvas.width);
-    const heightMm = pxToMm(canvas.height);
+    try {
+        const src = canvas.getContext('2d');
+        if (!src) throw new Error('Canvas 2D tidak tersedia');
 
-    const pdf = new jsPDF({
-        orientation: widthMm > heightMm ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: [widthMm, heightMm],
-    });
+        const s = canvas.width / rootRect.width; // css px -> px canvas
+        const px = (v: number) => Math.round(v * s);
+        const W = canvas.width;
+        const H = Math.round(W * A4_RATIO);
+        const pageH = rootRect.width * A4_RATIO; // tinggi halaman dalam css px
 
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, widthMm, heightMm);
-    const blob = pdf.output('blob');
+        const accentBottom = accent.top + accent.height;
+        const lastCard = cards[cards.length - 1];
+        const padTop = Math.max(0, cards[0].top - accentBottom);
+        const lastBottom = summary ? summary.top + summary.height : lastCard.top + lastCard.height;
+        const padBottom = Math.max(0, footer.top - lastBottom);
+        const gap =
+            cards.length > 1 ? Math.max(0, cards[1].top - (cards[0].top + cards[0].height)) : DEFAULT_CARD_GAP;
 
-    // bebaskan memori canvas, penting untuk batch besar
-    canvas.width = 0;
-    canvas.height = 0;
+        const pages = planPages(
+            cards,
+            accentBottom + padTop, // halaman 1: header besar
+            MINI_HEADER_H + accent.height + padTop, // halaman 2 dst: strip header
+            pageH - footer.height - padBottom,
+            gap
+        );
 
-    return blob;
+        // Blok penutup: ikut hanya kalau muat di sisa halaman terakhir (tidak pernah membuat halaman baru)
+        const lastPage = pages[pages.length - 1];
+        let lastUsed = (pages.length === 1 ? accentBottom : MINI_HEADER_H + accent.height) + padTop;
+        lastPage.forEach((ci, n) => {
+            lastUsed += (n > 0 ? gap : 0) + cards[ci].height;
+        });
+        const showSummary = !!summary && lastUsed + gap + summary.height <= pageH - footer.height - padBottom;
+
+        // Warna latar area kartu, diambil dari hasil capture supaya persis sama
+        const [r, g, b] = src.getImageData(2, Math.min(canvas.height - 1, px(accentBottom) + 2), 1, 1).data;
+        const pageBg = `rgb(${r}, ${g}, ${b})`;
+        const mix = (c: number, target: number) => Math.round(c + (target - c) * TINT_STRENGTH);
+        const tintEnd = `rgb(${mix(r, TINT_TARGET[0])}, ${mix(g, TINT_TARGET[1])}, ${mix(b, TINT_TARGET[2])})`;
+
+        // Logo watermark: file tersendiri (WATERMARK_SRC), bukan logo di header
+        const logo = await loadWatermark();
+
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+
+        pages.forEach((cardIndexes, pageIdx) => {
+            const page = document.createElement('canvas');
+            page.width = W;
+            page.height = H;
+            const ctx = page.getContext('2d');
+            if (!ctx) throw new Error('Canvas 2D tidak tersedia');
+
+            ctx.fillStyle = pageBg;
+            ctx.fillRect(0, 0, W, H);
+
+            // salin potongan [srcTop, srcTop+srcH) dari hasil capture ke posisi destTop di halaman (css px)
+            const slice = (srcTop: number, srcH: number, destTop: number) =>
+                ctx.drawImage(canvas, 0, px(srcTop), W, px(srcH), 0, px(destTop), W, px(srcH));
+
+            let y: number;
+            if (pageIdx === 0) {
+                slice(0, accentBottom, 0); // header besar + garis aksen
+                y = accentBottom + padTop;
+            } else {
+                ctx.fillStyle = BRAND_NAVY;
+                ctx.fillRect(0, 0, W, px(MINI_HEADER_H));
+                ctx.textBaseline = 'middle';
+
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'left';
+                ctx.font = `700 ${px(20)}px ${fontFamily}`;
+                ctx.fillText(meta.name, px(40), px(MINI_HEADER_H / 2));
+
+                ctx.fillStyle = SKY_100;
+                ctx.textAlign = 'right';
+                ctx.font = `400 ${px(13)}px ${fontFamily}`;
+                ctx.fillText(`Rapor Bulanan · ${meta.period}`, W - px(40), px(MINI_HEADER_H / 2));
+
+                slice(accent.top, accent.height, MINI_HEADER_H); // garis aksen
+                y = MINI_HEADER_H + accent.height + padTop;
+            }
+
+            cardIndexes.forEach((ci) => {
+                const card = cards[ci];
+                slice(card.top, card.height, y);
+                y += card.height + gap;
+            });
+            let contentBottom = y - gap; // bawah konten terakhir di halaman ini (css px)
+
+            if (summary && showSummary && pageIdx === pages.length - 1) {
+                slice(summary.top, summary.height, y); // y sudah = bawah kartu terakhir + gap
+                contentBottom = y + summary.height;
+            }
+
+            // isi area kosong: gradasi + watermark, lalu footer di dasar halaman + nomor halaman
+            const footerY = pageH - footer.height;
+            drawFreeSpace(ctx, { W, px, top: contentBottom, bottom: footerY, pageBg, tintEnd, logo });
+            slice(footer.top, footer.height, footerY);
+            ctx.fillStyle = SKY_100;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.font = `400 ${px(12)}px ${fontFamily}`;
+            ctx.fillText(`Halaman ${pageIdx + 1}/${pages.length}`, W - px(40), px(footerY + footer.height / 2));
+
+            if (pageIdx > 0) pdf.addPage();
+            pdf.addImage(page.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
+
+            // bebaskan memori canvas halaman
+            page.width = 0;
+            page.height = 0;
+        });
+
+        return pdf.output('blob');
+    } finally {
+        // bebaskan memori canvas, penting untuk batch besar
+        canvas.width = 0;
+        canvas.height = 0;
+    }
 }
 
 function saveBlob(blob: Blob, fileName: string) {
@@ -213,6 +476,9 @@ export default function RaportPage() {
     const cancelRef = useRef(false);
 
     const reportRef = useRef<HTMLDivElement | null>(null);
+
+    // Anak tanpa kehadiran tetap tampil di tabel, tapi tidak ikut "Download Semua"
+    const exportable = useMemo(() => reports.filter((r) => (r.attendance_count ?? 0) > 0), [reports]);
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -256,6 +522,7 @@ export default function RaportPage() {
             }
 
             const { data } = await response.json();
+            console.log('Fetched reports:', data);
             setReports(data);
         } catch (error) {
             console.error('Fetch reports error:', error);
@@ -283,7 +550,10 @@ export default function RaportPage() {
             toast('Mempersiapkan PDF...', { duration: 2000 });
 
             await waitForImages(element);
-            const blob = await elementToPdfBlob(element);
+            const blob = await elementToPdfBlob(element, {
+                name: reportPdf.play_kid.name,
+                period: reportPdf.months_display || reportPdf.month_display,
+            });
             saveBlob(blob, `${sanitizeFileName(reportPdf.play_kid.name)} - ${reportPdf.month_display}.pdf`);
 
             toast.success('PDF berhasil di-download');
@@ -296,13 +566,14 @@ export default function RaportPage() {
     }, [reportPdf]);
 
     const handleDownloadAll = useCallback(async () => {
-        if (reports.length === 0) {
-            toast.error('Tidak ada laporan untuk di-download');
+        if (exportable.length === 0) {
+            toast.error('Tidak ada laporan dengan kehadiran untuk di-download');
             return;
         }
 
         cancelRef.current = false;
-        const total = reports.length;
+        const skipped = reports.length - exportable.length;
+        const total = exportable.length;
         setBatchProgress({ current: 0, total });
 
         const zip = new JSZip();
@@ -313,7 +584,7 @@ export default function RaportPage() {
             for (let i = 0; i < total; i++) {
                 if (cancelRef.current) break;
 
-                const report = reports[i];
+                const report = exportable[i];
 
                 // render laporan ini ke container tersembunyi, lalu tunggu DOM siap
                 flushSync(() => setBatchReport(report));
@@ -323,7 +594,10 @@ export default function RaportPage() {
                     if (!element) throw new Error('Container tidak ditemukan');
                     await waitForImages(element);
                     await nextFrame();
-                    const blob = await elementToPdfBlob(element);
+                    const blob = await elementToPdfBlob(element, {
+                        name: report.play_kid.name,
+                        period: report.months_display || report.month_display,
+                    });
 
                     // nama file: "Nama - Bulan Tahun.pdf", beri suffix bila kembar
                     const base = sanitizeFileName(`${report.play_kid.name} - ${report.month_display}`);
@@ -359,10 +633,11 @@ export default function RaportPage() {
 
             saveBlob(zipBlob, sanitizeFileName(`Laporan ${monthLabel} ${selectedYear} - ${branchLabel}`) + '.zip');
 
+            const skippedNote = skipped > 0 ? ` (${skipped} tanpa kehadiran dilewati)` : '';
             if (failed > 0) {
-                toast.warning(`${total - failed} laporan berhasil, ${failed} gagal`);
+                toast.warning(`${total - failed} laporan berhasil, ${failed} gagal${skippedNote}`);
             } else {
-                toast.success(`${total} laporan berhasil di-download`);
+                toast.success(`${total} laporan berhasil di-download${skippedNote}`);
             }
         } catch (err) {
             console.error('Download all error:', err);
@@ -371,7 +646,7 @@ export default function RaportPage() {
             setBatchReport(null);
             setBatchProgress(null);
         }
-    }, [reports, branches, selectedMonth, selectedYear, selectedBranch]);
+    }, [exportable, reports.length, branches, selectedMonth, selectedYear, selectedBranch]);
 
     const columns: ColumnDef<ReportResponse>[] = [
         {
@@ -493,12 +768,12 @@ export default function RaportPage() {
                             Batal
                         </Button>
                     )}
-                    <Button onClick={handleDownloadAll} disabled={!!batchProgress || reports.length === 0}>
+                    <Button onClick={handleDownloadAll} disabled={!!batchProgress || exportable.length === 0}>
                         <IconFileZip size={16} />
                         <span className="ml-2">
                             {batchProgress
                                 ? `Mengekspor ${batchProgress.current}/${batchProgress.total}...`
-                                : `Download Semua (${reports.length})`}
+                                : `Download Semua (${exportable.length})`}
                         </span>
                     </Button>
                 </div>
