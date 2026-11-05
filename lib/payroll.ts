@@ -213,6 +213,7 @@ const BONUS_REASON_LABELS: Record<string, string> = {
     no_show: 'Has a no-show',
     attire: 'Attire not compliant in a session',
     late: 'Late check-in in a session',
+    report_late: 'Attendance report not submitted on the session day',
     no_sessions: 'No evaluated sessions yet',
 };
 
@@ -237,6 +238,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
     flags_updated: 'Flags updated',
     settings_updated: 'Settings updated',
     manual_attendance: 'Manual attendance',
+    report_submitted_at_manual: 'Report time adjusted',
 };
 
 export function getAuditActionLabel(action: string): string {
@@ -283,6 +285,12 @@ export function describeAuditEntry(entry: PayrollAuditEntry): string {
             const times = to ? `In ${fmt(to.check_in_at)}, Out ${fmt(to.check_out_at)}` : '';
             const reason = typeof meta.reason === 'string' ? ` | Reason: ${meta.reason}` : '';
             return `${times}${reason}`;
+        }
+
+        case 'report_submitted_at_manual': {
+            const fmt = (iso: unknown) => (typeof iso === 'string' ? formatDateTime(iso) : '-');
+            const reason = typeof meta.reason === 'string' && meta.reason ? ` | Reason: ${meta.reason}` : '';
+            return `${fmt(meta.from)} → ${fmt(meta.to)}${reason}`;
         }
 
         default:
