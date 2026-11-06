@@ -53,6 +53,23 @@ export interface RescheduleRecord {
     created_at: string | null;
 }
 
+export type ViolationType = 'reschedule_limit' | 'no_show' | 'attire' | 'late' | 'report_late';
+
+/** Satu penyebab bonus disiplin gugur. Batas reschedule tidak terkait sesi (coach_schedule_id null). */
+export interface DisciplineViolation {
+    type: ViolationType;
+    coach_schedule_id: number | null;
+    schedule_id: number | null;
+    date: string | null;
+    class_name: string | null;
+    late_minutes?: number;
+    reports_missing?: number;
+    reports_late?: number;
+    latest_submitted_at?: string | null;
+    count?: number;
+    limit?: number;
+}
+
 export interface CoachPayrollBreakdown {
     coach_id: number;
     coach_name: string;
@@ -68,6 +85,8 @@ export interface CoachPayrollBreakdown {
     discipline_bonus_sessions: number;
     discipline_bonus_reason: string | null;
     discipline_bonus_provisional: boolean;
+    /** Kosong untuk coach dan untuk periode final lama yang dibuat sebelum rincian ini ada. */
+    discipline_bonus_violations: DisciplineViolation[];
     reschedule_count: number;
     reschedule_limit: number;
     reschedules: RescheduleRecord[];
@@ -220,6 +239,40 @@ const BONUS_REASON_LABELS: Record<string, string> = {
 export function getBonusReasonLabel(reason: string | null): string {
     if (!reason) return '';
     return BONUS_REASON_LABELS[reason] ?? reason;
+}
+
+/** Kalimat singkat untuk satu pelanggaran, dipakai di kolom Discipline. */
+export function describeViolation(v: DisciplineViolation): string {
+    switch (v.type) {
+        case 'late':
+            return `Late check-in ${v.late_minutes ?? 0} min`;
+
+        case 'attire':
+            return 'Attire not compliant';
+
+        case 'no_show':
+            return 'No-show';
+
+        case 'report_late': {
+            const parts: string[] = [];
+
+            if (v.reports_missing) {
+                parts.push(`${v.reports_missing} report(s) not submitted`);
+            }
+            if (v.reports_late) {
+                const latest = v.latest_submitted_at ? ` (latest ${formatDateTime(v.latest_submitted_at)})` : '';
+                parts.push(`${v.reports_late} report(s) submitted after the session day${latest}`);
+            }
+
+            return parts.join('; ') || 'Attendance report late';
+        }
+
+        case 'reschedule_limit':
+            return `Reschedules ${v.count ?? 0} / ${v.limit ?? 0}`;
+
+        default:
+            return v.type;
+    }
 }
 
 export function getRescheduleTypeLabel(type: string): string {

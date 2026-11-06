@@ -37,12 +37,19 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
     filters?: FilterConfig<TData>[];
+    /**
+     * Izinkan teks di sel tabel turun ke baris berikutnya. Default false (satu baris,
+     * tabel menggulir ke samping bila lebar). Aktifkan untuk tabel di dalam dialog
+     * supaya muat tanpa scroll horizontal.
+     */
+    wrapCells?: boolean;
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
     filters,
+    wrapCells = false,
 }: DataTableProps<TData, TValue>) {
     const appliedFilters = React.useMemo(() => filters ?? [], [filters]);
 
@@ -148,7 +155,10 @@ export function DataTable<TData, TValue>({
                                 table.getRowModel().rows.map(row => (
                                     <TableRow key={row.id}>
                                         {row.getVisibleCells().map(cell => (
-                                            <TableCell key={cell.id} className="whitespace-nowrap">
+                                            <TableCell
+                                                key={cell.id}
+                                                className={wrapCells ? 'whitespace-normal align-top' : 'whitespace-nowrap'}
+                                            >
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                             </TableCell>
                                         ))}
