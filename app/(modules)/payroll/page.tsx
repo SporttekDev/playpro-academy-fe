@@ -44,6 +44,7 @@ import { apiRequest, getErrorMessage } from '@/lib/api';
 import {
     CoachPayrollBreakdown,
     CoachPayrollSummary,
+    DisciplineViolation,
     MONTHS,
     PayrollAuditEntry,
     PayrollItemRow,
@@ -51,6 +52,7 @@ import {
     YEARS,
     currentYear,
     describeAuditEntry,
+    describeViolation,
     formatDate,
     formatDateTime,
     formatRupiah,
@@ -95,18 +97,29 @@ interface ReopenTarget {
 function buildItemColumns(options: {
     canManage: boolean;
     locked: boolean;
+    /** Pelanggaran bonus disiplin; hanya ditampilkan untuk admin/finance (canManage). */
+    violations: DisciplineViolation[];
     onToggleFlag: (coachScheduleId: number, field: FlagField, value: boolean) => void;
 }): ColumnDef<PayrollItemRow>[] {
-    const { canManage, locked, onToggleFlag } = options;
+    const { canManage, locked, violations, onToggleFlag } = options;
 
     const columns: ColumnDef<PayrollItemRow>[] = [
         {
             accessorKey: 'date',
             header: 'Date',
-            cell: ({ row }) => formatDate(row.original.date),
+            cell: ({ row }) => <span className="whitespace-nowrap">{formatDate(row.original.date)}</span>,
         },
-        { accessorKey: 'class_name', header: 'Class' },
-        { accessorKey: 'venue_name', header: 'Venue' },
+        {
+            // Kelas dan venue digabung dalam satu kolom supaya tabel muat tanpa scroll horizontal.
+            accessorKey: 'class_name',
+            header: 'Session',
+            cell: ({ row }) => (
+                <div className="min-w-[9rem] space-y-0.5">
+                    <div className="font-medium leading-snug">{row.original.class_name}</div>
+                    <div className="text-xs leading-snug text-muted-foreground">{row.original.venue_name}</div>
+                </div>
+            ),
+        },
         { accessorKey: 'role_label', header: 'Role' },
         {
             accessorKey: 'status',
@@ -158,16 +171,44 @@ function buildItemColumns(options: {
                 );
             },
         },
-        {
-            accessorKey: 'total',
-            header: 'Total',
-            cell: ({ row }) => (
-                <span className={row.original.total < 0 ? 'text-rose-600 font-semibold' : 'font-semibold'}>
-                    {formatRupiah(row.original.total)}
-                </span>
-            ),
-        },
     ];
+
+    if (canManage) {
+        columns.push({
+            id: 'discipline',
+            header: 'Discipline',
+            cell: ({ row }) => {
+                const id = row.original.coach_schedule_id;
+                const items = id === null ? [] : violations.filter((v) => v.coach_schedule_id === id);
+
+                if (items.length === 0) {
+                    return <span className="text-xs text-muted-foreground">-</span>;
+                }
+
+                return (
+                    <ul className="space-y-0.5 text-xs text-rose-600">
+                        {items.map((v, index) => (
+                            <li key={`${v.type}-${index}`} className="leading-snug">
+                                {describeViolation(v)}
+                            </li>
+                        ))}
+                    </ul>
+                );
+            },
+        });
+    }
+
+    columns.push({
+        accessorKey: 'total',
+        header: 'Total',
+        cell: ({ row }) => (
+            <span
+                className={`whitespace-nowrap ${row.original.total < 0 ? 'text-rose-600 font-semibold' : 'font-semibold'}`}
+            >
+                {formatRupiah(row.original.total)}
+            </span>
+        ),
+    });
 
     if (canManage) {
         columns.push({
@@ -255,9 +296,12 @@ function BreakdownView({
     const showBonusCalculation =
         breakdown.discipline_bonus_rate > 0 &&
         (breakdown.discipline_bonus_eligible || breakdown.discipline_bonus_sessions > 0);
+    const sessionViolationCount = (breakdown.discipline_bonus_violations ?? []).filter(
+        (v) => v.coach_schedule_id !== null
+    ).length;
 
     return (
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4">
                 <div>
                     <p className="text-sm text-muted-foreground">Total salary</p>
@@ -285,13 +329,13 @@ function BreakdownView({
             )}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border p-4">
+                <div className="min-w-0 rounded-2xl border p-4">
                     <p className="text-xs text-muted-foreground">Sessions subtotal</p>
                     <p className="text-lg font-semibold">{formatRupiah(sessionsSubtotal)}</p>
                     <p className="text-xs text-muted-foreground">{breakdown.total_sessions} evaluated session(s)</p>
                 </div>
 
-                <div className="rounded-2xl border p-4">
+                <div className="min-w-0 rounded-2xl border p-4">
                     <p className="text-xs text-muted-foreground">Discipline bonus</p>
                     <p
                         className={`text-lg font-semibold ${breakdown.discipline_bonus_eligible ? 'text-emerald-600' : 'text-muted-foreground'
@@ -315,9 +359,14 @@ function BreakdownView({
                             {getBonusReasonLabel(breakdown.discipline_bonus_reason)}
                         </p>
                     )}
+                    {canManage && !breakdown.discipline_bonus_eligible && sessionViolationCount > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                            {sessionViolationCount} issue(s): see the Discipline column.
+                        </p>
+                    )}
                 </div>
 
-                <div className="rounded-2xl border p-4">
+                <div className="min-w-0 rounded-2xl border p-4">
                     <div className="flex items-start justify-between gap-2">
                         <div>
                             <p className="text-xs text-muted-foreground">Manual bonus</p>
@@ -338,7 +387,7 @@ function BreakdownView({
                     )}
                 </div>
 
-                <div className="rounded-2xl border p-4">
+                <div className="min-w-0 rounded-2xl border p-4">
                     <p className="text-xs text-muted-foreground">Reschedules this month</p>
                     <p className={`text-lg font-semibold ${overLimit ? 'text-rose-600' : ''}`}>
                         {breakdown.reschedule_count} / {breakdown.reschedule_limit}
@@ -349,15 +398,15 @@ function BreakdownView({
                 </div>
             </div>
 
-            <Tabs defaultValue="sessions">
+            <Tabs defaultValue="sessions" className="min-w-0">
                 <TabsList>
                     <TabsTrigger value="sessions">Sessions</TabsTrigger>
                     <TabsTrigger value="reschedules">Reschedules ({breakdown.reschedules.length})</TabsTrigger>
                     {canManage && <TabsTrigger value="history">History</TabsTrigger>}
                 </TabsList>
 
-                <TabsContent value="sessions" className="pt-2">
-                    <DataTable columns={columns} data={breakdown.items} />
+                <TabsContent value="sessions" className="min-w-0 pt-2">
+                    <DataTable columns={columns} data={breakdown.items} wrapCells />
                 </TabsContent>
 
                 <TabsContent value="reschedules" className="pt-2">
@@ -840,12 +889,14 @@ export default function PayrollPage() {
     const financeItemColumns = buildItemColumns({
         canManage: isAdmin,
         locked: breakdown ? breakdown.status !== 'draft' : false,
+        violations: breakdown?.discipline_bonus_violations ?? [],
         onToggleFlag: handleToggleFlag,
     });
 
     const coachItemColumns = buildItemColumns({
         canManage: false,
         locked: true,
+        violations: [],
         onToggleFlag: handleToggleFlag,
     });
 
@@ -950,7 +1001,12 @@ export default function PayrollPage() {
                         }
                     }}
                 >
-                    <DialogContent className="w-[95vw] sm:max-w-6xl max-h-[85vh] overflow-y-auto">
+                    {/*
+                      overflow-x-hidden + min-w-0 pada anak langsung: DialogContent adalah grid, dan anak grid
+                      secara default tidak boleh lebih sempit dari isinya, sehingga tabel yang lebar mendorong
+                      seluruh dialog melebihi layar. min-w-0 membuat anak boleh mengecil mengikuti dialog.
+                    */}
+                    <DialogContent className="w-[95vw] sm:max-w-6xl max-h-[85vh] overflow-y-auto overflow-x-hidden [&>*]:min-w-0">
                         <DialogHeader>
                             <DialogTitle>Payroll Details - {breakdown?.coach_name ?? ''}</DialogTitle>
                             <DialogDescription>
