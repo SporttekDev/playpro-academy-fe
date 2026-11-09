@@ -92,6 +92,11 @@ export interface CoachPayrollBreakdown {
     reschedules: RescheduleRecord[];
     manual_bonus_enabled: boolean;
     manual_bonus_amount: number;
+    /** Kasbon yang diinput finance. */
+    advance_deduction_requested: number;
+    /** Kasbon yang benar-benar dipotong (paling banyak sebesar penghasilan bulan itu). */
+    advance_deduction_amount: number;
+    advance_deduction_note: string | null;
     total_amount: number;
     items: PayrollItemRow[];
 }
@@ -292,6 +297,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
     settings_updated: 'Settings updated',
     manual_attendance: 'Manual attendance',
     report_submitted_at_manual: 'Report time adjusted',
+    advance_changed: 'Cash advance changed',
 };
 
 export function getAuditActionLabel(action: string): string {
@@ -338,6 +344,14 @@ export function describeAuditEntry(entry: PayrollAuditEntry): string {
             const times = to ? `In ${fmt(to.check_in_at)}, Out ${fmt(to.check_out_at)}` : '';
             const reason = typeof meta.reason === 'string' ? ` | Reason: ${meta.reason}` : '';
             return `${times}${reason}`;
+        }
+
+        case 'advance_changed': {
+            const from = formatRupiah(Number(meta.from_requested ?? 0));
+            const to = formatRupiah(Number(meta.to_requested ?? 0));
+            const applied = formatRupiah(Number(meta.applied ?? 0));
+            const note = typeof meta.note === 'string' && meta.note ? ` | Note: ${meta.note}` : '';
+            return `${from} → ${to} (deducted ${applied})${note}`;
         }
 
         case 'report_submitted_at_manual': {

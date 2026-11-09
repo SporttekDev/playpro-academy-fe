@@ -37,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { IconRefresh, IconLockCheck, IconLockOpen, IconCash, IconFlag, IconSettings } from '@tabler/icons-react';
+import { IconRefresh, IconLockCheck, IconLockOpen, IconCash, IconFlag, IconSettings, IconPencil } from '@tabler/icons-react';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { apiRequest, getErrorMessage } from '@/lib/api';
@@ -278,6 +278,7 @@ interface BreakdownViewProps {
     isLoadingAudit: boolean;
     isTogglingBonus: boolean;
     onToggleManualBonus: (enabled: boolean) => void;
+    onEditAdvance: () => void;
 }
 
 function BreakdownView({
@@ -288,10 +289,18 @@ function BreakdownView({
     isLoadingAudit,
     isTogglingBonus,
     onToggleManualBonus,
+    onEditAdvance,
 }: BreakdownViewProps) {
     const locked = breakdown.status !== 'draft';
+    const advanceApplied = breakdown.advance_deduction_amount ?? 0;
+    const advanceRequested = breakdown.advance_deduction_requested ?? 0;
+    const advanceShortfall = Math.max(advanceRequested - advanceApplied, 0);
+    // Total sudah dikurangi kasbon, jadi kasbon ditambahkan kembali untuk mendapat subtotal sesi.
     const sessionsSubtotal =
-        breakdown.total_amount - breakdown.discipline_bonus_amount - breakdown.manual_bonus_amount;
+        breakdown.total_amount -
+        breakdown.discipline_bonus_amount -
+        breakdown.manual_bonus_amount +
+        advanceApplied;
     const overLimit = breakdown.reschedule_count > breakdown.reschedule_limit;
     const showBonusCalculation =
         breakdown.discipline_bonus_rate > 0 &&
@@ -328,7 +337,7 @@ function BreakdownView({
                 </div>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <div className="min-w-0 rounded-2xl border p-4">
                     <p className="text-xs text-muted-foreground">Sessions subtotal</p>
                     <p className="text-lg font-semibold">{formatRupiah(sessionsSubtotal)}</p>
@@ -382,6 +391,41 @@ function BreakdownView({
                             />
                         )}
                     </div>
+                    {canManage && !breakdown.period_id && (
+                        <p className="text-xs text-muted-foreground">Generate the payroll first</p>
+                    )}
+                </div>
+
+                <div className="min-w-0 rounded-2xl border p-4">
+                    <div className="flex items-start justify-between gap-2">
+                        <div>
+                            <p className="text-xs text-muted-foreground">Cash advance</p>
+                            <p className={`text-lg font-semibold ${advanceApplied > 0 ? 'text-rose-600' : ''}`}>
+                                {advanceApplied > 0 ? `-${formatRupiah(advanceApplied)}` : 'None'}
+                            </p>
+                        </div>
+                        {canManage && (
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg"
+                                disabled={locked || !breakdown.period_id}
+                                title={locked ? 'Reopen the payroll to change the cash advance' : 'Edit cash advance'}
+                                onClick={onEditAdvance}
+                            >
+                                <IconPencil size={14} />
+                            </Button>
+                        )}
+                    </div>
+                    {advanceShortfall > 0 && (
+                        <p className="text-xs text-amber-600">
+                            Salary is too low: {formatRupiah(advanceShortfall)} of the{' '}
+                            {formatRupiah(advanceRequested)} advance is not deducted.
+                        </p>
+                    )}
+                    {breakdown.advance_deduction_note && (
+                        <p className="text-xs text-muted-foreground">{breakdown.advance_deduction_note}</p>
+                    )}
                     {canManage && !breakdown.period_id && (
                         <p className="text-xs text-muted-foreground">Generate the payroll first</p>
                     )}
@@ -524,6 +568,11 @@ export default function PayrollPage() {
     const [settings, setSettings] = useState<PayrollSetting[]>([]);
     const [isLoadingSettings, setIsLoadingSettings] = useState(false);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+    const [isAdvanceOpen, setIsAdvanceOpen] = useState(false);
+    const [advanceAmount, setAdvanceAmount] = useState('');
+    const [advanceNote, setAdvanceNote] = useState('');
+    const [isSavingAdvance, setIsSavingAdvance] = useState(false);
 
     useEffect(() => {
         const sessionString = Cookies.get('session_key');
@@ -780,6 +829,48 @@ export default function PayrollPage() {
         }
     };
 
+    const openAdvanceDialog = () => {
+        if (!breakdown) return;
+
+        const requested = breakdown.advance_deduction_requested ?? 0;
+        setAdvanceAmount(requested > 0 ? String(requested) : '');
+        setAdvanceNote(breakdown.advance_deduction_note ?? '');
+        setIsAdvanceOpen(true);
+    };
+
+    const closeAdvanceDialog = () => {
+        setIsAdvanceOpen(false);
+        setAdvanceAmount('');
+        setAdvanceNote('');
+    };
+
+    const handleSaveAdvance = async () => {
+        if (!breakdown?.period_id) return;
+
+        const amount = advanceAmount.trim() === '' ? 0 : Number(advanceAmount);
+        if (!Number.isInteger(amount) || amount < 0) {
+            toast.error('Enter a whole number of 0 or more');
+            return;
+        }
+
+        try {
+            setIsSavingAdvance(true);
+            await apiRequest(`/finance/payroll/${breakdown.period_id}/advance`, {
+                method: 'PATCH',
+                body: { amount, note: advanceNote.trim() || null },
+            });
+
+            toast.success(amount > 0 ? 'Cash advance saved' : 'Cash advance removed');
+            closeAdvanceDialog();
+            await Promise.all([fetchBreakdown(breakdown.coach_id), fetchSummaries()]);
+        } catch (error) {
+            console.error(error);
+            toast.error(getErrorMessage(error, 'Failed to update cash advance'));
+        } finally {
+            setIsSavingAdvance(false);
+        }
+    };
+
     // -- Kolom -----------------------------------------------------------------
 
     const summaryColumns: ColumnDef<CoachPayrollSummary>[] = [
@@ -979,6 +1070,7 @@ export default function PayrollPage() {
                             isLoadingAudit={false}
                             isTogglingBonus={false}
                             onToggleManualBonus={() => undefined}
+                            onEditAdvance={() => undefined}
                         />
                     ) : (
                         <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -1025,6 +1117,7 @@ export default function PayrollPage() {
                                 isLoadingAudit={isLoadingAudit}
                                 isTogglingBonus={isTogglingBonus}
                                 onToggleManualBonus={handleToggleManualBonus}
+                                onEditAdvance={openAdvanceDialog}
                             />
                         ) : (
                             <p className="text-sm text-muted-foreground">No data</p>
@@ -1142,6 +1235,63 @@ export default function PayrollPage() {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+            )}
+
+            {/* Finance: kasbon (potongan) untuk periode draft */}
+            {isAdmin && (
+                <Dialog
+                    open={isAdvanceOpen}
+                    onOpenChange={(open) => {
+                        if (!open && !isSavingAdvance) closeAdvanceDialog();
+                    }}
+                >
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Cash advance</DialogTitle>
+                            <DialogDescription>
+                                {breakdown?.coach_name ?? 'This coach'}&apos;s advance is deducted from this month&apos;s
+                                salary, at most up to the amount earned. Set it to 0 to remove it. The change is
+                                recorded in the history.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="advance-amount">Amount (Rp)</Label>
+                                <Input
+                                    id="advance-amount"
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    inputMode="numeric"
+                                    value={advanceAmount}
+                                    placeholder="0"
+                                    onChange={(e) => setAdvanceAmount(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="advance-note">Note (optional)</Label>
+                                <Input
+                                    id="advance-note"
+                                    value={advanceNote}
+                                    maxLength={255}
+                                    placeholder="e.g. Advance taken on Oct 20"
+                                    onChange={(e) => setAdvanceNote(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" disabled={isSavingAdvance} onClick={closeAdvanceDialog}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSaveAdvance} disabled={isSavingAdvance}>
+                                {isSavingAdvance ? 'Saving...' : 'Save'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             )}
 
             {/* Finance: buka kembali payroll final */}
