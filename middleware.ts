@@ -63,13 +63,14 @@ function isAllowed(role: string, pathname: string) {
         );
     }
 
-    // COACH
+    // COACH - termasuk Slip Gaji miliknya sendiri (/payslips)
     if (role === "coach") {
         return (
             pathname.startsWith("/dashboard") ||
             pathname.startsWith("/attendance-reports") ||
             pathname.startsWith("/attendance-checkin") ||
-            pathname.startsWith("/coach-attendance")
+            pathname.startsWith("/coach-attendance") ||
+            pathname.startsWith("/payslips")
         );
     }
 
