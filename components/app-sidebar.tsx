@@ -24,6 +24,7 @@ import {
   IconMoneybag,
   IconSettingsDollar,
   IconArrowsExchange,
+  IconReceipt2,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -92,6 +93,15 @@ const data = {
       title: "Payroll",
       url: "/payroll",
       icon: IconMoneybag,
+    },
+  ],
+
+  // Menu khusus coach: slip gaji sendiri (berbeda dari halaman Payroll milik finance)
+  navCoach: [
+    {
+      title: "Slip Gaji",
+      url: "/payslips",
+      icon: IconReceipt2,
     },
   ],
 
@@ -267,6 +277,7 @@ export function AppSidebar({
             item.url === "/attendance-reports" ||
             item.url === "/coach-attendance"
         ),
+        ...data.navCoach,
         // ...data.navFinance.filter((item) => item.url === "/payroll"),
       ]
     }

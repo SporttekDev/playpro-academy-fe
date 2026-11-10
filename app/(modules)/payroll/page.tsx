@@ -37,10 +37,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { IconRefresh, IconLockCheck, IconLockOpen, IconCash, IconFlag, IconSettings, IconPencil } from '@tabler/icons-react';
+import { IconRefresh, IconLockCheck, IconLockOpen, IconCash, IconFlag, IconSettings, IconPencil, IconDownload } from '@tabler/icons-react';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { apiRequest, getErrorMessage } from '@/lib/api';
+import { downloadPdf, payslipFilename } from '@/lib/payslip';
 import {
     CoachPayrollBreakdown,
     CoachPayrollSummary,
@@ -468,8 +469,8 @@ function BreakdownView({
                                         </span>
                                         <Badge
                                             className={`rounded-full border ${r.counts_toward_bonus
-                                                    ? 'bg-amber-50 text-amber-600 border-amber-200'
-                                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                                ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                                : 'bg-slate-100 text-slate-600 border-slate-200'
                                                 }`}
                                         >
                                             {getRescheduleTypeLabel(r.type)}
@@ -574,6 +575,8 @@ export default function PayrollPage() {
     const [advanceNote, setAdvanceNote] = useState('');
     const [isSavingAdvance, setIsSavingAdvance] = useState(false);
 
+    const [isDownloadingSlip, setIsDownloadingSlip] = useState(false);
+
     useEffect(() => {
         const sessionString = Cookies.get('session_key');
         if (sessionString) {
@@ -587,6 +590,22 @@ export default function PayrollPage() {
             setSession(null);
         }
     }, []);
+
+    const handleDownloadSlip = async () => {
+        if (!breakdown?.period_id) return;
+
+        setIsDownloadingSlip(true);
+        try {
+            await downloadPdf(
+                `/finance/payroll/${breakdown.period_id}/payslip`,
+                payslipFilename(breakdown.coach_name, Number(selectedYear), Number(selectedMonth))
+            );
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Failed to download payslip'));
+        } finally {
+            setIsDownloadingSlip(false);
+        }
+    };
 
     const isAdmin =
         session !== 'loading' &&
@@ -1192,6 +1211,18 @@ export default function PayrollPage() {
                                         Mark as paid
                                     </Button>
                                 </>
+                            )}
+
+                            {breakdown?.status === 'paid' && breakdown.period_id && (
+                                <Button
+                                    variant="outline"
+                                    className="rounded-xl"
+                                    disabled={isDownloadingSlip}
+                                    onClick={handleDownloadSlip}
+                                >
+                                    <IconDownload size={16} className="mr-2" />
+                                    {isDownloadingSlip ? 'Downloading...' : 'Download payslip'}
+                                </Button>
                             )}
 
                             <Button variant="ghost" onClick={() => setIsDetailOpen(false)}>
