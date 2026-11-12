@@ -25,6 +25,7 @@ import {
   IconSettingsDollar,
   IconArrowsExchange,
   IconReceipt2,
+  IconChartBar,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -93,6 +94,11 @@ const data = {
       title: "Payroll",
       url: "/payroll",
       icon: IconMoneybag,
+    },
+    {
+      title: "Pengeluaran Gaji",
+      url: "/payroll/expenses",
+      icon: IconChartBar,
     },
   ],
 
