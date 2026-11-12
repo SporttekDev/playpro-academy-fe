@@ -22,7 +22,6 @@ import {
   IconUsers,
   IconUsersGroup,
   IconMoneybag,
-  IconSettingsDollar,
   IconArrowsExchange,
   IconReceipt2,
   IconChartBar,
@@ -96,7 +95,7 @@ const data = {
       icon: IconMoneybag,
     },
     {
-      title: "Pengeluaran Gaji",
+      title: "Salary Expenses",
       url: "/payroll/expenses",
       icon: IconChartBar,
     },

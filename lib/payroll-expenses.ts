@@ -6,24 +6,24 @@ import { ApiError } from '@/lib/api';
 
 export type ExpenseStatus = 'draft' | 'final' | 'paid';
 
-export const MONTH_NAMES_ID = [
-    'Januari',
-    'Februari',
-    'Maret',
+export const MONTH_NAMES = [
+    'January',
+    'February',
+    'March',
     'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
+    'May',
+    'June',
+    'July',
+    'August',
     'September',
-    'Oktober',
+    'October',
     'November',
-    'Desember',
+    'December',
 ];
 
-export const MONTH_SHORT_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+export const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** Beban gaji menurut status periode. */
+/** Salary expense (gross) by period status. */
 export interface GrossByStatus {
     draft: number;
     final: number;
@@ -148,22 +148,23 @@ export interface ExpenseMonthDetail {
 export function getExpenseStatusLabel(status: string): string {
     switch (status) {
         case 'paid':
-            return 'Dibayar';
+            return 'Paid';
         case 'final':
             return 'Final';
         default:
-            return 'Draft (estimasi)';
+            return 'Draft (estimate)';
     }
 }
 
-/** Format ringkas untuk sumbu grafik: 1,5 jt / 250 rb. */
+/** Compact format for chart axes: 1.5M / 250K / 1.2B. */
 export function formatCompactRupiah(amount: number): string {
     const abs = Math.abs(amount);
     const sign = amount < 0 ? '-' : '';
+    const fmt = (n: number, digits: number) => n.toLocaleString('en-US', { maximumFractionDigits: digits });
 
-    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
-    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt`;
-    if (abs >= 1_000) return `${sign}${(abs / 1_000).toLocaleString('id-ID', { maximumFractionDigits: 0 })} rb`;
+    if (abs >= 1_000_000_000) return `${sign}${fmt(abs / 1_000_000_000, 1)}B`;
+    if (abs >= 1_000_000) return `${sign}${fmt(abs / 1_000_000, 1)}M`;
+    if (abs >= 1_000) return `${sign}${fmt(abs / 1_000, 0)}K`;
     return `${sign}${abs}`;
 }
 
@@ -181,7 +182,7 @@ export async function downloadFile(path: string, filename: string, accept: strin
 
     if (!response.ok) {
         // Error dari backend berbentuk JSON ({ message }), meski yang diminta file.
-        let message = `Gagal mengunduh file (${response.status})`;
+        let message = `Failed to download file (${response.status})`;
         try {
             const json = (await response.json()) as { message?: string };
             if (json?.message) message = json.message;
@@ -208,5 +209,5 @@ export async function downloadFile(path: string, filename: string, accept: strin
 export const EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export function expenseExcelFilename(year: number, includeDraft: boolean): string {
-    return `Laporan-Pengeluaran-Gaji-${year}${includeDraft ? '-termasuk-draft' : ''}.xlsx`;
+    return `Coach-Salary-Expenses-${year}${includeDraft ? '-incl-drafts' : ''}.xlsx`;
 }
