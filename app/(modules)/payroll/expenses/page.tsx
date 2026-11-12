@@ -27,8 +27,8 @@ import {
     ExpenseMonthDetail,
     ExpenseOverview,
     ExpenseTotals,
-    MONTH_NAMES_ID,
-    MONTH_SHORT_ID,
+    MONTH_NAMES,
+    MONTH_SHORT,
     downloadFile,
     expenseExcelFilename,
     formatCompactRupiah,
@@ -59,20 +59,20 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { paylo
         <div className="rounded-xl border bg-popover px-3 py-2 text-xs shadow-md">
             <div className="mb-1 font-semibold">{point.name}</div>
             <div className="flex items-center justify-between gap-6">
-                <span className="text-muted-foreground">Beban gaji (sebelum kasbon)</span>
+                <span className="text-muted-foreground">Salary expense (before advances)</span>
                 <span className="font-semibold">{formatRupiah(point.gross)}</span>
             </div>
             <div className="flex items-center justify-between gap-6">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                     <span className="inline-block size-2 rounded-sm" style={{ background: 'var(--exp-net)' }} />
-                    Dibayarkan ke coach
+                    Paid to coaches
                 </span>
                 <span>{formatRupiah(point.net)}</span>
             </div>
             <div className="flex items-center justify-between gap-6">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                     <span className="inline-block size-2 rounded-sm" style={{ background: 'var(--exp-adv)' }} />
-                    Kasbon terpotong
+                    Cash advances deducted
                 </span>
                 <span>{formatRupiah(point.advance)}</span>
             </div>
@@ -88,7 +88,7 @@ function StatusChips({ counts }: { counts: ExpenseTotals['status_counts'] }) {
         <div className="flex flex-wrap gap-1">
             {entries.map((s) => (
                 <Badge key={s} variant="outline" className={`rounded-lg text-[11px] ${getPeriodStatusStyle(s)}`}>
-                    {counts[s]} {s === 'draft' ? 'draft' : s === 'final' ? 'final' : 'dibayar'}
+                    {counts[s]} {s === 'draft' ? 'draft' : s === 'final' ? 'final' : 'paid'}
                 </Badge>
             ))}
         </div>
@@ -141,7 +141,7 @@ export default function PayrollExpensesPage() {
             const { data } = await apiRequest<ExpenseOverview>('/finance/payroll-expenses', { query });
             setOverview(data ?? null);
         } catch (error) {
-            toast.error(getErrorMessage(error, 'Gagal memuat laporan pengeluaran gaji'));
+            toast.error(getErrorMessage(error, 'Failed to load salary expense report'));
         } finally {
             setIsLoading(false);
         }
@@ -166,7 +166,7 @@ export default function PayrollExpensesPage() {
                 if (!cancelled) setDetail(data ?? null);
             })
             .catch((error) => {
-                if (!cancelled) toast.error(getErrorMessage(error, 'Gagal memuat rincian bulan'));
+                if (!cancelled) toast.error(getErrorMessage(error, 'Failed to load month details'));
             })
             .finally(() => {
                 if (!cancelled) setIsLoadingDetail(false);
@@ -187,7 +187,7 @@ export default function PayrollExpensesPage() {
                 EXCEL_MIME
             );
         } catch (error) {
-            toast.error(getErrorMessage(error, 'Gagal mengunduh Excel'));
+            toast.error(getErrorMessage(error, 'Failed to download Excel'));
         } finally {
             setIsDownloading(false);
         }
@@ -196,7 +196,7 @@ export default function PayrollExpensesPage() {
     const chartData: ChartPoint[] = useMemo(
         () =>
             (overview?.months ?? []).map((m) => ({
-                name: MONTH_SHORT_ID[m.month - 1],
+                name: MONTH_SHORT[m.month - 1],
                 net: m.net,
                 advance: m.advance,
                 gross: m.gross,
@@ -212,7 +212,7 @@ export default function PayrollExpensesPage() {
         return (
             <div className="px-6">
                 <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-                    Halaman ini hanya untuk finance.
+                    This page is only available to finance.
                 </div>
             </div>
         );
@@ -229,16 +229,16 @@ export default function PayrollExpensesPage() {
 
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-semibold">Pengeluaran Gaji Coach</h1>
+                    <h1 className="text-xl font-semibold">Coach Salary Expenses</h1>
                     <p className="text-sm text-muted-foreground">
-                        Per bulan kerja dan per cabang. Angka utama adalah beban gaji sebelum kasbon dipotong.
+                        By work month and by branch. The main figure is salary expense before cash advance deductions.
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                     <label className="flex items-center gap-2 text-sm">
                         <Switch checked={includeDraft} onCheckedChange={setIncludeDraft} />
-                        Termasuk draft (estimasi)
+                        Include drafts (estimate)
                     </label>
 
                     <Select value={year} onValueChange={setYear}>
@@ -261,7 +261,7 @@ export default function PayrollExpensesPage() {
                         disabled={isDownloading || isLoading}
                     >
                         <IconDownload size={16} className="mr-1" />
-                        {isDownloading ? 'Mengunduh...' : 'Unduh Excel'}
+                        {isDownloading ? 'Downloading...' : 'Download Excel'}
                     </Button>
                 </div>
             </div>
@@ -280,22 +280,22 @@ export default function PayrollExpensesPage() {
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <StatCard
                             emphasis
-                            label={`Beban gaji ${overview.year} (sebelum kasbon)`}
+                            label={`Salary expense ${overview.year} (before advances)`}
                             value={formatRupiah(totals.gross)}
-                            hint={`${totals.coach_count} coach, ${totals.session_count} sesi`}
+                            hint={`${totals.coach_count} coaches, ${totals.session_count} sessions`}
                         />
                         <StatCard
-                            label="Kasbon terpotong"
+                            label="Cash advances deducted"
                             value={formatRupiah(totals.advance)}
-                            hint="Dikurangkan dari gaji coach"
+                            hint="Deducted from coach pay"
                         />
                         <StatCard
-                            label="Dibayarkan ke coach (net)"
+                            label="Paid to coaches (net)"
                             value={formatRupiah(totals.net)}
-                            hint="Beban gaji dikurangi kasbon"
+                            hint="Salary expense minus advances"
                         />
                         <StatCard
-                            label="Belum dibayar"
+                            label="Unpaid"
                             value={formatRupiah(unpaid)}
                             hint={`Final ${formatRupiah(totals.gross_by_status.final)} | Draft ${formatRupiah(totals.gross_by_status.draft)}`}
                         />
@@ -305,8 +305,8 @@ export default function PayrollExpensesPage() {
                         <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
                             <IconAlertTriangle size={18} className="mt-0.5 shrink-0" />
                             <span>
-                                Angka mencakup periode draft sebesar {formatRupiah(totals.gross_by_status.draft)}. Itu
-                                estimasi dari generate terakhir dan bisa berubah sampai payroll difinalisasi.
+                                These figures include {formatRupiah(totals.gross_by_status.draft)} from draft periods. That is an
+                                estimate from the last generate and may change until payroll is finalized.
                             </span>
                         </div>
                     )}
@@ -315,8 +315,8 @@ export default function PayrollExpensesPage() {
                         <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
                             <IconAlertTriangle size={18} className="mt-0.5 shrink-0" />
                             <span>
-                                Ada coach yang berjadwal tetapi payroll-nya belum di-generate (lihat kolom Belum generate
-                                di tabel bulanan). Gaji mereka belum masuk ke angka laporan ini.
+                                Some coaches have scheduled sessions but no payroll generated yet (see the Not generated
+                                column in the monthly table). Their pay is not included in this report yet.
                             </span>
                         </div>
                     )}
@@ -325,31 +325,31 @@ export default function PayrollExpensesPage() {
                         <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                             <IconAlertTriangle size={18} className="mt-0.5 shrink-0" />
                             <span>
-                                Ada {overview.reconciliation.periods.length} periode yang total gajinya tidak sama dengan
-                                jumlah rincian sesi dan bonus (selisih {formatRupiah(overview.reconciliation.adjustment_total)}).
-                                Selisih ini dicatat sebagai baris Penyesuaian di Excel supaya total tetap benar.
+                                {overview.reconciliation.periods.length} period(s) have a total that does not match the sum of
+                                their session items and bonuses (difference {formatRupiah(overview.reconciliation.adjustment_total)}).
+                                The difference is kept as an adjustment row in the Excel export so the totals stay correct.
                             </span>
                         </div>
                     )}
 
                     {!hasData ? (
                         <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-                            Belum ada payroll yang final atau dibayar di {overview.year}.
-                            {!includeDraft && ' Aktifkan "Termasuk draft" untuk melihat estimasi.'}
+                            No finalized or paid payroll in {overview.year} yet.
+                            {!includeDraft && ' Turn on "Include drafts" to see estimates.'}
                         </div>
                     ) : (
                         <>
                             <section className="rounded-2xl border p-4">
                                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                    <h2 className="text-sm font-semibold">Beban gaji per bulan</h2>
+                                    <h2 className="text-sm font-semibold">Salary expense per month</h2>
                                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                         <span className="flex items-center gap-1.5">
                                             <span className="inline-block size-2.5 rounded-sm" style={{ background: 'var(--exp-net)' }} />
-                                            Dibayarkan ke coach
+                                            Paid to coaches
                                         </span>
                                         <span className="flex items-center gap-1.5">
                                             <span className="inline-block size-2.5 rounded-sm" style={{ background: 'var(--exp-adv)' }} />
-                                            Kasbon terpotong
+                                            Cash advances deducted
                                         </span>
                                     </div>
                                 </div>
@@ -392,23 +392,23 @@ export default function PayrollExpensesPage() {
                             </section>
 
                             <section className="rounded-2xl border p-4">
-                                <h2 className="mb-1 text-sm font-semibold">Per cabang ({overview.year})</h2>
+                                <h2 className="mb-1 text-sm font-semibold">By branch ({overview.year})</h2>
                                 <p className="mb-3 text-xs text-muted-foreground">
-                                    Bonus disiplin dibagi menurut jumlah sesi berstatus paid per cabang, bonus lainnya
-                                    proporsional jumlah sesi paid. Kasbon tidak dialokasikan ke cabang.
+                                    Discipline bonus is split by the number of paid sessions per branch, other bonus
+                                    proportionally to paid sessions. Cash advances are not allocated to branches.
                                 </p>
 
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Cabang</TableHead>
+                                            <TableHead>Branch</TableHead>
                                             <TableHead className="text-right">Coach</TableHead>
-                                            <TableHead className="text-right">Sesi</TableHead>
-                                            <TableHead className="text-right">Gaji sesi</TableHead>
-                                            <TableHead className="text-right">Bonus disiplin</TableHead>
-                                            <TableHead className="text-right">Bonus lainnya</TableHead>
-                                            <TableHead className="text-right">Beban gaji</TableHead>
-                                            <TableHead className="w-40">Porsi</TableHead>
+                                            <TableHead className="text-right">Sessions</TableHead>
+                                            <TableHead className="text-right">Session pay</TableHead>
+                                            <TableHead className="text-right">Discipline bonus</TableHead>
+                                            <TableHead className="text-right">Other bonus</TableHead>
+                                            <TableHead className="text-right">Salary expense</TableHead>
+                                            <TableHead className="w-40">Share</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -418,7 +418,7 @@ export default function PayrollExpensesPage() {
                                                     {b.branch_name}
                                                     {b.branch_deleted && (
                                                         <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                                            (cabang dihapus)
+                                                            (branch deleted)
                                                         </span>
                                                     )}
                                                 </TableCell>
@@ -451,17 +451,17 @@ export default function PayrollExpensesPage() {
                             </section>
 
                             <section className="rounded-2xl border p-4">
-                                <h2 className="mb-3 text-sm font-semibold">Per bulan kerja</h2>
+                                <h2 className="mb-3 text-sm font-semibold">By work month</h2>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Bulan</TableHead>
+                                            <TableHead>Month</TableHead>
                                             <TableHead className="text-right">Coach</TableHead>
-                                            <TableHead className="text-right">Beban gaji</TableHead>
-                                            <TableHead className="text-right">Kasbon</TableHead>
-                                            <TableHead className="text-right">Dibayarkan</TableHead>
+                                            <TableHead className="text-right">Salary expense</TableHead>
+                                            <TableHead className="text-right">Advances</TableHead>
+                                            <TableHead className="text-right">Paid out</TableHead>
                                             <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Belum generate</TableHead>
+                                            <TableHead className="text-right">Not generated</TableHead>
                                             <TableHead className="w-24" />
                                         </TableRow>
                                     </TableHeader>
@@ -474,7 +474,7 @@ export default function PayrollExpensesPage() {
                                                     className={empty ? 'text-muted-foreground' : 'cursor-pointer'}
                                                     onClick={() => !empty && setDetailMonth(m.month)}
                                                 >
-                                                    <TableCell className="font-medium">{MONTH_NAMES_ID[m.month - 1]}</TableCell>
+                                                    <TableCell className="font-medium">{MONTH_NAMES[m.month - 1]}</TableCell>
                                                     <TableCell className="text-right tabular-nums">{empty ? '-' : m.coach_count}</TableCell>
                                                     <TableCell className="text-right font-semibold tabular-nums">
                                                         {empty ? '-' : formatRupiah(m.gross)}
@@ -491,7 +491,7 @@ export default function PayrollExpensesPage() {
                                                     <TableCell
                                                         className={`text-right tabular-nums ${m.not_generated > 0 ? 'font-medium text-amber-600' : 'text-muted-foreground'}`}
                                                     >
-                                                        {m.not_generated > 0 ? `${m.not_generated} coach` : '-'}
+                                                        {m.not_generated > 0 ? `${m.not_generated} coach(es)` : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         {!empty && (
@@ -504,7 +504,7 @@ export default function PayrollExpensesPage() {
                                                                     setDetailMonth(m.month);
                                                                 }}
                                                             >
-                                                                Rincian
+                                                                Details
                                                             </Button>
                                                         )}
                                                     </TableCell>
@@ -536,10 +536,10 @@ export default function PayrollExpensesPage() {
                 <DialogContent className="exp-viz w-[95vw] sm:max-w-5xl max-h-[85vh] overflow-y-auto overflow-x-hidden [&>*]:min-w-0">
                     <DialogHeader>
                         <DialogTitle>
-                            Pengeluaran gaji {detailMonth ? MONTH_NAMES_ID[detailMonth - 1] : ''} {year}
+                            Salary expense {detailMonth ? MONTH_NAMES[detailMonth - 1] : ''} {year}
                         </DialogTitle>
                         <DialogDescription>
-                            Bulan kerja yang sama dengan halaman Payroll.
+                            Same work month basis as the Payroll page.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -551,39 +551,39 @@ export default function PayrollExpensesPage() {
                     ) : (
                         <div className="space-y-4">
                             <div className="grid gap-3 sm:grid-cols-3">
-                                <StatCard label="Beban gaji (sebelum kasbon)" value={formatRupiah(detail.totals.gross)} emphasis />
-                                <StatCard label="Kasbon terpotong" value={formatRupiah(detail.totals.advance)} />
-                                <StatCard label="Dibayarkan ke coach" value={formatRupiah(detail.totals.net)} />
+                                <StatCard label="Salary expense (before advances)" value={formatRupiah(detail.totals.gross)} emphasis />
+                                <StatCard label="Cash advances deducted" value={formatRupiah(detail.totals.advance)} />
+                                <StatCard label="Paid to coaches" value={formatRupiah(detail.totals.net)} />
                             </div>
 
                             {detail.not_generated > 0 && (
                                 <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
                                     <IconAlertTriangle size={18} className="mt-0.5 shrink-0" />
                                     <span>
-                                        {detail.not_generated} coach berjadwal bulan ini tetapi payroll-nya belum di-generate,
-                                        jadi belum termasuk di angka ini.
+                                        {detail.not_generated} coach(es) have sessions this month but no payroll generated yet,
+                                        so they are not included in these figures.
                                     </span>
                                 </div>
                             )}
 
                             <Tabs defaultValue="branch">
                                 <TabsList>
-                                    <TabsTrigger value="branch">Per Cabang</TabsTrigger>
-                                    <TabsTrigger value="coach">Per Coach</TabsTrigger>
-                                    <TabsTrigger value="advance">Kasbon</TabsTrigger>
+                                    <TabsTrigger value="branch">By Branch</TabsTrigger>
+                                    <TabsTrigger value="coach">By Coach</TabsTrigger>
+                                    <TabsTrigger value="advance">Advances</TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="branch">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>Cabang</TableHead>
+                                                <TableHead>Branch</TableHead>
                                                 <TableHead className="text-right">Coach</TableHead>
-                                                <TableHead className="text-right">Sesi</TableHead>
-                                                <TableHead className="text-right">Gaji sesi</TableHead>
-                                                <TableHead className="text-right">Bonus disiplin</TableHead>
-                                                <TableHead className="text-right">Bonus lainnya</TableHead>
-                                                <TableHead className="text-right">Beban gaji</TableHead>
+                                                <TableHead className="text-right">Sessions</TableHead>
+                                                <TableHead className="text-right">Session pay</TableHead>
+                                                <TableHead className="text-right">Discipline bonus</TableHead>
+                                                <TableHead className="text-right">Other bonus</TableHead>
+                                                <TableHead className="text-right">Salary expense</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -608,12 +608,12 @@ export default function PayrollExpensesPage() {
                                             <TableRow>
                                                 <TableHead>Coach</TableHead>
                                                 <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">Sesi</TableHead>
-                                                <TableHead className="text-right">Gaji sesi</TableHead>
+                                                <TableHead className="text-right">Sessions</TableHead>
+                                                <TableHead className="text-right">Session pay</TableHead>
                                                 <TableHead className="text-right">Bonus</TableHead>
-                                                <TableHead className="text-right">Beban gaji</TableHead>
-                                                <TableHead className="text-right">Kasbon</TableHead>
-                                                <TableHead className="text-right">Dibayarkan</TableHead>
+                                                <TableHead className="text-right">Salary expense</TableHead>
+                                                <TableHead className="text-right">Advances</TableHead>
+                                                <TableHead className="text-right">Paid out</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -654,7 +654,7 @@ export default function PayrollExpensesPage() {
                                 <TabsContent value="advance">
                                     {detail.advances.length === 0 ? (
                                         <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                                            Tidak ada kasbon di bulan ini.
+                                            No cash advances this month.
                                         </div>
                                     ) : (
                                         <Table>
@@ -662,10 +662,10 @@ export default function PayrollExpensesPage() {
                                                 <TableRow>
                                                     <TableHead>Coach</TableHead>
                                                     <TableHead>Status</TableHead>
-                                                    <TableHead className="text-right">Diminta</TableHead>
-                                                    <TableHead className="text-right">Terpotong</TableHead>
-                                                    <TableHead className="text-right">Belum terpotong</TableHead>
-                                                    <TableHead>Catatan</TableHead>
+                                                    <TableHead className="text-right">Requested</TableHead>
+                                                    <TableHead className="text-right">Deducted</TableHead>
+                                                    <TableHead className="text-right">Not deducted</TableHead>
+                                                    <TableHead>Note</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
