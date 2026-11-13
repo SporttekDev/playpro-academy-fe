@@ -208,6 +208,31 @@ export async function downloadFile(path: string, filename: string, accept: strin
 
 export const EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-export function expenseExcelFilename(year: number, includeDraft: boolean): string {
-    return `Coach-Salary-Expenses-${year}${includeDraft ? '-incl-drafts' : ''}.xlsx`;
+export interface MonthYear {
+    year: number;
+    month: number;
+}
+
+/** Maximum number of months in one Excel export (same limit as the backend). */
+export const MAX_EXPORT_MONTHS = 36;
+
+/** Number of months from `from` to `to`, inclusive. Zero or negative means the range is reversed. */
+export function countMonthsInRange(from: MonthYear, to: MonthYear): number {
+    return (to.year - from.year) * 12 + (to.month - from.month) + 1;
+}
+
+export function formatMonthYear(value: MonthYear): string {
+    return `${MONTH_NAMES[value.month - 1]} ${value.year}`;
+}
+
+function pad(month: number): string {
+    return String(month).padStart(2, '0');
+}
+
+export function expenseExcelFilename(from: MonthYear, to: MonthYear, includeDraft: boolean): string {
+    const start = `${from.year}-${pad(from.month)}`;
+    const end = `${to.year}-${pad(to.month)}`;
+    const range = start === end ? start : `${start}_to_${end}`;
+
+    return `Coach-Salary-Expenses-${range}${includeDraft ? '-incl-drafts' : ''}.xlsx`;
 }

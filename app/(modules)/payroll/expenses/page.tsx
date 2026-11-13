@@ -21,17 +21,21 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest, getErrorMessage } from '@/lib/api';
-import { YEARS, currentYear, formatRupiah, getPeriodStatusStyle } from '@/lib/payroll';
+import { MONTHS, YEARS, currentYear, formatRupiah, getPeriodStatusStyle } from '@/lib/payroll';
 import {
     EXCEL_MIME,
+    MAX_EXPORT_MONTHS,
     ExpenseMonthDetail,
     ExpenseOverview,
     ExpenseTotals,
+    MonthYear,
     MONTH_NAMES,
     MONTH_SHORT,
+    countMonthsInRange,
     downloadFile,
     expenseExcelFilename,
     formatCompactRupiah,
+    formatMonthYear,
     getExpenseStatusLabel,
 } from '@/lib/payroll-expenses';
 
@@ -113,6 +117,13 @@ export default function PayrollExpensesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);
 
+    // Excel export dialog: its own month range, independent of the year shown on the page.
+    const currentMonth = new Date().getMonth() + 1;
+    const [exportOpen, setExportOpen] = useState(false);
+    const [exportFrom, setExportFrom] = useState<MonthYear>({ year: currentYear, month: 1 });
+    const [exportTo, setExportTo] = useState<MonthYear>({ year: currentYear, month: currentMonth });
+    const [exportDraft, setExportDraft] = useState(false);
+
     const [detailMonth, setDetailMonth] = useState<number | null>(null);
     const [detail, setDetail] = useState<ExpenseMonthDetail | null>(null);
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -177,15 +188,55 @@ export default function PayrollExpensesPage() {
         };
     }, [detailMonth, query]);
 
+    const openExportDialog = () => {
+        // Default to the year shown on the page; for the current year stop at the current month.
+        const y = Number(year);
+        setExportFrom({ year: y, month: 1 });
+        setExportTo({ year: y, month: y === currentYear ? currentMonth : 12 });
+        setExportDraft(includeDraft);
+        setExportOpen(true);
+    };
+
+    const applyPreset = (preset: 'this-month' | 'this-year' | 'last-year') => {
+        if (preset === 'this-month') {
+            setExportFrom({ year: currentYear, month: currentMonth });
+            setExportTo({ year: currentYear, month: currentMonth });
+        } else if (preset === 'this-year') {
+            setExportFrom({ year: currentYear, month: 1 });
+            setExportTo({ year: currentYear, month: currentMonth });
+        } else {
+            setExportFrom({ year: currentYear - 1, month: 1 });
+            setExportTo({ year: currentYear - 1, month: 12 });
+        }
+    };
+
+    const exportMonthCount = countMonthsInRange(exportFrom, exportTo);
+    const exportError =
+        exportMonthCount < 1
+            ? 'The end of the range must not be before the start.'
+            : exportMonthCount > MAX_EXPORT_MONTHS
+              ? `The range may cover at most ${MAX_EXPORT_MONTHS} months.`
+              : null;
+
     const handleDownload = async () => {
+        if (exportError) return;
+
         setIsDownloading(true);
         try {
-            const params = new URLSearchParams(query).toString();
+            const params = new URLSearchParams({
+                from_year: String(exportFrom.year),
+                from_month: String(exportFrom.month),
+                to_year: String(exportTo.year),
+                to_month: String(exportTo.month),
+                include_draft: exportDraft ? '1' : '0',
+            }).toString();
+
             await downloadFile(
                 `/finance/payroll-expenses/export?${params}`,
-                expenseExcelFilename(Number(year), includeDraft),
+                expenseExcelFilename(exportFrom, exportTo, exportDraft),
                 EXCEL_MIME
             );
+            setExportOpen(false);
         } catch (error) {
             toast.error(getErrorMessage(error, 'Failed to download Excel'));
         } finally {
@@ -257,11 +308,11 @@ export default function PayrollExpensesPage() {
                     <Button
                         variant="outline"
                         className="rounded-xl"
-                        onClick={handleDownload}
-                        disabled={isDownloading || isLoading}
+                        onClick={openExportDialog}
+                        disabled={isLoading}
                     >
                         <IconDownload size={16} className="mr-1" />
-                        {isDownloading ? 'Downloading...' : 'Download Excel'}
+                        Download Excel
                     </Button>
                 </div>
             </div>
@@ -530,6 +581,95 @@ export default function PayrollExpensesPage() {
                     )}
                 </>
             )}
+
+            <Dialog open={exportOpen} onOpenChange={(open) => !isDownloading && setExportOpen(open)}>
+                <DialogContent className="w-[95vw] sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Download Excel</DialogTitle>
+                        <DialogDescription>
+                            Choose the month range. Every sheet only contains months inside the range.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => applyPreset('this-month')}>
+                                This month
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => applyPreset('this-year')}>
+                                This year
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => applyPreset('last-year')}>
+                                Last year
+                            </Button>
+                        </div>
+
+                        {([
+                            { label: 'From', value: exportFrom, set: setExportFrom },
+                            { label: 'To', value: exportTo, set: setExportTo },
+                        ] as const).map((field) => (
+                            <div key={field.label} className="grid grid-cols-[3rem_1fr_6rem] items-center gap-2">
+                                <span className="text-sm text-muted-foreground">{field.label}</span>
+                                <Select
+                                    value={String(field.value.month)}
+                                    onValueChange={(v) => field.set({ ...field.value, month: Number(v) })}
+                                >
+                                    <SelectTrigger className="rounded-xl">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MONTHS.map((m) => (
+                                            <SelectItem key={m.value} value={m.value}>
+                                                {m.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Select
+                                    value={String(field.value.year)}
+                                    onValueChange={(v) => field.set({ ...field.value, year: Number(v) })}
+                                >
+                                    <SelectTrigger className="rounded-xl">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {YEARS.map((y) => (
+                                            <SelectItem key={y.value} value={y.value}>
+                                                {y.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ))}
+
+                        <label className="flex items-center gap-2 text-sm">
+                            <Switch checked={exportDraft} onCheckedChange={setExportDraft} />
+                            Include drafts (estimate)
+                        </label>
+
+                        {exportError ? (
+                            <p className="text-sm text-rose-600">{exportError}</p>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                {formatMonthYear(exportFrom)}
+                                {exportMonthCount > 1 ? ` - ${formatMonthYear(exportTo)}` : ''} ({exportMonthCount}{' '}
+                                {exportMonthCount === 1 ? 'month' : 'months'})
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" className="rounded-xl" onClick={() => setExportOpen(false)} disabled={isDownloading}>
+                            Cancel
+                        </Button>
+                        <Button className="rounded-xl" onClick={handleDownload} disabled={isDownloading || exportError !== null}>
+                            <IconDownload size={16} className="mr-1" />
+                            {isDownloading ? 'Downloading...' : 'Download'}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={detailMonth !== null} onOpenChange={(open) => !open && setDetailMonth(null)}>
                 {/* min-w-0 pada anak langsung: DialogContent adalah grid; tanpa ini tabel lebar mendorong dialog melebihi layar. */}
